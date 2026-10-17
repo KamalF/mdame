@@ -2,12 +2,13 @@ use crate::app::AppState;
 use crate::error::ApiError;
 use axum::{
     Json, Router,
-    extract::{Request, State},
-    http::{HeaderMap, HeaderValue, header},
+    extract::{Path, Request, State},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
-    response::Response,
+    response::{IntoResponse, Response},
     routing::get,
 };
+use rust_embed::RustEmbed;
 use serde::Serialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -127,10 +128,83 @@ fn same_secret(a: &str, b: &str) -> bool {
             == 0
 }
 
+const PAGE_CSP: &str =
+    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'";
+
+async fn security_headers(req: Request, next: Next) -> Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(PAGE_CSP),
+    );
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    response
+}
+
+#[derive(RustEmbed)]
+#[folder = "web/dist"]
+struct Dist;
+
+async fn page(headers: HeaderMap) -> Response {
+    embedded("index.html", &headers)
+}
+
+async fn asset(Path(path): Path<String>, headers: HeaderMap) -> Response {
+    embedded(&format!("assets/{path}"), &headers)
+}
+
+fn embedded(path: &str, request_headers: &HeaderMap) -> Response {
+    let Some(file) = Dist::get(path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let hash = file.metadata.sha256_hash();
+    let etag = format!(
+        "\"{}\"",
+        hash.iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let unchanged = request_headers
+        .get(header::IF_NONE_MATCH)
+        .is_some_and(|value| value.as_bytes() == etag.as_bytes());
+    if unchanged {
+        return (StatusCode::NOT_MODIFIED, [(header::ETAG, etag)]).into_response();
+    }
+    let content_type = content_type(path).to_string();
+    (
+        [(header::CONTENT_TYPE, content_type), (header::ETAG, etag)],
+        file.data,
+    )
+        .into_response()
+}
+
+fn content_type(path: &str) -> &'static str {
+    match path.rsplit_once('.').map(|(_, extension)| extension) {
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("css") => "text/css; charset=utf-8",
+        Some("svg") => "image/svg+xml",
+        Some("woff2") => "font/woff2",
+        _ => "application/octet-stream",
+    }
+}
+
 pub fn router(app_state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/", get(|| async { "hello" }))
+        .route("/", get(page))
+        .route("/view/{*path}", get(page))
+        .route("/edit/{*path}", get(page))
+        .route("/assets/{*path}", get(asset))
         .route("/api/state", get(state))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
+        .layer(middleware::from_fn(security_headers))
         .with_state(app_state)
 }

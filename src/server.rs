@@ -42,11 +42,15 @@ async fn guard(
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())
         .filter(|host| is_own_host(host, app.addr))
-        .ok_or(ApiError::Forbidden("host not allowed"))?;
+        .ok_or_else(|| {
+            tracing::debug!(host = ?headers.get(header::HOST), "refused: host not allowed");
+            ApiError::Forbidden("host not allowed")
+        })?;
 
     if let Some(origin) = headers.get(header::ORIGIN) {
         // The Host is already checked, so our own origin is the page's Host.
         if origin.as_bytes() != format!("http://{host}").as_bytes() {
+            tracing::debug!(?origin, "refused: origin not allowed");
             return Err(ApiError::Forbidden("origin not allowed"));
         }
     }

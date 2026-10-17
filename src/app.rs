@@ -1,20 +1,33 @@
 use std::io::{self, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+
+use clap::Parser;
 use tokio::net::TcpListener;
 
 use crate::server;
 
-const FIRST_PORT: u16 = 4891;
 const PORT_ATTEMPTS: usize = 10;
+
+#[derive(Parser)]
+#[command(version)]
+pub struct Args {
+    /// Port to listen on; if it is in use, the next free one is taken
+    #[arg(short, long, default_value_t = 4891)]
+    pub port: u16,
+
+    /// Show debug logs
+    #[arg(short, long)]
+    pub verbose: bool,
+}
 
 pub struct AppState {
     pub addr: SocketAddr,
     pub workspace: Option<String>,
 }
 
-pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let listener = bind_first_free(Ipv4Addr::LOCALHOST.into(), FIRST_PORT, PORT_ATTEMPTS).await?;
+pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
+    let listener = bind_first_free(Ipv4Addr::LOCALHOST.into(), args.port, PORT_ATTEMPTS).await?;
     let app_state = AppState {
         addr: listener.local_addr()?,
         workspace: None,
@@ -43,6 +56,12 @@ async fn bind_first_free(ip: IpAddr, first: u16, attempts: usize) -> io::Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn args_are_consistent() {
+        use clap::CommandFactory;
+        Args::command().debug_assert();
+    }
 
     const LOCALHOST: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 

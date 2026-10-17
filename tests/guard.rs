@@ -2,28 +2,49 @@ use std::sync::Arc;
 
 use axum::{
     body::Body,
-    http::{Request, StatusCode},
+    http::{Request, StatusCode, header},
+    response::Response,
 };
 use mdame::{app::AppState, server::router};
 use tower::ServiceExt;
 
-/// Sends `GET /api/state` to a server bound on 127.0.0.1:4891.
-async fn status(host: Option<&str>, origin: Option<&str>) -> StatusCode {
-    let state = AppState {
-        addr: "127.0.0.1:4891".parse().unwrap(),
-        workspace: None,
-    };
-    let mut request = Request::builder().uri("/api/state");
-    if let Some(host) = host {
-        request = request.header("host", host);
-    }
-    if let Some(origin) = origin {
-        request = request.header("origin", origin);
+async fn send(state: AppState, uri: &str, headers: &[(&str, &str)]) -> Response {
+    let mut request = Request::builder().uri(uri);
+    for (name, value) in headers {
+        request = request.header(*name, *value);
     }
     let request = request.body(Body::empty()).unwrap();
+    router(Arc::new(state)).oneshot(request).await.unwrap()
+}
 
-    let response = router(Arc::new(state)).oneshot(request).await.unwrap();
-    response.status()
+fn local() -> AppState {
+    AppState {
+        addr: "127.0.0.1:4891".parse().unwrap(),
+        workspace: None,
+        token: None,
+    }
+}
+
+/// A server bound with `-H 0.0.0.0`, reached as 192.168.1.5 from the network.
+fn network() -> AppState {
+    AppState {
+        addr: "0.0.0.0:4891".parse().unwrap(),
+        workspace: None,
+        token: Some("secret".to_string()),
+    }
+}
+
+const LAN_HOST: (&str, &str) = ("host", "192.168.1.5:4891");
+
+async fn status(host: Option<&str>, origin: Option<&str>) -> StatusCode {
+    let mut headers = Vec::new();
+    if let Some(host) = host {
+        headers.push(("host", host));
+    }
+    if let Some(origin) = origin {
+        headers.push(("origin", origin));
+    }
+    send(local(), "/api/state", &headers).await.status()
 }
 
 #[tokio::test]
@@ -78,4 +99,63 @@ async fn host_with_another_port_is_refused() {
 #[tokio::test]
 async fn missing_host_is_refused() {
     assert_eq!(status(None, None).await, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn network_request_without_token_is_refused() {
+    let response = send(network(), "/api/state", &[LAN_HOST]).await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn network_request_with_wrong_token_is_refused() {
+    let response = send(network(), "/api/state?t=guess", &[LAN_HOST]).await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    let cookie = ("cookie", "mdame_token_4891=guess");
+    let response = send(network(), "/api/state", &[LAN_HOST, cookie]).await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn query_token_passes_and_sets_the_cookie() {
+    let response = send(network(), "/?t=secret", &[LAN_HOST]).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::SET_COOKIE],
+        "mdame_token_4891=secret; HttpOnly; SameSite=Strict; Path=/"
+    );
+}
+
+#[tokio::test]
+async fn cookie_token_passes() {
+    let cookie = ("cookie", "theme=dark; mdame_token_4891=secret");
+    let response = send(network(), "/api/state", &[LAN_HOST, cookie]).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.headers().get(header::SET_COOKIE).is_none());
+}
+
+#[tokio::test]
+async fn network_host_with_another_port_is_refused() {
+    let host = ("host", "192.168.1.5:3000");
+    let response = send(network(), "/api/state?t=secret", &[host]).await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn token_does_not_excuse_a_foreign_origin() {
+    let origin = ("origin", "https://evil.example");
+    let response = send(network(), "/api/state?t=secret", &[LAN_HOST, origin]).await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn ip_bound_server_still_checks_the_host() {
+    let state = AppState {
+        addr: "192.168.1.5:4891".parse().unwrap(),
+        ..network()
+    };
+    let rebinding = ("host", "evil.example:4891");
+    let response = send(state, "/api/state?t=secret", &[rebinding]).await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }

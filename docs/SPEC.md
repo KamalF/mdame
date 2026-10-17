@@ -190,6 +190,7 @@ Each part of the app maps to one focused library; custom code is limited to snap
 | open | 5.4 | Open the browser | custom per-OS commands |
 | tracing, tracing-subscriber | 0.1.44; 0.3.23 | Logging and timing spans; `-v` sets debug level | log + env_logger (no spans, while axum and tower speak tracing), println |
 | thiserror | 2.0 | Typed API errors | none |
+| getrandom | 0.4.3 | Secure random bytes from the OS for the network token | rand (far more than the one call that mdame needs), reading `/dev/urandom` (no Windows) |
 
 Written ourselves instead of a crate:
 
@@ -394,8 +395,8 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 | Threat | Defence |
 | --- | --- |
 | A website in another tab calls the local API | No CORS layer at all. A middleware rejects any request whose `Origin` header is present and not mdame's own origin, and rejects WebSocket upgrades the same way. |
-| DNS rebinding: a hostile domain resolving to 127.0.0.1 | The same middleware rejects requests whose `Host` is not `localhost`, `127.0.0.1`, `[::1]` or the bound address, with the right port. |
-| Another device on the network, when bound with `-H` beyond localhost | Generate a random token at startup and print the URL with `?t=<token>`. The first request sets an HttpOnly, SameSite=Strict cookie; every later request needs that cookie or the query token. |
+| DNS rebinding: a hostile domain resolving to 127.0.0.1 | The same middleware rejects requests whose `Host` is not `localhost`, `127.0.0.1`, `[::1]` or the bound address, with the right port. If mdame is bound to all interfaces (`0.0.0.0` or `::`), any `Host` with the right port passes, because the browser can name the machine by any address or hostname. The token is then the defence: a rebinding page has neither the token nor the cookie. |
+| Another device on the network, when bound with `-H` beyond localhost | Generate a random token at startup and print the URL with `?t=<token>`. The first request sets an HttpOnly, SameSite=Strict cookie; every later request needs that cookie or the query token. The cookie name contains the port, so that two mdame on one machine do not overwrite each other's cookie. The token is compared in constant time. |
 | Path traversal or symlink escape | All workspace file access goes through a cap-std `Dir` opened on the root. No `std::fs` call takes a client-supplied path. |
 | Symlinks inside the workspace | Symlinked files that resolve inside the root open normally; a symlink with an absolute target is always an error in cap-std, even one pointing inside. The tree walker does not descend into symlinked directories in v1. |
 | Script in a markdown file, possibly agent-written | ammonia strips scripts, handlers and `javascript:` URLs before HTML leaves the server. |
@@ -616,6 +617,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Wireframes signed off, to adjust during testing | 15 October 2026 |
 | Upstream advisory: confirm locally, then report privately (later) | 15 October 2026 |
 | Default theme follows the system; built-ins are GitHub Primer light and dark; Catppuccin and Minimal later | 15 October 2026 |
+| Token from getrandom; when bound to all interfaces, the token replaces the `Host` list | 17 October 2026 |
 
 ### Review log, 14 October 2026
 

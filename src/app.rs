@@ -1,5 +1,5 @@
 use std::io::{self, ErrorKind};
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use clap::Parser;
@@ -46,9 +46,10 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     let state: Arc<AppState> = Arc::new(app_state);
 
-    match &state.token {
-        Some(token) => println!("mdame on http://{}/?t={token}", state.addr),
-        None => println!("mdame on http://{}", state.addr),
+    let token = state.token.as_deref();
+    println!("mdame on {}", page_url(state.addr, token));
+    if let Err(error) = open::that_detached(page_url(browser_addr(state.addr), token)) {
+        tracing::warn!("could not open the browser: {error}");
     }
     axum::serve(listener, server::router(state)).await?;
     Ok(())
@@ -68,6 +69,24 @@ async fn bind_first_free(ip: IpAddr, first: u16, attempts: usize) -> io::Result<
     ))
 }
 
+fn page_url(addr: SocketAddr, token: Option<&str>) -> String {
+    match token {
+        Some(token) => format!("http://{addr}/?t={token}"),
+        None => format!("http://{addr}/"),
+    }
+}
+
+/// 0.0.0.0 and :: are not addresses to connect to, and some browsers refuse
+/// them, so the browser on this machine goes through loopback instead.
+fn browser_addr(addr: SocketAddr) -> SocketAddr {
+    let loopback: IpAddr = match addr.ip() {
+        ip if !ip.is_unspecified() => return addr,
+        IpAddr::V4(_) => Ipv4Addr::LOCALHOST.into(),
+        IpAddr::V6(_) => Ipv6Addr::LOCALHOST.into(),
+    };
+    SocketAddr::new(loopback, addr.port())
+}
+
 fn new_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes)?;
@@ -77,7 +96,29 @@ fn new_token() -> Result<String, getrandom::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::Ipv4Addr;
+
+    #[test]
+    fn page_url_carries_the_token() {
+        let addr = "192.168.1.5:4891".parse().unwrap();
+        assert_eq!(page_url(addr, None), "http://192.168.1.5:4891/");
+        assert_eq!(
+            page_url(addr, Some("abc")),
+            "http://192.168.1.5:4891/?t=abc"
+        );
+    }
+
+    #[test]
+    fn browser_goes_through_loopback_when_bound_to_all_interfaces() {
+        let cases = [
+            ("0.0.0.0:4891", "127.0.0.1:4891"),
+            ("[::]:4891", "[::1]:4891"),
+            ("192.168.1.5:4891", "192.168.1.5:4891"),
+        ];
+        for (bound, expected) in cases {
+            let bound: SocketAddr = bound.parse().unwrap();
+            assert_eq!(browser_addr(bound).to_string(), expected);
+        }
+    }
 
     #[test]
     fn args_are_consistent() {

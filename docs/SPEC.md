@@ -526,11 +526,11 @@ mise manages the repo. `mise.toml` pins the tools (Rust toolchain, Bun) and defi
 | `fmt` | `cargo fmt` |
 | `lint` | `cargo clippy -- -D warnings` |
 | `test` | `cargo test` and `bun test` |
-| `check-dist` | `mise run web && git diff --exit-code -- web/dist`: fails on a stale committed bundle |
+| `check-dist` | `mise run web`, then fails if `git status --porcelain -- web/dist` lists anything: a stale committed bundle. `git diff` alone misses new, untracked chunk files |
 
 **No Node.** Bun is the package manager: `package.json`, a committed text `bun.lock`, and `bunfig.toml` with `linker = "hoisted"`, so there is one flat `node_modules/` (git-ignored) and a single copy of `@codemirror/state`, checked with `bun pm ls` (and `bun dedupe` if needed). Dependency install scripts stay off, which is Bun's default. `bun audit` and `bun outdated` cover maintenance; Renovate understands `bun.lock`.
 
-**Bundler.** Bun's own bundler (`bun build`, ESM output, `--splitting` for Mermaid's and language-data's lazy chunks, `--minify`), provided milestone 1 shows its output is reproducible: build twice in two different directories and diff `web/dist`. `check-dist` depends on that. If the outputs differ, esbuild, installed through Bun as a devDependency, becomes the bundler and only the `web` and `dev` tasks change. esbuild normally sets up its binary with an install script: either allow it in `trustedDependencies` or call the binary under `node_modules/@esbuild/linux-x64/bin/` directly.
+**Bundler.** Bun's own bundler (`bun build`, ESM output, `--splitting` for Mermaid's and language-data's lazy chunks, `--minify`). Its output is reproducible, which `check-dist` depends on. Checked on 17 October 2026 with Bun 1.4.3: a test entry that imports codemirror, lang-markdown, language-data and Mermaid built 203 identical files (7.1 MB) in three directories, one of them installed fresh with `bun ci`. The output held no absolute paths, and `node_modules/` held one copy of `@codemirror/state`. If a later Bun breaks this, esbuild, installed through Bun as a devDependency, becomes the bundler, and only the `web` and `dev` tasks change.
 
 **Users need only Rust.** `web/dist` is committed, so `cargo install mdame` never runs Bun or esbuild.
 
@@ -599,7 +599,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 
 - **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
 - **Theme details.** Exact Primer values per contract variable and the final theme-contract list, at the theme pass in milestone 8.
-- **To settle in a milestone:** the bundler (milestone 1), GraphQL and legacy-mode highlighting (milestone 4), rename pairing on inotify (milestone 5).
+- **To settle in a milestone:** GraphQL and legacy-mode highlighting (milestone 4), rename pairing on inotify (milestone 5).
 
 ## Decided
 
@@ -618,6 +618,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Upstream advisory: confirm locally, then report privately (later) | 15 October 2026 |
 | Default theme follows the system; built-ins are GitHub Primer light and dark; Catppuccin and Minimal later | 15 October 2026 |
 | Token from getrandom; when bound to all interfaces, the token replaces the `Host` list | 17 October 2026 |
+| Bun is the bundler: its output is reproducible | 17 October 2026 |
 
 ### Review log, 14 October 2026
 

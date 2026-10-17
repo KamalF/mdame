@@ -1,0 +1,9 @@
+{
+  "name": "mdame-web",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "typescript": "7.0.2"
+  }
+}

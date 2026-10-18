@@ -323,6 +323,12 @@
   visibility: visible;
 }
 
+/* The name ends with its ellipsis before the copy button. */
+.mdame-tree-line:hover .mdame-tree-row,
+.mdame-tree-line:focus-within .mdame-tree-row {
+  padding-right: 30px;
+}
+
 .mdame-tree-line:hover .mdame-tree-folder,
 .mdame-tree-line:focus-within .mdame-tree-folder {
   visibility: hidden;

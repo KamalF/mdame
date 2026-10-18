@@ -350,7 +350,7 @@ All rendering happens in `render.rs`: one function takes a path and its contents
 | `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` | `<img src="/raw/…">` |
 | anything else | Not listed in the tree in v1 |
 
-Files over 1 MB return `too_large: true` and a short notice instead of HTML; they can still be opened in the editor.
+Files over 1 MB return `too_large: true` and a short notice instead of HTML; they can still be opened in the editor. Images are never read, so the limit does not apply to them. Measured on 18 October 2026, release build: a 1 MB file of dense markdown (headings, lists, tables, links, code, raw HTML on every few lines) renders in 0.9 s, 0.2 s in comrak and 0.7 s in ammonia; 1 MB of plain prose takes 0.09 s. A debug build is about ten times slower.
 
 ### comrak options
 

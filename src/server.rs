@@ -1,6 +1,7 @@
 use crate::app::{AppState, OpenError, hex};
 use crate::config::{self, HistoryMode, Recent};
-use crate::error::ApiError;
+use crate::document::{self, View};
+use crate::error::{ApiError, io_message};
 use crate::tree::{self, Suggestion};
 use crate::workspace;
 use axum::{
@@ -300,6 +301,33 @@ async fn complete(
     Ok(Json(tree::complete(&query.prefix, home.as_deref())))
 }
 
+#[derive(Deserialize)]
+struct FileQuery {
+    path: String,
+}
+
+async fn file(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<FileQuery>, QueryRejection>,
+) -> Result<Json<View>, ApiError> {
+    let Query(query) = query?;
+    let workspace = app.workspace()?;
+    // Reading and rendering a large file takes a while.
+    let path = query.path.clone();
+    let view = tokio::task::spawn_blocking(move || document::view(&workspace.dir, &path))
+        .await
+        .map_err(|error| ApiError::Internal(error.to_string()))?;
+    view.map(Json).map_err(|error| {
+        let message = format!("{}: {}", query.path, io_message(&error));
+        match error.kind() {
+            io::ErrorKind::NotFound => ApiError::NotFound(message),
+            // cap-std's answer to `..`, absolute paths and links out.
+            io::ErrorKind::PermissionDenied => ApiError::Forbidden("path outside the workspace"),
+            _ => ApiError::Internal(message),
+        }
+    })
+}
+
 pub fn router(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(page))
@@ -312,6 +340,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/complete", get(complete))
         .route("/api/recents", get(recents))
         .route("/api/tree", get(tree))
+        .route("/api/file", get(file))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

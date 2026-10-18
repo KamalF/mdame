@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
-use std::time::UNIX_EPOCH;
 
 use cap_std::fs::Dir;
 use ignore::WalkBuilder;
 use serde::Serialize;
 
+use crate::document::modified_secs;
 use crate::render::Family;
 use crate::workspace::{Workspace, expand_home};
 
@@ -124,15 +124,9 @@ fn viewable_file(dir: &Dir, relative: &str) -> Option<File> {
         .metadata(relative)
         .ok()
         .filter(|metadata| metadata.is_file())?;
-    let modified = metadata
-        .modified()
-        .ok()?
-        .into_std()
-        .duration_since(UNIX_EPOCH)
-        .ok()?;
     Some(File {
         family,
-        modified: modified.as_secs(),
+        modified: modified_secs(&metadata)?,
     })
 }
 
@@ -270,7 +264,7 @@ mod tests {
         let path = root.join(path);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         let file = fs::File::create(&path).unwrap();
-        file.set_modified(UNIX_EPOCH + std::time::Duration::from_secs(seconds))
+        file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds))
             .unwrap();
     }
 

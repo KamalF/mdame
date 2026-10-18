@@ -122,8 +122,7 @@ export function mount(
 
   let recents: Recent[] = [];
   let items: Item[] = [];
-  let itemsFor = "";
-  let highlight = 0;
+  let highlight = -1;
   let request = 0;
 
   function render() {
@@ -163,6 +162,8 @@ export function mount(
   async function suggest() {
     const typed = input.value;
     const current = ++request;
+    highlight = -1;
+    render();
     let completions: Suggestion[] = [];
     if (typed.includes("/")) {
       completions = await api<Suggestion[]>("GET", `/api/complete?prefix=${encodeURIComponent(typed)}`).catch(
@@ -172,9 +173,6 @@ export function mount(
     // A slower answer to an older prefix must not replace a newer one.
     if (current !== request) return;
     items = merge(recents, completions, typed, state.home);
-    itemsFor = typed;
-    // After a folder, the rows are its children: Enter opens the folder.
-    highlight = typed.endsWith("/") ? -1 : 0;
     render();
   }
 
@@ -193,21 +191,21 @@ export function mount(
 
   input.addEventListener("keydown", (event) => {
     error.textContent = "";
-    // Rows still built for older text (a paste, fast typing) are not chosen.
-    const chosen = itemsFor === input.value ? items[highlight] : undefined;
+    const chosen = items[highlight];
     if (event.key === "ArrowDown" && items.length > 0) {
       highlight = (highlight + 1) % items.length;
       render();
     } else if (event.key === "ArrowUp" && items.length > 0) {
       highlight = highlight <= 0 ? items.length - 1 : highlight - 1;
       render();
-    } else if (event.key === "Tab" && chosen) {
-      input.value = chosen.path;
+    } else if (event.key === "Tab" && items.length > 0) {
+      input.value = (chosen ?? items[0]).path;
       suggest();
     } else if (event.key === "Enter") {
       open(chosen ? chosen.path : input.value);
     } else if (event.key === "Escape") {
       items = [];
+      highlight = -1;
       render();
     } else {
       return;

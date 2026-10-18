@@ -46,6 +46,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - The picker screen: `api.ts`, `picker.ts`, provisional `base.css` and `components.css`, and `bun test` for its pure functions. Until milestone 4, an open workspace shows a one-line placeholder.
 - The first-start dialog in `dialogs.ts`: a native `<dialog>`; Continue or Esc saves the choice through `PUT /api/settings`.
 - Messages that come from the OS lose their "(os error N)" suffix, on the command line and in the API.
+- Review loop over milestones 1 and 2: 5 rounds and a simplify pass; fixes in their own commits. Follow-ups are listed under Open points.
+- The picker highlights no row until ↑ or ↓: Enter opens the field's text unless you chose a row.
 
 ## Next
 
@@ -55,3 +57,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
+- From the review of 18 October 2026, for later:
+  - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`; run `/api/complete` in `spawn_blocking`; remove `?t=` from the address bar once the cookie is set; state in the threat model that the machine has one user.
+  - Usability: print a usable address when bound to `0.0.0.0`; debounce completion requests; unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
+  - Tests: shared helpers in `tests/common`; `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.

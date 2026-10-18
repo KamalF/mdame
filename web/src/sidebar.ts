@@ -213,6 +213,8 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   });
 
   filter.addEventListener("keydown", (event) => {
+    // Enter and the arrows belong to the input method while it composes.
+    if (event.isComposing) return;
     if (event.key === "ArrowDown" && results.length > 0) {
       highlight = (highlight + 1) % results.length;
       render();
@@ -350,7 +352,10 @@ function copyButton(path: string) {
       button.replaceChildren(icon("cross"));
       button.title = "Copy failed: the clipboard works only through localhost";
     }
-    setTimeout(() => button.replaceChildren(icon("link")), 1200);
+    setTimeout(() => {
+      button.replaceChildren(icon("link"));
+      button.title = "Copy path";
+    }, 1200);
   });
   return button;
 }

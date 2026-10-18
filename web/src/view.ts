@@ -3,6 +3,7 @@ import { api, type ApiError } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
+import { encodePath } from "./sidebar.ts";
 
 /** What `/api/file` answers. */
 export interface FileView {
@@ -13,16 +14,6 @@ export interface FileView {
   too_large: boolean;
 }
 
-/** `/raw/docs/a%20b.md` gives `docs/a b.md`; any other path gives null. */
-export function rawPath(pathname: string): string | null {
-  if (!pathname.startsWith("/raw/")) return null;
-  try {
-    return decodeURIComponent(pathname.slice(5));
-  } catch {
-    return null;
-  }
-}
-
 function message(el: HTMLElement, text: string) {
   const line = document.createElement("p");
   line.className = "mdame-placeholder";
@@ -31,16 +22,29 @@ function message(el: HTMLElement, text: string) {
 }
 
 let request = 0;
+/** The file on screen, as `{path, file}`. */
+let shown: { path: string; file: FileView } | undefined;
 
-/** `docs/a b.md` gives `/raw/docs/a%20b.md`. */
 export function rawUrl(path: string): string {
-  return "/raw/" + path.split("/").map(encodeURIComponent).join("/");
+  return "/raw/" + encodePath(path);
+}
+
+/** The server points links to `/raw/`, as images; links open in the app. */
+export function viewHref(href: string): string {
+  return href.startsWith("/raw/") ? "/view/" + href.slice("/raw/".length) : href;
 }
 
 /** Shows the rendered file in `el`, and returns its `/api/file` answer, or
- * null when it failed or another file was asked for meanwhile. */
+ * null when it failed or a later request replaced this one. */
 export async function showFile(el: HTMLElement, path: string): Promise<FileView | null> {
+  // Moving between `#…` of the file on screen only scrolls, and its
+  // diagrams may still move the target.
+  if (shown?.path === path) {
+    scrollToHash();
+    return shown.file;
+  }
   const id = ++request;
+  shown = undefined;
   let file: FileView;
   try {
     file = await api<FileView>("GET", `/api/file?path=${encodeURIComponent(path)}`);
@@ -50,16 +54,21 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
     return null;
   }
   if (id !== request) return null;
+  shown = { path, file };
   const article = document.createElement("article");
   article.className = "mdame-document";
   // Sanitized by the server.
   article.innerHTML = file.html;
+  for (const link of article.querySelectorAll('a[href^="/raw/"]')) {
+    link.setAttribute("href", viewHref(link.getAttribute("href")!));
+  }
   el.replaceChildren(article);
   el.scrollTop = 0;
   scrollToHash();
   addCopyButtons(article);
   highlightAll(article);
-  renderDiagrams(article);
+  // A diagram above the `#…` target moves it once drawn.
+  renderDiagrams(article).then(() => id === request && scrollToHash());
   return file;
 }
 
@@ -98,6 +107,7 @@ function notFound(el: HTMLElement, path: string, error: ApiError) {
 /** The page with no file chosen; `empty` when the workspace shows none. */
 export function showNothing(el: HTMLElement, empty: boolean) {
   request++;
+  shown = undefined;
   message(
     el,
     empty

@@ -1,11 +1,11 @@
 import "../styles/base.css";
 import "../styles/layout.css";
 import "../styles/components.css";
-import { api, type State } from "./api.ts";
+import { api, errorFrom, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { askHistory } from "./dialogs.ts";
 import { icon } from "./icons.ts";
-import { bindKeys } from "./keys.ts";
+import { bindKeys, isPlainClick } from "./keys.ts";
 import * as picker from "./picker.ts";
 import * as sidebar from "./sidebar.ts";
 import * as view from "./view.ts";
@@ -24,21 +24,17 @@ function showStatus(state: State) {
   status.replaceChildren(workspace, fileStatus, version);
 }
 
-function showFileStatus(path: string | null, file: view.FileView | null) {
-  if (!file) {
-    fileStatus.replaceChildren();
-    return;
-  }
+function showFileStatus(path: string, file: view.FileView) {
   const name = document.createElement("span");
   name.textContent = path;
   const modified = document.createElement("span");
   modified.textContent = new Date(file.modified * 1000).toLocaleString();
-  const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path! });
+  const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
   fileStatus.replaceChildren(name, modified, copyPath);
   if (file.family !== "image") {
     const content = async () => {
-      const response = await fetch(view.rawUrl(path!));
-      if (!response.ok) throw new Error(`the server answered ${response.status}`);
+      const response = await fetch(view.rawUrl(path));
+      if (!response.ok) throw errorFrom(response.status, null);
       return response.text();
     };
     fileStatus.append(copyButton({ label: "Copy content", iconName: "copy", text: content }));
@@ -48,18 +44,12 @@ function showFileStatus(path: string | null, file: view.FileView | null) {
 const content = document.createElement("div");
 content.id = "mdame-content";
 
-let shown: string | null | undefined;
+let fileCount = 0;
 
 function showContent(path: string | null) {
-  // Moving between `#…` of the same file only scrolls.
-  if (path === shown) {
-    view.scrollToHash();
-    return;
-  }
-  shown = path;
-  showFileStatus(path, null);
+  fileStatus.replaceChildren();
   if (path) view.showFile(content, path).then((file) => file && showFileStatus(path, file));
-  else view.showNothing(content, sidebar.isEmpty());
+  else view.showNothing(content, fileCount === 0);
 }
 
 function openFile(path: string, hash = "") {
@@ -69,14 +59,13 @@ function openFile(path: string, hash = "") {
   showContent(path);
 }
 
-// Links in a file point to `/raw/…`; they open here instead. A missing
-// file gets the not-found page, a PDF one with a link to the raw file.
+// Links to `/view/…` open without a page load, as sidebar rows do.
 content.addEventListener("click", (event) => {
-  if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+  if (!isPlainClick(event)) return;
   const link = (event.target as Element).closest<HTMLAnchorElement>("a[href]");
   if (!link) return;
   const url = new URL(link.href);
-  const path = url.origin === location.origin ? view.rawPath(url.pathname) : null;
+  const path = url.origin === location.origin ? sidebar.pathFromUrl(url.pathname) : null;
   if (path === null) return;
   event.preventDefault();
   openFile(path, url.hash);
@@ -105,8 +94,11 @@ async function showWorkspace(state: State) {
   status.prepend(button);
   sidebar.setupLayout({ frame, handle, backdrop, button });
   bindKeys({ b: sidebar.toggleSidebar, "/": sidebar.focusFilter });
-  await sidebar.mount(nav, { root, current, onOpen: openFile });
-  showContent(current);
+  const mounted = sidebar.mount(nav, { root, current, onOpen: openFile });
+  // Only the empty-workspace page needs the tree: a file shows at once.
+  if (current) showContent(current);
+  fileCount = await mounted;
+  if (!current) showContent(current);
 }
 
 addEventListener("popstate", () => {

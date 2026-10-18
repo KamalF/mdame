@@ -35,12 +35,17 @@ async function highlight(code: HTMLElement) {
   const name = code.className.slice("language-".length);
   const pieces = await tokens(name, code.textContent);
   if (!pieces) return;
-  const spans = pieces.map(([piece, classes]) => {
-    if (!classes) return piece;
+  // One fragment: a 1 MB file has too many pieces to pass as arguments.
+  const fragment = document.createDocumentFragment();
+  for (const [piece, classes] of pieces) {
+    if (!classes) {
+      fragment.append(piece);
+      continue;
+    }
     const span = document.createElement("span");
     span.className = classes;
     span.textContent = piece;
-    return span;
-  });
-  code.replaceChildren(...spans);
+    fragment.append(span);
+  }
+  code.replaceChildren(fragment);
 }

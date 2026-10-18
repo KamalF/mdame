@@ -27,18 +27,20 @@ export async function renderDiagrams(root: HTMLElement) {
   for (const pre of blocks) {
     const figure = document.createElement("div");
     figure.className = "mdame-diagram";
-    const id = `mdame-mermaid-${++count}`;
+    // Mermaid draws in this box, and leaves its error graphic there.
+    const box = document.createElement("div");
+    document.body.append(box);
     try {
-      const { svg } = await mermaid.render(id, pre.textContent);
+      const { svg } = await mermaid.render(`mdame-mermaid-${++count}`, pre.textContent, box);
       figure.innerHTML = svg;
       pre.replaceWith(figure);
     } catch (error) {
-      // On failure Mermaid leaves its error graphic in <body>.
-      document.getElementById(`d${id}`)?.remove();
       // Keep the source, with the reason below it.
       figure.className = "mdame-diagram-error";
       figure.textContent = `Mermaid: ${(error as Error).message}`;
       pre.after(figure);
+    } finally {
+      box.remove();
     }
   }
 }

@@ -9,6 +9,11 @@ export function shouldHandle(event: KeyboardEvent): boolean {
   return !(event.target as Element | null)?.closest?.(TYPING);
 }
 
+/** A click with no modifier: the others open a new tab or window. */
+export function isPlainClick(event: MouseEvent): boolean {
+  return !(event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0);
+}
+
 export function bindKeys(map: Record<string, () => void>) {
   addEventListener("keydown", (event: KeyboardEvent) => {
     const handler = map[event.key];

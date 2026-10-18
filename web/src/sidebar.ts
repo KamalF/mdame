@@ -2,6 +2,7 @@ import uFuzzy from "@leeoniya/ufuzzy";
 import { api } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { fileIcon, icon } from "./icons.ts";
+import { isPlainClick } from "./keys.ts";
 
 /** A node of `/api/tree`. `modified` is in Unix seconds; for a folder, its newest file. */
 export interface TreeNode {
@@ -121,9 +122,13 @@ export function filterFiles(list: TreeNode[], query: string): Match[] {
   });
 }
 
-/** `docs/a b.md` gives `/view/docs/a%20b.md`: each part is encoded, not the slashes. */
+/** `docs/a b.md` gives `docs/a%20b.md`: each part is encoded, not the slashes. */
+export function encodePath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
 export function viewUrl(path: string): string {
-  return "/view/" + path.split("/").map(encodeURIComponent).join("/");
+  return "/view/" + encodePath(path);
 }
 
 export function pathFromUrl(pathname: string): string | null {
@@ -154,18 +159,17 @@ function store(key: string, value: unknown) {
 
 let select: (path: string | null) => void = () => {};
 let focusField = () => {};
-let fileCount = 0;
+
+// The current file, also while the tree is still loading.
+let latest: string | null;
 
 /** Highlights `path` as the current file. */
 export function setCurrent(path: string | null) {
+  latest = path;
   select(path);
 }
 
-/** Whether the tree has no file. */
-export function isEmpty(): boolean {
-  return fileCount === 0;
-}
-
+/** Shows the tree in `el`, and returns its number of files. */
 interface MountOptions {
   root: string;
   current: string | null;
@@ -173,6 +177,7 @@ interface MountOptions {
 }
 
 export async function mount(el: HTMLElement, { root, current, onOpen }: MountOptions) {
+  latest = current;
   const openKey = `mdame:open:${root}`;
   const open = new Set([...load(openKey, []), ...ancestors(current ?? "")]);
   let order = load("mdame:sort", "name-asc");
@@ -196,8 +201,10 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   el.replaceChildren(header, list);
 
   const fetched = await api<TreeNode>("GET", "/api/tree");
+  // The page can show another file while the tree loads.
+  current = latest;
+  for (const folder of ancestors(current ?? "")) open.add(folder);
   const allFiles = files(fetched);
-  fileCount = allFiles.length;
   let tree = sortTree(fetched, order);
   let query = "";
   let results: Match[] = [];
@@ -333,7 +340,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     row.append(icon(fileIcon(node.family)), name);
     row.addEventListener("click", (event) => {
       // A modified click (new tab, new window) stays a normal link.
-      if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+      if (!isPlainClick(event)) return;
       event.preventDefault();
       onOpen(node.path);
     });
@@ -348,6 +355,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     render();
   };
   render();
+  return allFiles.length;
 }
 
 /** A row with its hover action. HTML allows no button inside a link, so

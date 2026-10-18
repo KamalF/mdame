@@ -12,12 +12,7 @@
   margin-top: 0;
 }
 
-.mdame-document h1,
-.mdame-document h2,
-.mdame-document h3,
-.mdame-document h4,
-.mdame-document h5,
-.mdame-document h6 {
+.mdame-document :is(h1, h2, h3, h4, h5, h6) {
   margin: 1.6em 0 0.6em;
   line-height: 1.25;
 }

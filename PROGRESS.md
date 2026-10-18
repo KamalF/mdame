@@ -59,10 +59,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - Resize handle (mouse or ←→, 180–480 px, remembered), hide and show from the status bar (remembered), and below 900 px an overlay that Esc, the backdrop or opening a file closes.
 - `keys.ts`: one listener and a key map; `b` hides or shows the sidebar, `/` focuses the filter. Ignored while typing in a field and with Ctrl, Alt or Meta.
 - Copy path on hover: a button next to each row copies the workspace-relative path; a check or a cross shows the result.
+- Review loop over milestone 3: 5 rounds and a simplify pass; fixes in their own commits. Links that leave the workspace and ignore files above it no longer reach the tree; the filter matches accented names.
 
 ## Next
 
-1. Review milestone 3 and merge `m3-sidebar` into `main`.
+1. Check the sidebar in the browser (narrow overlay with `/` and Esc, ↑↓ in the filter, long names, resize), then merge `m3-sidebar` into `main`.
 
 ## Open points
 
@@ -72,3 +73,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
   - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`; run `/api/complete` in `spawn_blocking`; remove `?t=` from the address bar once the cookie is set; state in the threat model that the machine has one user.
   - Usability: print a usable address when bound to `0.0.0.0`; debounce completion requests; unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
   - Tests: shared helpers in `tests/common`; `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.
+- From the review of milestone 3, for later:
+  - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice, as in the picker.
+  - One extension table: the server sends a `family` per file, so `VIEWABLE` in `tree.rs` and `FAMILIES` in `icons.ts` become one list. Do it with `render.rs` in milestone 4.
+  - Big workspaces: a limit on the filter results, latinized names computed once, cached icons; `/api/tree` walks the whole folder on each request. Measure with the milestone 5 refetches first.
+  - Tests: a `get_json` helper in `tests/common` for `tree.rs`, `complete.rs` and `state.rs`.

@@ -299,10 +299,10 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /`, `/view/*`, `/edit/*` | The single page; the browser routes from the URL | `index.html` |
 | `GET /assets/*` | Bundled JS and CSS | embedded files, with ETag |
 | `GET /themes/{name}.css` | Built-in or user theme | CSS |
-| `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security) |
+| `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security); 413 over 64 MB, since the file is read whole |
 | `GET /api/state` | Workspace as `{root, start}` (or none), version, theme list, `needs_setup`, `home` (to show paths as `~/…`) | JSON |
 | `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file; a file has a `family` (`markdown`, `text`, `data`, `table`, `diagram`, `image`) that picks its icon and its rendering. 409 when no workspace is open | `{name, path, kind, family, modified, children}` |
-| `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
+| `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file; 409 while both render slots are taken | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together | `{content, modified}` with `ETag: "<content hash>"` |
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first | `{modified}` and the new `ETag`; 412 if the content changed on disk since, 428 without `If-Match` |
 | `POST /api/file` | Create `{path}`, empty; fails if it exists | 201 |
@@ -350,6 +350,8 @@ All rendering happens in `render.rs`: one function takes a path and its contents
 | `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` | `<img src="/raw/…">` |
 | anything else | Not listed in the tree in v1 |
 
+Markdown whose HTML nests elements more than 256 deep also gets a notice instead of HTML: ammonia's parser slows down with the square of the depth, so 1 MB of `>` would take hours. The depth check is a heuristic: it catches deep markdown and plainly nested HTML, but crafted tag soup can still nest deeper, because the parser reopens and inserts elements. So `/api/file` runs at most two renders at a time: a request that finds both slots taken gets 409 at once. Crafted files then cost at most two cores, however many renders a page or its reloads ask for; keying on the path would not do, since `./a.md` and `a.md` name the same file. Decided on 18 October 2026; a hard time limit (render in a child process that is killed) is a Later item. App ids and classes (`mdame-…`) are removed from rendered content.
+
 Files over 1 MB return `too_large: true` and a short notice instead of HTML; they can still be opened in the editor. Images are never read, so the limit does not apply to them. Measured on 18 October 2026, release build: a 1 MB file of dense markdown (headings, lists, tables, links, code, raw HTML on every few lines) renders in 0.9 s, 0.2 s in comrak and 0.7 s in ammonia; 1 MB of plain prose takes 0.09 s. A debug build is about ten times slower.
 
 ### comrak options
@@ -369,7 +371,7 @@ Start from `ammonia::Builder::default()` and widen it just enough:
 - Allow `input` with `checked` and `disabled` for task lists; `type="checkbox"` is forced, so any other input becomes a checkbox.
 - Allow `section` and the `data-footnote*`, `data-heading-content` and `aria-label` attributes that comrak writes for footnotes and heading anchors.
 - No `rel="noopener noreferrer"` on links (`link_rel(None)`): `target` is not allowed, and the page sends `Referrer-Policy: no-referrer`.
-- Rewrite relative URLs with `UrlRelative::Custom`: resolve against the file's folder and prefix `/raw/`. Images then load from `/raw/…`; the browser intercepts clicks on links to supported files and routes them to `/view/…`. A URL that starts with `/` resolves from the workspace root, as on GitHub, and `..` stops at the root. `//host/…` URLs are kept.
+- Rewrite relative URLs with `UrlRelative::Custom`: resolve against the file's folder and prefix `/raw/`. Images then load from `/raw/…`; the page turns links to `/raw/…` into links to `/view/…` (ammonia cannot tell a link from an image when it rewrites URLs), so they open in the app, also in a new tab. A file of another type gets a page with a link to the raw file. A URL that starts with `/` resolves from the workspace root, as on GitHub, and `..` stops at the root. `//host/…` URLs are kept.
 - Leave fragment-only links (`#install`, `#fn-1`) unchanged. ammonia passes them to the custom evaluator too, so the evaluator returns any URL starting with `#` as it is.
 - Scripts, `on*` handlers, `javascript:` URLs, `<iframe>`, `<object>` and `<style>` are removed.
 
@@ -403,7 +405,7 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 | Path traversal or symlink escape | All workspace file access goes through a cap-std `Dir` opened on the root. No `std::fs` call takes a client-supplied path. |
 | Symlinks inside the workspace | Symlinked files that resolve inside the root open normally; a symlink with an absolute target is always an error in cap-std, even one pointing inside. The tree walker does not descend into symlinked directories in v1. |
 | Script in a markdown file, possibly agent-written | ammonia strips scripts, handlers and `javascript:` URLs before HTML leaves the server. |
-| A workspace `.html` or `.svg` opened through `/raw` runs script on mdame's origin, which passes the guard | Two layers. `/raw` serves images with their own type and everything else as `text/plain; charset=utf-8`, so no page exists. Every `/raw` response also carries `Content-Security-Policy: sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'` and `X-Content-Type-Options: nosniff`: a sandboxed document gets an opaque origin, so its requests carry `Origin: null` (rejected by the guard) and no cookie. |
+| A workspace `.html` or `.svg` opened through `/raw` runs script on mdame's origin, which passes the guard | Two layers. `/raw` serves images with their own type and everything else as `text/plain; charset=utf-8`, so no page exists. Every file that `/raw` serves also carries `Content-Security-Policy: sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'` and `X-Content-Type-Options: nosniff`: a sandboxed document gets an opaque origin, so its requests carry `Origin: null` (rejected by the guard) and no cookie. |
 | Mermaid diagram text, possibly agent-written | `mermaid.initialize` sets `securityLevel: 'strict'` explicitly (also Mermaid's default), never `'loose'`. |
 | Further defence for the page | `Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'` (Mermaid needs inline styles; `default-src` does not cover framing, so another site could otherwise load the page in an iframe and trick clicks), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. Remote `https:` images are allowed so README badges show, as on GitHub; scripts, styles and connections stay `'self'`. |
 | JSON endpoints called by plain HTML forms | Handlers that change state accept only `application/json`, which a form cannot send without triggering the Origin check. |

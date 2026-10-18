@@ -1,16 +1,18 @@
-use crate::app::AppState;
+use crate::app::{AppState, OpenError};
 use crate::config::{self, HistoryMode};
 use crate::error::ApiError;
+use crate::workspace;
 use axum::{
     Json, Router,
     extract::{Path, Request, State, rejection::JsonRejection},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{get, put},
+    routing::{get, post, put},
 };
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -239,6 +241,36 @@ fn content_type(path: &str) -> &'static str {
     }
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OpenRequest {
+    path: String,
+}
+
+async fn open_workspace(
+    State(app): State<Arc<AppState>>,
+    body: Result<Json<OpenRequest>, JsonRejection>,
+) -> Result<Json<StateResponse>, ApiError> {
+    let Json(request) = body.map_err(|rejection| ApiError::BadRequest(rejection.body_text()))?;
+    let path = workspace::expand_home(&request.path, std::env::home_dir().as_deref());
+    // A relative path would depend on the folder where mdame was started,
+    // which the page does not know.
+    if path.is_relative() {
+        return Err(ApiError::BadRequest(format!(
+            "{}: give an absolute path or one that starts with ~/",
+            request.path
+        )));
+    }
+    app.open_workspace(&path).map_err(|error| match error {
+        OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),
+        OpenError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
+            ApiError::NotFound(format!("{}: {io}", request.path))
+        }
+        OpenError::Io(io) => ApiError::BadRequest(format!("{}: {io}", request.path)),
+    })?;
+    Ok(Json(state_response(&app)))
+}
+
 pub fn router(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(page))
@@ -247,6 +279,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/assets/{*path}", get(asset))
         .route("/api/state", get(state))
         .route("/api/settings", put(settings))
+        .route("/api/workspace", post(open_workspace))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

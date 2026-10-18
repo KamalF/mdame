@@ -32,6 +32,14 @@ pub struct Args {
     pub path: Option<PathBuf>,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum OpenError {
+    #[error("a workspace is already open")]
+    AlreadyOpen,
+    #[error(transparent)]
+    Io(#[from] io::Error),
+}
+
 pub struct AppState {
     pub addr: SocketAddr,
     pub workspace: RwLock<Option<Arc<Workspace>>>,
@@ -43,10 +51,17 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn open_workspace(&self, path: &Path) -> io::Result<()> {
+    /// The check and the store share one write lock, so two tabs that open
+    /// a workspace at the same time cannot both succeed.
+    pub fn open_workspace(&self, path: &Path) -> Result<(), OpenError> {
+        let mut slot = self.workspace.write().unwrap();
+        if slot.is_some() {
+            return Err(OpenError::AlreadyOpen);
+        }
         let workspace = Workspace::open(path)?;
         let opened = workspace.path();
-        *self.workspace.write().unwrap() = Some(Arc::new(workspace));
+        *slot = Some(Arc::new(workspace));
+        drop(slot);
         self.remember(opened);
         Ok(())
     }

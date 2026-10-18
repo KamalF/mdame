@@ -3,7 +3,8 @@ mod common;
 use std::fs;
 use std::sync::{Arc, RwLock};
 
-use axum::{body::Body, http::Request, http::StatusCode};
+use axum::body::Body;
+use axum::http::{Method, Request, StatusCode};
 use common::{local, send};
 use mdame::app::AppState;
 use mdame::config::{self, Config, HistoryMode, Recents};
@@ -39,7 +40,19 @@ async fn needs_setup_until_history_is_chosen() {
 }
 
 async fn put(state: AppState, content_type: &str, body: &str) -> (StatusCode, Value) {
-    let request = Request::put("/api/settings")
+    send_body(state, Method::PUT, "/api/settings", content_type, body).await
+}
+
+async fn send_body(
+    state: AppState,
+    method: Method,
+    uri: &str,
+    content_type: &str,
+    body: &str,
+) -> (StatusCode, Value) {
+    let request = Request::builder()
+        .method(method)
+        .uri(uri)
         .header("host", "127.0.0.1:4891")
         .header("content-type", content_type)
         .body(Body::from(body.to_owned()))
@@ -154,4 +167,43 @@ async fn unreadable_recents_do_not_stop_the_open() {
 
     let recents: Recents = config::load(&recents_path).unwrap();
     assert_eq!(recents.entries.len(), 1);
+}
+
+async fn open(state: AppState, path: &str) -> (StatusCode, Value) {
+    let body = serde_json::json!({ "path": path }).to_string();
+    send_body(state, Method::POST, "/api/workspace", JSON, &body).await
+}
+
+#[tokio::test]
+async fn picker_opens_a_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let (status, body) = open(local(), dir.path().to_str().unwrap()).await;
+    assert_eq!(status, StatusCode::OK);
+    let root = dir.path().canonicalize().unwrap();
+    assert_eq!(body["workspace"]["root"], root.display().to_string());
+}
+
+#[tokio::test]
+async fn second_open_is_a_conflict() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = local();
+    state.open_workspace(dir.path()).unwrap();
+
+    let (status, body) = open(state, dir.path().to_str().unwrap()).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"]["code"], "conflict");
+}
+
+#[tokio::test]
+async fn missing_or_relative_path_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("missing");
+    let cases = [
+        (missing.to_str().unwrap(), StatusCode::NOT_FOUND),
+        ("notes", StatusCode::BAD_REQUEST),
+    ];
+    for (path, expected) in cases {
+        let (status, _) = open(local(), path).await;
+        assert_eq!(status, expected, "{path}");
+    }
 }

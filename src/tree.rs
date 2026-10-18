@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
+use std::time::UNIX_EPOCH;
 
+use ignore::WalkBuilder;
 use serde::Serialize;
 
 use crate::workspace::expand_home;
@@ -53,6 +56,125 @@ pub fn complete(prefix: &str, home: Option<&Path>) -> Vec<Suggestion> {
     suggestions.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.path.cmp(&b.path)));
     suggestions.truncate(MAX_SUGGESTIONS);
     suggestions
+}
+
+/// The extensions that `render.rs` can show; other files stay out of the tree.
+const VIEWABLE: &[&str] = &[
+    "md", "markdown", "csv", "json", "yaml", "yml", "toml", "graphql", "gql", "txt", "mmd", "png",
+    "jpg", "jpeg", "gif", "svg", "webp",
+];
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Kind {
+    Dir,
+    File,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct Node {
+    pub name: String,
+    /// Relative to the workspace root, with `/` between parts.
+    pub path: String,
+    pub kind: Kind,
+    /// Unix seconds. For a folder, its newest file.
+    pub modified: u64,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<Node>,
+}
+
+/// The viewable files under `root`, by folder. Folders with no viewable file
+/// are left out.
+pub fn build(root: &Path) -> Node {
+    let walker = WalkBuilder::new(root)
+        // A notes folder can have a .gitignore without being a git repository.
+        .require_git(false)
+        .filter_entry(|entry| !(entry.depth() == 1 && entry.file_name() == ".mdame"))
+        .build();
+    let mut top = Folder::default();
+    for entry in walker.filter_map(Result::ok) {
+        let Some(modified) = viewable_file(entry.path()) else {
+            continue;
+        };
+        // Paths that are not UTF-8 could not be asked for again by the page.
+        let Some(relative) = entry.path().strip_prefix(root).ok().and_then(Path::to_str) else {
+            continue;
+        };
+        let parts: Vec<&str> = relative.split('/').collect();
+        top.insert(&parts, modified);
+    }
+    top.into_node(String::new(), String::new())
+}
+
+/// The modified time of a viewable file, or `None` for anything else.
+/// `fs::metadata` follows a symlink, so a link to a file counts as a file;
+/// the walker does not descend into a link to a folder.
+fn viewable_file(path: &Path) -> Option<u64> {
+    let extension = path.extension()?.to_str()?.to_lowercase();
+    if !VIEWABLE.contains(&extension.as_str()) {
+        return None;
+    }
+    let metadata = fs::metadata(path)
+        .ok()
+        .filter(|metadata| metadata.is_file())?;
+    let modified = metadata.modified().ok()?.duration_since(UNIX_EPOCH).ok()?;
+    Some(modified.as_secs())
+}
+
+#[derive(Default)]
+struct Folder {
+    folders: BTreeMap<String, Folder>,
+    files: BTreeMap<String, u64>,
+}
+
+impl Folder {
+    fn insert(&mut self, parts: &[&str], modified: u64) {
+        match parts {
+            [name] => {
+                self.files.insert(name.to_string(), modified);
+            }
+            [folder, rest @ ..] => self
+                .folders
+                .entry(folder.to_string())
+                .or_default()
+                .insert(rest, modified),
+            [] => {}
+        }
+    }
+
+    fn into_node(self, name: String, path: String) -> Node {
+        let join = |child: &str| {
+            if path.is_empty() {
+                child.to_owned()
+            } else {
+                format!("{path}/{child}")
+            }
+        };
+        let folders = self.folders.into_iter().map(|(child, folder)| {
+            let child_path = join(&child);
+            folder.into_node(child, child_path)
+        });
+        let files = self.files.into_iter().map(|(child, modified)| Node {
+            path: join(&child),
+            name: child,
+            kind: Kind::File,
+            modified,
+            children: Vec::new(),
+        });
+        let children: Vec<Node> = folders.chain(files).collect();
+        let modified = children
+            .iter()
+            .map(|child| child.modified)
+            .max()
+            .unwrap_or(0);
+        Node {
+            name,
+            path,
+            kind: Kind::Dir,
+            modified,
+            children,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -120,5 +242,97 @@ mod tests {
         for prefix in ["", "~", "notes/", "~/missing/", "~/todo.md/"] {
             assert_eq!(paths(prefix, home.path()), Vec::<String>::new(), "{prefix}");
         }
+    }
+
+    fn write(root: &Path, path: &str, seconds: u64) {
+        let path = root.join(path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let file = fs::File::create(&path).unwrap();
+        file.set_modified(UNIX_EPOCH + std::time::Duration::from_secs(seconds))
+            .unwrap();
+    }
+
+    fn tree_paths(node: &Node) -> Vec<String> {
+        let mut all = vec![node.path.clone()];
+        for child in &node.children {
+            all.extend(tree_paths(child));
+        }
+        all
+    }
+
+    #[test]
+    fn nests_viewable_files_by_folder() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), "README.md", 10);
+        write(root.path(), "docs/SPEC.md", 30);
+        write(root.path(), "docs/img/logo.PNG", 20);
+        write(root.path(), "src/main.rs", 40);
+
+        let tree = build(root.path());
+        assert_eq!(
+            tree_paths(&tree),
+            [
+                "",
+                "docs",
+                "docs/img",
+                "docs/img/logo.PNG",
+                "docs/SPEC.md",
+                "README.md"
+            ]
+        );
+        assert_eq!(tree.children[0].kind, Kind::Dir);
+        assert_eq!(tree.children[1].kind, Kind::File);
+    }
+
+    #[test]
+    fn folder_date_is_its_newest_file() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), "notes/old.md", 10);
+        write(root.path(), "notes/sub/new.md", 50);
+
+        let tree = build(root.path());
+        assert_eq!(tree.modified, 50);
+        assert_eq!(tree.children[0].modified, 50);
+    }
+
+    #[test]
+    fn gitignore_applies_without_git() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join(".gitignore"), "drafts/\n").unwrap();
+        write(root.path(), "drafts/wip.md", 1);
+        write(root.path(), "notes.md", 1);
+
+        assert_eq!(tree_paths(&build(root.path())), ["", "notes.md"]);
+    }
+
+    #[test]
+    fn hidden_and_mdame_entries_are_left_out() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), ".hidden/a.md", 1);
+        write(root.path(), ".mdame/history/a.md/1.md", 1);
+        write(root.path(), "a.md", 1);
+
+        assert_eq!(tree_paths(&build(root.path())), ["", "a.md"]);
+    }
+
+    #[test]
+    fn links_to_files_are_listed_but_linked_folders_are_not_walked() {
+        let outside = tempfile::tempdir().unwrap();
+        write(outside.path(), "secret.md", 1);
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), "a.md", 1);
+        std::os::unix::fs::symlink(root.path().join("a.md"), root.path().join("b.md")).unwrap();
+        std::os::unix::fs::symlink(outside.path(), root.path().join("linked")).unwrap();
+
+        assert_eq!(tree_paths(&build(root.path())), ["", "a.md", "b.md"]);
+    }
+
+    #[test]
+    fn empty_workspace_is_an_empty_root() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), "main.rs", 1);
+        let tree = build(root.path());
+        assert!(tree.children.is_empty());
+        assert_eq!(tree.modified, 0);
     }
 }

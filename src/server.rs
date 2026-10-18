@@ -274,6 +274,15 @@ async fn open_workspace(
     Ok(Json(state_response(&app)))
 }
 
+async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiError> {
+    let workspace = app.workspace()?;
+    // The walk reads every folder: run it where blocking is allowed.
+    let node = tokio::task::spawn_blocking(move || tree::build(&workspace.root))
+        .await
+        .map_err(|error| ApiError::Internal(error.to_string()))?;
+    Ok(Json(node))
+}
+
 async fn recents(State(app): State<Arc<AppState>>) -> Json<Vec<Recent>> {
     Json(app.recents().entries)
 }
@@ -302,6 +311,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/workspace", post(open_workspace))
         .route("/api/complete", get(complete))
         .route("/api/recents", get(recents))
+        .route("/api/tree", get(tree))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

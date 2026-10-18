@@ -8,7 +8,7 @@ use clap::Parser;
 use tokio::net::TcpListener;
 
 use crate::config::{self, Config, Recents};
-use crate::error::io_message;
+use crate::error::{ApiError, io_message};
 use crate::server;
 use crate::workspace::Workspace;
 
@@ -52,6 +52,12 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Clones the `Arc` out, so the lock is released before any `.await`.
+    pub fn workspace(&self) -> Result<Arc<Workspace>, ApiError> {
+        let workspace = self.workspace.read().unwrap().clone();
+        workspace.ok_or_else(|| ApiError::Conflict("no workspace is open".to_owned()))
+    }
+
     /// The check and the store share one write lock, so two tabs that open
     /// a workspace at the same time cannot both succeed.
     pub fn open_workspace(&self, path: &Path) -> Result<(), OpenError> {

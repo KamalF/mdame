@@ -300,7 +300,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /themes/{name}.css` | Built-in or user theme | CSS |
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security) |
 | `GET /api/state` | Workspace as `{root, start}` (or none), version, theme list, `needs_setup`, `home` (to show paths as `~/…`) | JSON |
-| `GET /api/tree` | Folder tree: name, path, kind, modified | JSON |
+| `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file. 409 when no workspace is open | `{name, path, kind, modified, children}` |
 | `GET /api/file?path=` | Rendered file: `html`, `kind`, `modified`, `size`, `too_large` | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together | `{content, modified}` with `ETag: "<content hash>"` |
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first | `{modified}` and the new `ETag`; 412 if the content changed on disk since, 428 without `If-Match` |
@@ -625,6 +625,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Bun is the bundler: its output is reproducible | 17 October 2026 |
 | Recents move from `config.toml` to `recents.toml` in the state folder: they are state, and `config.toml` stays the user's | 18 October 2026 |
 | An invalid `config.toml` stops mdame at start | 18 October 2026 |
+| Tree: nested JSON, viewable files only, `.gitignore` applied without git, folder date from its newest file | 18 October 2026 |
 | `mdame <file>` opens the file's folder with that file first, not the file alone | 18 October 2026 |
 
 ### Review log, 14 October 2026

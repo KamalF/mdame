@@ -34,6 +34,14 @@ impl Workspace {
         let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
         Ok(Workspace { root, dir, start })
     }
+
+    /// The canonical path that was opened: the folder, or the file.
+    pub fn path(&self) -> PathBuf {
+        match &self.start {
+            Some(name) => self.root.join(name),
+            None => self.root.clone(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -17,9 +17,10 @@ pub async fn send(state: AppState, uri: &str, headers: &[(&str, &str)]) -> Respo
 pub fn local() -> AppState {
     AppState {
         addr: "127.0.0.1:4891".parse().unwrap(),
-        workspace: None,
+        workspace: RwLock::new(None),
         token: None,
         config: RwLock::new(Config::default()),
         config_path: PathBuf::new(),
+        recents_path: PathBuf::new(),
     }
 }

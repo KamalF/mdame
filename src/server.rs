@@ -17,14 +17,24 @@ use std::sync::Arc;
 #[derive(Serialize)]
 struct StateResponse {
     version: &'static str,
-    workspace: Option<String>,
+    workspace: Option<WorkspaceResponse>,
     needs_setup: bool,
 }
 
+#[derive(Serialize)]
+struct WorkspaceResponse {
+    root: String,
+    start: Option<String>,
+}
+
 fn state_response(app: &AppState) -> StateResponse {
+    let workspace = app.workspace.read().unwrap();
     StateResponse {
         version: env!("CARGO_PKG_VERSION"),
-        workspace: app.workspace.clone(),
+        workspace: workspace.as_ref().map(|workspace| WorkspaceResponse {
+            root: workspace.root.display().to_string(),
+            start: workspace.start.clone(),
+        }),
         needs_setup: app.config.read().unwrap().history.is_none(),
     }
 }

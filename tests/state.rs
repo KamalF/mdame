@@ -6,18 +6,21 @@ use std::sync::{Arc, RwLock};
 use axum::{body::Body, http::Request, http::StatusCode};
 use common::{local, send};
 use mdame::app::AppState;
-use mdame::config::{self, Config, HistoryMode};
+use mdame::config::{self, Config, HistoryMode, Recents};
 use mdame::server::router;
 use serde_json::Value;
 use tower::ServiceExt;
 
-async fn needs_setup(state: AppState) -> Value {
+async fn get_state(state: AppState) -> Value {
     let response = send(state, "/api/state", &[("host", "127.0.0.1:4891")]).await;
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    let body: Value = serde_json::from_slice(&bytes).unwrap();
-    body["needs_setup"].clone()
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+async fn needs_setup(state: AppState) -> Value {
+    get_state(state).await["needs_setup"].clone()
 }
 
 #[tokio::test]
@@ -114,4 +117,41 @@ async fn failed_save_is_an_internal_error() {
     let (status, body) = put(state, JSON, r#"{"history":"state"}"#).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(body["error"]["code"], "internal");
+}
+
+#[tokio::test]
+async fn open_workspace_shows_in_state_and_recents() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("a.md");
+    fs::write(&file, "").unwrap();
+    let recents_path = dir.path().join("state/recents.toml");
+    let state = AppState {
+        recents_path: recents_path.clone(),
+        ..local()
+    };
+
+    state.open_workspace(&file).unwrap();
+
+    let recents: Recents = config::load(&recents_path).unwrap();
+    assert_eq!(recents.entries[0].path, file.canonicalize().unwrap());
+    let body = get_state(state).await;
+    let root = dir.path().canonicalize().unwrap();
+    assert_eq!(body["workspace"]["root"], root.display().to_string());
+    assert_eq!(body["workspace"]["start"], "a.md");
+}
+
+#[tokio::test]
+async fn unreadable_recents_do_not_stop_the_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let recents_path = dir.path().join("recents.toml");
+    fs::write(&recents_path, "not toml [").unwrap();
+    let state = AppState {
+        recents_path: recents_path.clone(),
+        ..local()
+    };
+
+    state.open_workspace(dir.path()).unwrap();
+
+    let recents: Recents = config::load(&recents_path).unwrap();
+    assert_eq!(recents.entries.len(), 1);
 }

@@ -1,13 +1,15 @@
 use std::io::{self, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::Parser;
 use tokio::net::TcpListener;
 
-use crate::config::{self, Config};
+use crate::config::{self, Config, Recents};
 use crate::server;
+use crate::workspace::Workspace;
 
 const PORT_ATTEMPTS: usize = 10;
 
@@ -25,20 +27,53 @@ pub struct Args {
     /// Show debug logs
     #[arg(short, long)]
     pub verbose: bool,
+
+    /// Folder or file to open; without it, mdame starts at the picker
+    pub path: Option<PathBuf>,
 }
 
 pub struct AppState {
     pub addr: SocketAddr,
-    pub workspace: Option<String>,
+    pub workspace: RwLock<Option<Arc<Workspace>>>,
     /// Set when bound beyond loopback; every request must then carry it.
     pub token: Option<String>,
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
+    pub recents_path: PathBuf,
+}
+
+impl AppState {
+    pub fn open_workspace(&self, path: &Path) -> io::Result<()> {
+        let workspace = Workspace::open(path)?;
+        let opened = workspace.path();
+        *self.workspace.write().unwrap() = Some(Arc::new(workspace));
+        self.remember(opened);
+        Ok(())
+    }
+
+    /// Recents are a convenience: a file that cannot be read or saved only
+    /// gives a warning.
+    fn remember(&self, path: PathBuf) {
+        let mut recents: Recents = config::load(&self.recents_path).unwrap_or_else(|error| {
+            tracing::warn!("recents reset: {error}");
+            Recents::default()
+        });
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("the clock is after 1970")
+            .as_secs();
+        recents.add(path, now);
+        if let Err(error) = config::save(&recents, &self.recents_path) {
+            tracing::warn!("could not save the recents: {error}");
+        }
+    }
 }
 
 pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = config::config_file().ok_or("set HOME or XDG_CONFIG_HOME: no home folder")?;
     let config = config::load(&config_path)?;
+    let recents_path =
+        config::recents_file().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
     let listener = bind_first_free(args.host, args.port, PORT_ATTEMPTS).await?;
     let token = if args.host.is_loopback() {
         None
@@ -47,11 +82,17 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     let app_state = AppState {
         addr: listener.local_addr()?,
-        workspace: None,
+        workspace: RwLock::new(None),
         token,
         config: RwLock::new(config),
         config_path,
+        recents_path,
     };
+    if let Some(path) = &args.path {
+        app_state
+            .open_workspace(path)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+    }
     let state: Arc<AppState> = Arc::new(app_state);
 
     let token = state.token.as_deref();

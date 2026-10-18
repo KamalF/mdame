@@ -299,7 +299,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /assets/*` | Bundled JS and CSS | embedded files, with ETag |
 | `GET /themes/{name}.css` | Built-in or user theme | CSS |
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security) |
-| `GET /api/state` | Workspace (or none), version, theme list, `needs_setup` | JSON |
+| `GET /api/state` | Workspace as `{root, start}` (or none), version, theme list, `needs_setup` | JSON |
 | `GET /api/tree` | Folder tree: name, path, kind, modified | JSON |
 | `GET /api/file?path=` | Rendered file: `html`, `kind`, `modified`, `size`, `too_large` | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together | `{content, modified}` with `ETag: "<content hash>"` |

@@ -11,7 +11,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
-| 2 | Workspaces | In progress, on `m2-workspaces` | 4 of about 9 |
+| 2 | Workspaces | In progress, on `m2-workspaces` | 5 of about 9 |
 | 3 | Sidebar | — | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
@@ -37,13 +37,15 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `Recents::add`: puts a path first, with no duplicate, and keeps 25.
 - `AppState` holds the config, loaded at start; an invalid `config.toml` stops mdame with a readable error. `/api/state` returns `needs_setup`.
 - `PUT /api/settings` saves `{history}` and returns the new state; a body that is not a known JSON setting gets 400.
+- `workspace.rs`: `Workspace::open` canonicalizes the path and opens a cap-std `Dir` on the folder; a file opens its folder, with the file first.
 
 ## Next
 
-1. The cap-std `Workspace`, `POST /api/workspace`, `/api/complete`, and the path argument.
-2. Design round for the picker screen and the first-start dialog, before their UI.
+1. `AppState` holds the workspace; the path argument opens it and adds it to the recents.
+2. `POST /api/workspace` (409 when one is open), `~` expansion, `/api/complete`.
+3. Design round for the picker screen and the first-start dialog, before their UI.
 
 ## Open points
 
-- `--no-open` flag: proposed so that `mise run dev` stops opening a tab on each restart. Not in the spec; on 18 October 2026, put off until the extra tabs get in the way.
+- `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.

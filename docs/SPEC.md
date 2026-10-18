@@ -80,7 +80,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 ### v1
 
-**Launching.** `mdame` with no path starts at the workspace picker. `mdame <file>` and `mdame <folder>` start the same server with that workspace already open. One workspace per launch. Flags: `-H` bind address, `-p` port with fallback to the next free one, `--no-open`, `-v` verbose logging. Opens the browser on start. Ships as a single binary with all assets embedded.
+**Launching.** `mdame` with no path starts at the workspace picker. `mdame <file>` and `mdame <folder>` start the same server with that workspace already open; a file opens its folder, with that file shown first. One workspace per launch. Flags: `-H` bind address, `-p` port with fallback to the next free one, `--no-open`, `-v` verbose logging. Opens the browser on start. Ships as a single binary with all assets embedded.
 
 **Viewing.** GitHub-flavoured markdown, raw HTML (sanitized), front matter hidden, highlighted code blocks with a copy button, Mermaid in fenced blocks and `.mmd` files, images from the workspace, text, JSON, YAML, TOML and GraphQL shown highlighted, CSV as a table, a 1 MB render guard, a not-found page and an empty-workspace page. Find in page uses the browser's own Cmd/Ctrl+F.
 
@@ -245,7 +245,7 @@ mdame/
     server.rs           router, security guard layer, static assets
     error.rs            ApiError (thiserror) → status code + JSON body
     config.rs           config.toml (settings), recents.toml; config, state and themes dirs
-    workspace.rs        Workspace: root, cap-std Dir, mode; open
+    workspace.rs        Workspace: root, cap-std Dir, starting file; open
     tree.rs             ignore walker → tree JSON; folder autocomplete
     watch.rs            debouncer → relative-path events → broadcast
     render.rs           comrak, ammonia, per-type rendering, size guard
@@ -620,6 +620,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Bun is the bundler: its output is reproducible | 17 October 2026 |
 | Recents move from `config.toml` to `recents.toml` in the state folder: they are state, and `config.toml` stays the user's | 18 October 2026 |
 | An invalid `config.toml` stops mdame at start | 18 October 2026 |
+| `mdame <file>` opens the file's folder with that file first, not the file alone | 18 October 2026 |
 
 ### Review log, 14 October 2026
 

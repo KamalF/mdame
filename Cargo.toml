@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8"
+cap-std = "4.0.3"
 clap = { version = "4.6.7", features = ["derive"] }
 getrandom = "0.4.3"
 open = "5.4.4"

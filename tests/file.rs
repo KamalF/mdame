@@ -2,15 +2,17 @@ mod common;
 
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use axum::http::StatusCode;
-use common::{local, send};
+use common::{HOST, local, send};
 use mdame::app::AppState;
 use serde_json::Value;
+use tokio::sync::Semaphore;
 
 async fn get_file(state: AppState, path: &str) -> (StatusCode, Value) {
     let uri = format!("/api/file?path={path}");
-    let response = send(state, &uri, &[("host", "127.0.0.1:4891")]).await;
+    let response = send(state, &uri, &[HOST]).await;
     let status = response.status();
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -18,18 +20,8 @@ async fn get_file(state: AppState, path: &str) -> (StatusCode, Value) {
     (status, serde_json::from_slice(&bytes).unwrap())
 }
 
-/// A workspace in `dir/ws`, so that `dir` can hold a file outside it.
 fn workspace(dir: &Path) -> AppState {
-    let root = dir.join("ws");
-    fs::create_dir_all(root.join("docs")).unwrap();
-    fs::write(root.join("docs/a.md"), "# Title\n").unwrap();
-    fs::write(dir.join("secret.md"), "secret\n").unwrap();
-    let state = AppState {
-        recents_path: dir.join("recents.toml"),
-        ..local()
-    };
-    state.open_workspace(&root).unwrap();
-    state
+    common::workspace(dir, &[("docs/a.md", b"# Title\n")])
 }
 
 #[tokio::test]
@@ -106,6 +98,22 @@ async fn paths_out_of_the_workspace_are_forbidden() {
 }
 
 #[tokio::test]
+async fn unreadable_file_is_not_called_outside() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let state = workspace(dir.path());
+    let locked = dir.path().join("ws/docs/a.md");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::read(&locked).is_ok() {
+        // Root reads it anyway: nothing to test.
+        return;
+    }
+    let (status, body) = get_file(state, "docs/a.md").await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(body["error"]["message"], "no permission to read this file");
+}
+
+#[tokio::test]
 async fn link_inside_the_workspace_opens() {
     let dir = tempfile::tempdir().unwrap();
     let state = workspace(dir.path());
@@ -113,6 +121,32 @@ async fn link_inside_the_workspace_opens() {
     let (status, body) = get_file(state, "link.md").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["family"], "markdown");
+}
+
+#[tokio::test]
+async fn no_render_without_a_free_slot() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = AppState {
+        renders: Arc::new(Semaphore::new(0)),
+        ..workspace(dir.path())
+    };
+    let (status, body) = get_file(state, "docs/a.md").await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"]["code"], "conflict");
+}
+
+#[tokio::test]
+async fn a_render_frees_its_slot() {
+    let dir = tempfile::tempdir().unwrap();
+    let renders = Arc::new(Semaphore::new(1));
+    for _ in 0..2 {
+        let state = AppState {
+            renders: renders.clone(),
+            ..workspace(dir.path())
+        };
+        let (status, _) = get_file(state, "docs/a.md").await;
+        assert_eq!(status, StatusCode::OK);
+    }
 }
 
 #[tokio::test]

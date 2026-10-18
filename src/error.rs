@@ -22,6 +22,8 @@ pub enum ApiError {
     #[error("{0}")]
     Conflict(String),
     #[error("{0}")]
+    TooLarge(String),
+    #[error("{0}")]
     Internal(String),
 }
 
@@ -44,6 +46,12 @@ impl From<JsonRejection> for ApiError {
     }
 }
 
+impl From<tokio::task::JoinError> for ApiError {
+    fn from(error: tokio::task::JoinError) -> Self {
+        ApiError::Internal(error.to_string())
+    }
+}
+
 impl From<QueryRejection> for ApiError {
     fn from(rejection: QueryRejection) -> Self {
         ApiError::BadRequest(rejection.body_text())
@@ -58,6 +66,7 @@ impl IntoResponse for ApiError {
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
             ApiError::NotViewable(_) => (StatusCode::NOT_FOUND, "not_viewable"),
             ApiError::Conflict(_) => (StatusCode::CONFLICT, "conflict"),
+            ApiError::TooLarge(_) => (StatusCode::PAYLOAD_TOO_LARGE, "too_large"),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
         };
         let body = json!({ "error": { "code": code, "message": self.to_string() } });

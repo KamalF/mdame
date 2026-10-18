@@ -278,9 +278,7 @@ async fn open_workspace(
 async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiError> {
     let workspace = app.workspace()?;
     // The walk reads every folder: run it where blocking is allowed.
-    let node = tokio::task::spawn_blocking(move || tree::build(&workspace))
-        .await
-        .map_err(|error| ApiError::Internal(error.to_string()))?;
+    let node = tokio::task::spawn_blocking(move || tree::build(&workspace)).await?;
     Ok(Json(node))
 }
 
@@ -312,11 +310,19 @@ async fn file(
 ) -> Result<Json<View>, ApiError> {
     let Query(query) = query?;
     let workspace = app.workspace()?;
-    // Reading and rendering a large file takes a while.
+    let Ok(slot) = app.renders.clone().try_acquire_owned() else {
+        return Err(ApiError::Conflict(
+            "other files are still rendering, try again in a moment".to_owned(),
+        ));
+    };
+    // Reading and rendering a large file takes a while. The render goes on
+    // even when the browser stops waiting, so the task holds the slot.
     let path = query.path.clone();
-    let view = tokio::task::spawn_blocking(move || document::view(&workspace.dir, &path))
-        .await
-        .map_err(|error| ApiError::Internal(error.to_string()))?;
+    let view = tokio::task::spawn_blocking(move || {
+        let _slot = slot;
+        document::view(&workspace.dir, &path)
+    })
+    .await?;
     view.map(Json)
         .map_err(|error| file_error(&query.path, error))
 }
@@ -326,8 +332,13 @@ fn file_error(path: &str, error: io::Error) -> ApiError {
     match error.kind() {
         io::ErrorKind::NotFound => ApiError::NotFound(message),
         io::ErrorKind::Unsupported => ApiError::NotViewable(message),
-        // cap-std's answer to `..`, absolute paths and links out.
-        io::ErrorKind::PermissionDenied => ApiError::Forbidden("path outside the workspace"),
+        io::ErrorKind::FileTooLarge => ApiError::TooLarge(message),
+        // cap-std refuses `..`, absolute paths and links out with no OS
+        // error code; an OS error is a file mdame may not read.
+        io::ErrorKind::PermissionDenied if error.raw_os_error().is_none() => {
+            ApiError::Forbidden("path outside the workspace")
+        }
+        io::ErrorKind::PermissionDenied => ApiError::Forbidden("no permission to read this file"),
         _ => ApiError::Internal(message),
     }
 }
@@ -345,8 +356,7 @@ async fn raw(
     let relative = path.clone();
     let (bytes, content_type) =
         tokio::task::spawn_blocking(move || document::raw(&workspace.dir, &relative))
-            .await
-            .map_err(|error| ApiError::Internal(error.to_string()))?
+            .await?
             .map_err(|error| file_error(&path, error))?;
     let headers = [
         (header::CONTENT_TYPE, content_type),

@@ -88,9 +88,17 @@ pub struct Node {
 /// file are left out.
 pub fn build(workspace: &Workspace) -> Node {
     let root = &workspace.root;
+    // A notes folder can have a .gitignore without being a git repository.
+    // Ignore files above the root count only inside a repository, as in
+    // git: a `.gitignore` in a home folder without `.git` must not hide
+    // the notes below it.
+    let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
     let walker = WalkBuilder::new(root)
-        // A notes folder can have a .gitignore without being a git repository.
-        .require_git(false)
+        // In a repository, true stops the parent scan at its root.
+        .require_git(in_repo)
+        // Git reads core.excludesFile only in a repository, too.
+        .git_global(in_repo)
+        .parents(in_repo)
         .filter_entry(|entry| !(entry.depth() == 1 && entry.file_name() == ".mdame"))
         .build();
     let mut top = Folder::default();
@@ -326,6 +334,28 @@ mod tests {
         write(root.path(), "a.md", 1);
 
         assert_eq!(tree_paths(&walk(root.path())), ["", "a.md"]);
+    }
+
+    #[test]
+    fn gitignore_above_the_root_applies_only_in_a_repository() {
+        let parent = tempfile::tempdir().unwrap();
+        fs::write(parent.path().join(".gitignore"), "*.md\n").unwrap();
+        write(parent.path(), "ws/a.md", 1);
+        let root = parent.path().join("ws");
+        assert_eq!(tree_paths(&walk(&root)), ["", "a.md"]);
+
+        fs::create_dir(parent.path().join(".git")).unwrap();
+        assert_eq!(tree_paths(&walk(&root)), [""]);
+    }
+
+    #[test]
+    fn gitignore_above_the_repository_does_not_apply() {
+        let parent = tempfile::tempdir().unwrap();
+        fs::write(parent.path().join(".gitignore"), "*.md\n").unwrap();
+        write(parent.path(), "repo/a.md", 1);
+        let root = parent.path().join("repo");
+        fs::create_dir(root.join(".git")).unwrap();
+        assert_eq!(tree_paths(&walk(&root)), ["", "a.md"]);
     }
 
     #[test]

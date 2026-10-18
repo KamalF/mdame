@@ -224,7 +224,7 @@ Theme colours: copied from `@primer/primitives` (MIT) for the built-ins, and lat
 
 No UI framework: plain ES modules, written in TypeScript. Revisit Preact only if tabs make state sprawl.
 
-**TypeScript.** The browser code is TypeScript with `strict` on. Bun strips the types when it bundles, so no compile step is added; `tsc --noEmit` checks them in `mise run lint`, and `@types/bun` types `bun test`. Chosen over plain JavaScript because type errors show before the code reaches the browser.
+**TypeScript.** The browser code is TypeScript with `strict` on, plus `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` and `noImplicitReturns`; `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` stay off, as they add noise for little safety here. Bun strips the types when it bundles, so no compile step is added; `tsc --noEmit` checks them in `mise run lint`, and `@types/bun` types `bun test`. Chosen over plain JavaScript because type errors show before the code reaches the browser.
 
 Rejected for this design: marked, markdown-it, micromark (rendering is in Rust), diff2html and `similar` (the merge view draws diffs in the browser), gray_matter, interprocess, tower-livereload (full-page reloads only), portpicker and single-instance (unmaintained).
 

@@ -181,7 +181,11 @@ async fn open(state: AppState, path: &str) -> (StatusCode, Value) {
 #[tokio::test]
 async fn picker_opens_a_folder() {
     let dir = tempfile::tempdir().unwrap();
-    let (status, body) = open(local(), dir.path().to_str().unwrap()).await;
+    let state = AppState {
+        recents_path: dir.path().join("recents.toml"),
+        ..local()
+    };
+    let (status, body) = open(state, dir.path().to_str().unwrap()).await;
     assert_eq!(status, StatusCode::OK);
     let root = dir.path().canonicalize().unwrap();
     assert_eq!(body["workspace"]["root"], root.display().to_string());
@@ -190,7 +194,10 @@ async fn picker_opens_a_folder() {
 #[tokio::test]
 async fn second_open_is_a_conflict() {
     let dir = tempfile::tempdir().unwrap();
-    let state = local();
+    let state = AppState {
+        recents_path: dir.path().join("recents.toml"),
+        ..local()
+    };
     state.open_workspace(dir.path()).unwrap();
 
     let (status, body) = open(state, dir.path().to_str().unwrap()).await;

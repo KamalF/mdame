@@ -12,7 +12,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
-| 3 | Sidebar | In progress, on `m3-sidebar` | 6 of about 8 |
+| 3 | Sidebar | In progress, on `m3-sidebar` | 7 of about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
@@ -57,11 +57,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - Sort button in a sidebar header: name A→Z, Z→A, newest, oldest, folders first; the choice is remembered; one icon per order.
 - Filter: fuzzy match on file names, flat results with bold letters and the folder in grey; ↑↓, Enter (chosen or first result), Esc.
 - Resize handle (mouse or ←→, 180–480 px, remembered), hide and show from the status bar (remembered), and below 900 px an overlay that Esc, the backdrop or opening a file closes.
+- `keys.ts`: one listener and a key map; `b` hides or shows the sidebar, `/` focuses the filter. Ignored while typing in a field and with Ctrl, Alt or Meta.
 
 ## Next
 
-1. `keys.ts` with `k` and `/`.
-2. Copy path on hover.
+1. Copy path on hover.
 
 ## Open points
 

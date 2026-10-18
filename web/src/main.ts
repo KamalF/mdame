@@ -4,6 +4,7 @@ import "../styles/components.css";
 import { api, type State } from "./api.ts";
 import { askHistory } from "./dialogs.ts";
 import { icon } from "./icons.ts";
+import { bindKeys } from "./keys.ts";
 import * as picker from "./picker.ts";
 import * as sidebar from "./sidebar.ts";
 
@@ -59,6 +60,7 @@ function showWorkspace(state: State) {
   button.append(icon("panel"));
   status.prepend(button);
   sidebar.setupLayout({ frame, handle, backdrop, button });
+  bindKeys({ b: sidebar.toggleSidebar, "/": sidebar.focusFilter });
   sidebar.mount(nav, { root, current, onOpen: openFile });
   showContent(current);
 }

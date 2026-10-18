@@ -134,6 +134,7 @@ function store(key: string, value: unknown) {
 }
 
 let select: (path: string | null) => void = () => {};
+let focusField = () => {};
 
 /** Highlights `path` as the current file. */
 export function setCurrent(path: string | null) {
@@ -303,6 +304,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   }
 
   showSort();
+  focusField = () => filter.focus();
   select = (path) => {
     current = path;
     for (const folder of ancestors(path ?? "")) open.add(folder);
@@ -326,6 +328,7 @@ export function clampWidth(width: number): number {
 }
 
 let toggle = () => {};
+let open = () => {};
 let closeOverlay = () => {};
 
 /** Hides or shows the sidebar; below 900 px, opens or closes the overlay. */
@@ -335,6 +338,12 @@ export function toggleSidebar() {
 
 export function closeSidebarOverlay() {
   closeOverlay();
+}
+
+/** Shows the sidebar if needed, then focuses the filter field. */
+export function focusFilter() {
+  open();
+  focusField();
 }
 
 interface LayoutElements {
@@ -393,7 +402,7 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
   }
 
   function showButton() {
-    const label = `${isOpen() ? "Hide" : "Show"} sidebar (k)`;
+    const label = `${isOpen() ? "Hide" : "Show"} sidebar (b)`;
     button.setAttribute("aria-label", label);
     button.title = label;
     button.setAttribute("aria-expanded", String(isOpen()));
@@ -406,6 +415,9 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
       store("mdame:sidebar-hidden", frame.classList.toggle("sidebar-hidden"));
     }
     showButton();
+  };
+  open = () => {
+    if (!isOpen()) toggle();
   };
   closeOverlay = () => {
     frame.classList.remove("overlay-open");

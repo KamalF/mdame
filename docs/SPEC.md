@@ -86,7 +86,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 **Live updates.** Content updates in place when a file changes, new and removed files and folders show in the sidebar, editors' save-by-rename is handled, images refresh, scroll position is kept, the current view follows a rename, and the editor shows a "changed on disk" notice.
 
-**Sidebar.** Collapsible folder tree with remembered open folders, drag to resize, hide/show with `k`, fuzzy filter with `/`, sort by name or modified in either direction, current file highlighted, file-type icons. Row hover buttons: new file in this folder, copy path.
+**Sidebar.** Collapsible folder tree with remembered open folders, drag to resize, hide/show with `b`, fuzzy filter with `/`, sort by name or modified in either direction, current file highlighted, file-type icons. Row hover buttons: new file in this folder, copy path.
 
 **Status bar actions.** Edit, copy raw content, copy path, revisions.
 
@@ -103,6 +103,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 | Item | Cost | Notes |
 | --- | --- | --- |
 | Shortcut help (`?`), About | Small | One dialog each |
+| Custom key bindings | Small | A `[keys]` table in `config.toml` mapping action names to keys, sent in `/api/state`; `keys.ts` builds its map from it with the defaults as fallback. Two actions on one key stop mdame at start |
 | Content width presets, Shift+W | Small | A CSS variable and a key |
 | Alternative built-in themes: Catppuccin (Latte, Frappé, Macchiato, Mocha) and Minimal | Small | Extra CSS files. Catppuccin from its official palette and style guide, with `subtext1` as muted text in Latte (5.53:1; `subtext0` fails at 4.37). Minimal from its default HSL formulas, with Primer's code colours since it has none; its default accent needs checking as link text. Both MIT |
 | New file with `n`, new-file editor | Small | Reuses the folder hover action |
@@ -479,7 +480,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | `Esc` | Close editor, panel or dialog |
 | `Cmd/Ctrl+S` | Save |
 | `Cmd/Ctrl+B`, `Cmd/Ctrl+I` | Bold, italic in the editor |
-| `k` | Hide or show sidebar |
+| `b` | Hide or show sidebar |
 | `/` | Focus the sidebar filter |
 | `h`, `r` | Revisions (diff in the editor) |
 
@@ -500,7 +501,7 @@ The exact list is the owner's call during design; once fixed, document it in `we
 ### Design decisions
 
 - Overall feel: a mix. Compact chrome, like a quiet tool next to a terminal, around a reading-first content column (measure and type).
-- Sidebar: docked on wide windows, an overlay below about 900 px (opened with `k`). Width 180–480 px, default 260 px. Details decided on 18 October 2026:
+- Sidebar: docked on wide windows, an overlay below about 900 px (opened with `b`). Width 180–480 px, default 260 px. Details decided on 18 October 2026:
   - At first load, only the folders on the path to the current file are open. Open folders are remembered per workspace (the `localStorage` key holds the root).
   - One sort button cycles name A→Z, name Z→A, newest first, oldest first; its icon shows the current order. Folders always come first, and a folder's date is its newest file. The choice is remembered.
   - Clicking a file goes to `/view/<path>`. Icons: one per family (markdown and text, image, CSV, data files, Mermaid).
@@ -631,6 +632,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Recents move from `config.toml` to `recents.toml` in the state folder: they are state, and `config.toml` stays the user's | 18 October 2026 |
 | An invalid `config.toml` stops mdame at start | 18 October 2026 |
 | Tree: nested JSON, viewable files only, `.gitignore` applied without git, folder date from its newest file | 18 October 2026 |
+| Sidebar key `b` instead of `k`: a memory hook (VS Code's Ctrl+B), works on every layout, and leaves `j`/`k` free for scrolling | 18 October 2026 |
 | `mdame <file>` opens the file's folder with that file first, not the file alone | 18 October 2026 |
 
 ### Review log, 14 October 2026

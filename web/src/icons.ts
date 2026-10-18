@@ -48,6 +48,7 @@ export function icon(name: string): SVGSVGElement {
   return svg;
 }
 
+// One entry per extension in VIEWABLE in src/tree.rs.
 const FAMILIES: Record<string, string[]> = {
   text: ["md", "markdown", "txt"],
   image: ["png", "jpg", "jpeg", "gif", "svg", "webp"],

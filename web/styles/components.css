@@ -212,10 +212,7 @@
   cursor: pointer;
 }
 
-.mdame-tree-row:hover {
-  background: var(--selection);
-}
-
+.mdame-tree-row:hover,
 .mdame-tree-row.is-highlighted {
   background: var(--selection);
 }

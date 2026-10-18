@@ -22,14 +22,14 @@ export interface Match {
   parts: Part[];
 }
 
-export const SORTS = ["name-asc", "name-desc", "date-desc", "date-asc"];
-
 const SORT_LABELS: Record<string, string> = {
   "name-asc": "name, A to Z",
   "name-desc": "name, Z to A",
   "date-desc": "newest first",
   "date-asc": "oldest first",
 };
+
+export const SORTS = Object.keys(SORT_LABELS);
 
 export function nextSort(order: string): string {
   return SORTS[(SORTS.indexOf(order) + 1) % SORTS.length];
@@ -97,7 +97,12 @@ export function filterFiles(list: TreeNode[], query: string): Match[] {
   );
   if (!indexes) return [];
   // uFuzzy skips ranking when too many names match.
-  if (!info) return indexes.map((index) => ({ file: list[index], parts: [plain(names[index])] }));
+  if (!info) {
+    return indexes.map((index) => ({
+      file: list[index],
+      parts: [{ text: names[index], matched: false }],
+    }));
+  }
   return order.map((rank) => {
     const index = info.idx[rank];
     const parts = uFuzzy.highlight<Part[], Part>(
@@ -105,14 +110,13 @@ export function filterFiles(list: TreeNode[], query: string): Match[] {
       info.ranges[rank],
       (text, matched) => ({ text, matched }),
       [],
-      (all, part) => [...all, part],
+      (all, part) => {
+        all.push(part);
+        return all;
+      },
     );
     return { file: list[index], parts: parts.filter((part) => part.text) };
   });
-}
-
-function plain(name: string): Part {
-  return { text: name, matched: false };
 }
 
 /** `docs/a b.md` gives `/view/docs/a%20b.md`: each part is encoded, not the slashes. */
@@ -186,6 +190,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   const fetched = await api<TreeNode>("GET", "/api/tree");
   const allFiles = files(fetched);
   let tree = sortTree(fetched, order);
+  let query = "";
   let results: Match[] = [];
   let highlight = -1;
 
@@ -205,28 +210,37 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     render();
   });
 
-  filter.addEventListener("input", () => {
-    const query = filter.value.trim();
+  function applyFilter() {
+    query = filter.value.trim();
     results = query ? filterFiles(allFiles, query) : [];
     highlight = -1;
     render();
-  });
+  }
+
+  // Moves the highlight without rebuilding the list.
+  function moveHighlight(next: number) {
+    list.children[highlight]?.querySelector(".mdame-tree-row")!.classList.remove("is-highlighted");
+    highlight = next;
+    const item = list.children[highlight];
+    item.querySelector(".mdame-tree-row")!.classList.add("is-highlighted");
+    item.scrollIntoView({ block: "nearest" });
+  }
+
+  filter.addEventListener("input", applyFilter);
 
   filter.addEventListener("keydown", (event) => {
     // Enter and the arrows belong to the input method while it composes.
     if (event.isComposing) return;
     if (event.key === "ArrowDown" && results.length > 0) {
-      highlight = (highlight + 1) % results.length;
-      render();
+      moveHighlight((highlight + 1) % results.length);
     } else if (event.key === "ArrowUp" && results.length > 0) {
-      highlight = highlight <= 0 ? results.length - 1 : highlight - 1;
-      render();
+      moveHighlight(highlight <= 0 ? results.length - 1 : highlight - 1);
     } else if (event.key === "Enter" && results.length > 0) {
       onOpen((results[highlight] ?? results[0]).file.path);
     } else if (event.key === "Escape") {
       if (filter.value) {
         filter.value = "";
-        filter.dispatchEvent(new Event("input"));
+        applyFilter();
       } else {
         filter.blur();
       }
@@ -237,7 +251,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   });
 
   function render() {
-    if (!filter.value.trim()) {
+    if (!query) {
       list.replaceChildren(...items(tree.children!, 0));
       return;
     }
@@ -249,7 +263,6 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
       return;
     }
     list.replaceChildren(...results.map(resultItem));
-    list.children[highlight]?.scrollIntoView({ block: "nearest" });
   }
 
   function resultItem(result: Match, index: number) {
@@ -369,13 +382,14 @@ function label(text: string) {
 
 export const MIN_WIDTH = 180;
 export const MAX_WIDTH = 480;
+const DEFAULT_WIDTH = 260;
 
 export function clampWidth(width: number): number {
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)));
 }
 
 let toggle = () => {};
-let open = () => {};
+let show = () => {};
 let closeOverlay = () => {};
 
 /** Hides or shows the sidebar; below 900 px, opens or closes the overlay. */
@@ -389,7 +403,7 @@ export function closeSidebarOverlay() {
 
 /** Shows the sidebar if needed, then focuses the filter field. */
 export function focusFilter() {
-  open();
+  show();
   focusField();
 }
 
@@ -416,7 +430,7 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
   handle.setAttribute("aria-valuemin", String(MIN_WIDTH));
   handle.setAttribute("aria-valuemax", String(MAX_WIDTH));
   handle.tabIndex = 0;
-  setWidth(Number(load("mdame:sidebar-width", 260)) || 260);
+  setWidth(Number(load("mdame:sidebar-width", DEFAULT_WIDTH)) || DEFAULT_WIDTH);
 
   handle.addEventListener("pointerdown", (event) => {
     // Capture keeps the moves coming while the pointer is over the content.
@@ -463,7 +477,7 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
     }
     showButton();
   };
-  open = () => {
+  show = () => {
     if (!isOpen()) toggle();
   };
   closeOverlay = () => {

@@ -59,7 +59,8 @@ pub fn complete(prefix: &str, home: Option<&Path>) -> Vec<Suggestion> {
     suggestions
 }
 
-/// The extensions that `render.rs` can show; other files stay out of the tree.
+/// The extensions that milestone 4's `render.rs` will show; other files stay
+/// out of the tree. `FAMILIES` in `web/src/icons.js` gives each one an icon.
 const VIEWABLE: &[&str] = &[
     "md", "markdown", "csv", "json", "yaml", "yml", "toml", "graphql", "gql", "txt", "mmd", "png",
     "jpg", "jpeg", "gif", "svg", "webp",
@@ -121,8 +122,11 @@ pub fn build(workspace: &Workspace) -> Node {
 /// link to a file inside counts as a file and a link out is left out; the
 /// walker does not descend into a link to a folder.
 fn viewable_file(dir: &Dir, relative: &str) -> Option<u64> {
-    let extension = Path::new(relative).extension()?.to_str()?.to_lowercase();
-    if !VIEWABLE.contains(&extension.as_str()) {
+    let extension = Path::new(relative).extension()?.to_str()?;
+    if !VIEWABLE
+        .iter()
+        .any(|known| extension.eq_ignore_ascii_case(known))
+    {
         return None;
     }
     let metadata = dir

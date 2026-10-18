@@ -21,6 +21,10 @@
   touch-action: none;
 }
 
+.mdame-frame.is-resizing {
+  user-select: none;
+}
+
 .mdame-resize:hover,
 .mdame-resize:focus-visible {
   outline: 0;

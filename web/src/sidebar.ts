@@ -437,11 +437,15 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
     handle.setPointerCapture(event.pointerId);
     const left = frame.getBoundingClientRect().left;
     const move = (moved: PointerEvent) => setWidth(moved.clientX - left);
+    // Without it, the drag selects the text that the pointer passes over.
+    frame.classList.add("is-resizing");
     handle.addEventListener("pointermove", move);
+    // Fires after pointerup and after pointercancel.
     handle.addEventListener(
-      "pointerup",
+      "lostpointercapture",
       () => {
         handle.removeEventListener("pointermove", move);
+        frame.classList.remove("is-resizing");
         store("mdame:sidebar-width", width);
       },
       { once: true },

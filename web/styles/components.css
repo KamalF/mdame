@@ -212,9 +212,13 @@
   cursor: pointer;
 }
 
-.mdame-tree-row:hover,
-.mdame-tree-row.is-highlighted {
+.mdame-tree-row:hover {
   background: var(--selection);
+}
+
+/* A ring, not a background: the current file already has the background. */
+.mdame-tree-row.is-highlighted {
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .mdame-tree-row[aria-current="page"] {

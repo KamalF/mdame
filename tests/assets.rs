@@ -13,7 +13,7 @@ async fn page_is_served_with_security_headers() {
     assert_eq!(headers[header::CONTENT_TYPE], "text/html; charset=utf-8");
     assert_eq!(
         headers[header::CONTENT_SECURITY_POLICY],
-        "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'"
+        "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
     );
     assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
     assert_eq!(headers[header::REFERRER_POLICY], "no-referrer");

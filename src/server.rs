@@ -178,8 +178,7 @@ fn same_secret(a: &str, b: &str) -> bool {
             == 0
 }
 
-const PAGE_CSP: &str =
-    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'";
+const PAGE_CSP: &str = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
 
 async fn security_headers(req: Request, next: Next) -> Response {
     let mut response = next.run(req).await;

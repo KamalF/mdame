@@ -470,7 +470,10 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
   button.addEventListener("click", toggle);
   backdrop.addEventListener("click", closeOverlay);
   addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Escape" && frame.classList.contains("overlay-open")) closeOverlay();
+    // The filter uses its first Esc to clear itself.
+    if (event.key === "Escape" && !event.defaultPrevented && frame.classList.contains("overlay-open")) {
+      closeOverlay();
+    }
   });
   narrow.addEventListener("change", closeOverlay);
   showButton();

@@ -61,9 +61,14 @@
       visibility 150ms;
   }
 
+  /* Visible at once when opening, so `/` can focus the filter; hidden only
+     after the slide when closing. */
   .mdame-frame.overlay-open #mdame-sidebar {
     transform: none;
     visibility: visible;
+    transition:
+      transform 150ms,
+      visibility 0s;
   }
 
   .mdame-frame.overlay-open .mdame-backdrop {

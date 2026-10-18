@@ -25,6 +25,7 @@ struct StateResponse {
     version: &'static str,
     workspace: Option<WorkspaceResponse>,
     needs_setup: bool,
+    home: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -42,6 +43,7 @@ fn state_response(app: &AppState) -> StateResponse {
             start: workspace.start.clone(),
         }),
         needs_setup: app.config.read().unwrap().history.is_none(),
+        home: std::env::home_dir().map(|home| home.display().to_string()),
     }
 }
 

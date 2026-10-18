@@ -253,3 +253,10 @@ async fn unreadable_recents_are_an_empty_list() {
 
     assert_eq!(get_json(state, "/api/recents").await, serde_json::json!([]));
 }
+
+#[tokio::test]
+async fn state_gives_the_home_folder() {
+    let home = std::env::home_dir().unwrap();
+    let body = get_state(local()).await;
+    assert_eq!(body["home"], home.display().to_string());
+}

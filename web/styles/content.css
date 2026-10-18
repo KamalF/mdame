@@ -1,0 +1,165 @@
+/* Rendered files. Provisional values, until the theme pass. */
+.mdame-document {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 32px 64px;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+}
+
+.mdame-document > :first-child {
+  margin-top: 0;
+}
+
+.mdame-document h1,
+.mdame-document h2,
+.mdame-document h3,
+.mdame-document h4,
+.mdame-document h5,
+.mdame-document h6 {
+  margin: 1.6em 0 0.6em;
+  line-height: 1.25;
+}
+
+.mdame-document h1 {
+  font-size: 1.9em;
+}
+
+.mdame-document h2 {
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.45em;
+}
+
+.mdame-document h3 {
+  font-size: 1.2em;
+}
+
+.mdame-document p,
+.mdame-document ul,
+.mdame-document ol,
+.mdame-document pre,
+.mdame-document table,
+.mdame-document blockquote,
+.mdame-document details {
+  margin: 0 0 1em;
+}
+
+.mdame-document a {
+  color: var(--accent);
+}
+
+.mdame-document a.anchor {
+  margin-left: 0.3em;
+  color: var(--fg-muted);
+  text-decoration: none;
+  visibility: hidden;
+}
+
+.mdame-document a.anchor::before {
+  content: "#";
+}
+
+.mdame-document :is(h1, h2, h3, h4, h5, h6):hover a.anchor {
+  visibility: visible;
+}
+
+.mdame-document code,
+.mdame-document pre {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+.mdame-document code {
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+}
+
+.mdame-document pre {
+  padding: 12px 16px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  line-height: 1.45;
+}
+
+.mdame-document pre code {
+  padding: 0;
+  font-size: inherit;
+  background: none;
+}
+
+.mdame-document blockquote {
+  padding: 0 1em;
+  border-left: 3px solid var(--border);
+  color: var(--fg-muted);
+}
+
+.mdame-document ul,
+.mdame-document ol {
+  padding-left: 1.8em;
+}
+
+.mdame-document li:has(> input[type="checkbox"]) {
+  list-style: none;
+}
+
+.mdame-document li > input[type="checkbox"] {
+  margin: 0 0.4em 0 -1.4em;
+}
+
+.mdame-document table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.mdame-document th,
+.mdame-document td {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+}
+
+.mdame-document th {
+  background: var(--bg-sunken);
+}
+
+.mdame-document img {
+  max-width: 100%;
+}
+
+.mdame-document hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.mdame-document .markdown-alert {
+  padding: 0.5em 1em;
+  margin: 0 0 1em;
+  border-left: 3px solid var(--accent);
+}
+
+.mdame-document .markdown-alert-warning,
+.mdame-document .markdown-alert-caution {
+  border-left-color: var(--danger);
+}
+
+.mdame-document .markdown-alert-title {
+  margin-bottom: 0.25em;
+  font-weight: 600;
+}
+
+.mdame-document .markdown-alert > :last-child {
+  margin-bottom: 0;
+}
+
+.mdame-document .footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 0.9em;
+}

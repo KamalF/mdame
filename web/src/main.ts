@@ -7,6 +7,7 @@ import { icon } from "./icons.ts";
 import { bindKeys } from "./keys.ts";
 import * as picker from "./picker.ts";
 import * as sidebar from "./sidebar.ts";
+import * as view from "./view.ts";
 
 const app = document.getElementById("mdame-app") as HTMLElement;
 const status = document.getElementById("mdame-status") as HTMLElement;
@@ -22,21 +23,38 @@ function showStatus(state: State) {
 const content = document.createElement("div");
 content.id = "mdame-content";
 
+let shown: string | null | undefined;
+
 function showContent(path: string | null) {
-  const line = document.createElement("p");
-  line.className = "mdame-placeholder";
-  line.textContent = path
-    ? `${path}: viewing files comes in milestone 4.`
-    : "Choose a file in the sidebar.";
-  content.replaceChildren(line);
+  // Moving between `#…` of the same file only scrolls.
+  if (path === shown) {
+    view.scrollToHash();
+    return;
+  }
+  shown = path;
+  if (path) view.showFile(content, path);
+  else view.showNothing(content);
 }
 
-function openFile(path: string) {
-  history.pushState(null, "", sidebar.viewUrl(path));
+function openFile(path: string, hash = "") {
+  history.pushState(null, "", sidebar.viewUrl(path) + hash);
   sidebar.setCurrent(path);
   sidebar.closeSidebarOverlay();
   showContent(path);
 }
+
+// Links in a file point to `/raw/…`; those to a file of the tree open it
+// here instead. Others, such as a PDF, stay plain links.
+content.addEventListener("click", (event) => {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+  const link = (event.target as Element).closest<HTMLAnchorElement>("a[href]");
+  if (!link) return;
+  const url = new URL(link.href);
+  const path = url.origin === location.origin ? view.rawPath(url.pathname) : null;
+  if (path === null || !sidebar.hasFile(path)) return;
+  event.preventDefault();
+  openFile(path, url.hash);
+});
 
 function showWorkspace(state: State) {
   const { root, start } = state.workspace!;

@@ -277,7 +277,7 @@ async fn open_workspace(
 async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiError> {
     let workspace = app.workspace()?;
     // The walk reads every folder: run it where blocking is allowed.
-    let node = tokio::task::spawn_blocking(move || tree::build(&workspace.root))
+    let node = tokio::task::spawn_blocking(move || tree::build(&workspace))
         .await
         .map_err(|error| ApiError::Internal(error.to_string()))?;
     Ok(Json(node))

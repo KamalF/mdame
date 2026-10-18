@@ -1,6 +1,6 @@
-use crate::app::{AppState, OpenError};
+use crate::app::{AppState, OpenError, hex};
 use crate::config::{self, HistoryMode, Recent};
-use crate::error::{ApiError, io_message};
+use crate::error::ApiError;
 use crate::tree::{self, Suggestion};
 use crate::workspace;
 use axum::{
@@ -62,7 +62,7 @@ async fn settings(
     State(app): State<Arc<AppState>>,
     body: Result<Json<Settings>, JsonRejection>,
 ) -> Result<Json<StateResponse>, ApiError> {
-    let Json(settings) = body.map_err(|rejection| ApiError::BadRequest(rejection.body_text()))?;
+    let Json(settings) = body?;
     let mut config = app.config.write().unwrap();
     let mut new = config.clone();
     new.history = Some(settings.history);
@@ -215,12 +215,7 @@ fn embedded(path: &str, request_headers: &HeaderMap) -> Response {
         return StatusCode::NOT_FOUND.into_response();
     };
     let hash = file.metadata.sha256_hash();
-    let etag = format!(
-        "\"{}\"",
-        hash.iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>()
-    );
+    let etag = format!("\"{}\"", hex(&hash));
     let unchanged = request_headers
         .get(header::IF_NONE_MATCH)
         .is_some_and(|value| value.as_bytes() == etag.as_bytes());
@@ -256,7 +251,7 @@ async fn open_workspace(
     State(app): State<Arc<AppState>>,
     body: Result<Json<OpenRequest>, JsonRejection>,
 ) -> Result<Json<StateResponse>, ApiError> {
-    let Json(request) = body.map_err(|rejection| ApiError::BadRequest(rejection.body_text()))?;
+    let Json(request) = body?;
     let path = workspace::expand_home(&request.path, std::env::home_dir().as_deref());
     // A relative path would depend on the folder where mdame was started,
     // which the page does not know.
@@ -266,12 +261,15 @@ async fn open_workspace(
             request.path
         )));
     }
-    app.open_workspace(&path).map_err(|error| match error {
-        OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),
-        OpenError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
-            ApiError::NotFound(format!("{}: {}", request.path, io_message(&io)))
+    app.open_workspace(&path).map_err(|error| {
+        let message = format!("{}: {error}", request.path);
+        match error {
+            OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),
+            OpenError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
+                ApiError::NotFound(message)
+            }
+            OpenError::Io(_) => ApiError::BadRequest(message),
         }
-        OpenError::Io(io) => ApiError::BadRequest(format!("{}: {}", request.path, io_message(&io))),
     })?;
     Ok(Json(state_response(&app)))
 }
@@ -288,7 +286,7 @@ struct CompleteQuery {
 async fn complete(
     query: Result<Query<CompleteQuery>, QueryRejection>,
 ) -> Result<Json<Vec<Suggestion>>, ApiError> {
-    let Query(query) = query.map_err(|rejection| ApiError::BadRequest(rejection.body_text()))?;
+    let Query(query) = query?;
     let home = std::env::home_dir();
     Ok(Json(tree::complete(&query.prefix, home.as_deref())))
 }

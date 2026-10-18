@@ -113,7 +113,7 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
             .open_workspace(path)
             .map_err(|error| format!("{}: {error}", path.display()))?;
     }
-    let state: Arc<AppState> = Arc::new(app_state);
+    let state = Arc::new(app_state);
 
     let token = state.token.as_deref();
     println!("mdame on {}", page_url(state.addr, token));
@@ -159,7 +159,11 @@ fn browser_addr(addr: SocketAddr) -> SocketAddr {
 fn new_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes)?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+    Ok(hex(&bytes))
+}
+
+pub fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 #[cfg(test)]

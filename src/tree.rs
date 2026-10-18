@@ -39,9 +39,10 @@ pub fn complete(prefix: &str, home: Option<&Path>) -> Vec<Suggestion> {
             if !shown || !name.to_lowercase().starts_with(&partial_lower) {
                 return None;
             }
-            // Path::is_dir follows symlinks, so a link to a folder completes
-            // as a folder.
-            let dir = entry.path().is_dir();
+            // file_type needs no extra syscall, but does not follow links:
+            // a link to a folder must still complete as a folder.
+            let file_type = entry.file_type().ok()?;
+            let dir = file_type.is_dir() || (file_type.is_symlink() && entry.path().is_dir());
             let slash = if dir { "/" } else { "" };
             Some(Suggestion {
                 path: format!("{typed_dir}{name}{slash}"),
@@ -104,6 +105,13 @@ mod tests {
         let prefix = format!("{}/t", home.path().display());
         let expected = format!("{}/todo.md", home.path().display());
         assert_eq!(paths(&prefix, home.path()), [expected]);
+    }
+
+    #[test]
+    fn link_to_a_folder_completes_as_a_folder() {
+        let home = home();
+        std::os::unix::fs::symlink(home.path().join("notes"), home.path().join("link")).unwrap();
+        assert_eq!(paths("~/li", home.path()), ["~/link/"]);
     }
 
     #[test]

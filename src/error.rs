@@ -1,5 +1,6 @@
 use axum::{
     Json,
+    extract::rejection::{JsonRejection, QueryRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -30,6 +31,18 @@ pub fn io_message(error: &io::Error) -> String {
             .unwrap_or(&text)
             .to_owned(),
         None => text,
+    }
+}
+
+impl From<JsonRejection> for ApiError {
+    fn from(rejection: JsonRejection) -> Self {
+        ApiError::BadRequest(rejection.body_text())
+    }
+}
+
+impl From<QueryRejection> for ApiError {
+    fn from(rejection: QueryRejection) -> Self {
+        ApiError::BadRequest(rejection.body_text())
     }
 }
 

@@ -302,7 +302,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security) |
 | `GET /api/state` | Workspace as `{root, start}` (or none), version, theme list, `needs_setup`, `home` (to show paths as `~/…`) | JSON |
 | `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file; a file has a `family` (`markdown`, `text`, `data`, `table`, `diagram`, `image`) that picks its icon and its rendering. 409 when no workspace is open | `{name, path, kind, family, modified, children}` |
-| `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large` | JSON |
+| `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together | `{content, modified}` with `ETag: "<content hash>"` |
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first | `{modified}` and the new `ETag`; 412 if the content changed on disk since, 428 without `If-Match` |
 | `POST /api/file` | Create `{path}`, empty; fails if it exists | 201 |

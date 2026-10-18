@@ -1,5 +1,5 @@
 import "../styles/content.css";
-import { api } from "./api.ts";
+import { api, type ApiError } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
@@ -46,7 +46,7 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
     file = await api<FileView>("GET", `/api/file?path=${encodeURIComponent(path)}`);
   } catch (error) {
     // A click on another file meanwhile wins over this answer.
-    if (id === request) message(el, (error as Error).message);
+    if (id === request) notFound(el, path, error as ApiError);
     return null;
   }
   if (id !== request) return null;
@@ -74,9 +74,36 @@ function addCopyButtons(root: HTMLElement) {
   }
 }
 
-export function showNothing(el: HTMLElement) {
+function notFound(el: HTMLElement, path: string, error: ApiError) {
+  if (error.code !== "not_found" && error.code !== "not_viewable") {
+    message(el, error.message);
+    return;
+  }
+  const page = document.createElement("article");
+  page.className = "mdame-document";
+  const title = document.createElement("h1");
+  title.textContent = error.code === "not_found" ? "Not found" : "Not shown here";
+  const reason = document.createElement("p");
+  reason.textContent = error.message;
+  page.append(title, reason);
+  if (error.code === "not_viewable") {
+    const link = document.createElement("a");
+    link.href = rawUrl(path);
+    link.textContent = "Open the raw file";
+    page.append(link);
+  }
+  el.replaceChildren(page);
+}
+
+/** The page with no file chosen; `empty` when the workspace shows none. */
+export function showNothing(el: HTMLElement, empty: boolean) {
   request++;
-  message(el, "Choose a file in the sidebar.");
+  message(
+    el,
+    empty
+      ? "This folder has no file that mdame shows: markdown, text, JSON, YAML, TOML, GraphQL, CSV, Mermaid or images. Files that .gitignore hides are left out."
+      : "Choose a file in the sidebar.",
+  );
 }
 
 /** Scrolls to the heading or footnote that the URL's `#…` names. */

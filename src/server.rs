@@ -325,6 +325,7 @@ fn file_error(path: &str, error: io::Error) -> ApiError {
     let message = format!("{path}: {}", io_message(&error));
     match error.kind() {
         io::ErrorKind::NotFound => ApiError::NotFound(message),
+        io::ErrorKind::Unsupported => ApiError::NotViewable(message),
         // cap-std's answer to `..`, absolute paths and links out.
         io::ErrorKind::PermissionDenied => ApiError::Forbidden("path outside the workspace"),
         _ => ApiError::Internal(message),

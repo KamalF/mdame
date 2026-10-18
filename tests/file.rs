@@ -72,14 +72,23 @@ async fn image_is_not_read() {
 }
 
 #[tokio::test]
-async fn missing_folder_and_unknown_files_are_not_found() {
+async fn missing_files_and_folders_are_not_found() {
     let dir = tempfile::tempdir().unwrap();
-    fs::write(dir.path().join("Makefile"), "").unwrap();
-    for path in ["nothing.md", "docs", "Makefile", "docs.md"] {
+    for path in ["nothing.md", "nothing.pdf", "docs"] {
         let (status, body) = get_file(workspace(dir.path()), path).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
         assert_eq!(body["error"]["code"], "not_found", "{path}");
     }
+}
+
+#[tokio::test]
+async fn file_of_unknown_type_is_not_viewable() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = workspace(dir.path());
+    fs::write(dir.path().join("ws/Makefile"), "").unwrap();
+    let (status, body) = get_file(state, "Makefile").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"]["code"], "not_viewable");
 }
 
 #[tokio::test]

@@ -19,14 +19,15 @@ pub struct View {
     pub too_large: bool,
 }
 
-/// The rendered file at `path`, relative to the workspace root.
+/// The rendered file at `path`, relative to the workspace root. A file
+/// that exists with no family gives `Unsupported`.
 pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
-    let family = Family::of(path)
-        .ok_or_else(|| io::Error::new(ErrorKind::NotFound, "not a viewable file"))?;
     let metadata = dir.metadata(path)?;
     if !metadata.is_file() {
         return Err(io::Error::new(ErrorKind::NotFound, "not a file"));
     }
+    let family = Family::of(path)
+        .ok_or_else(|| io::Error::new(ErrorKind::Unsupported, "not a viewable file"))?;
     let size = metadata.len();
     let too_large = size > RENDER_LIMIT && family != Family::Image;
     let html = if too_large {

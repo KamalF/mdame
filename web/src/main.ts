@@ -59,7 +59,7 @@ function showContent(path: string | null) {
   shown = path;
   showFileStatus(path, null);
   if (path) view.showFile(content, path).then((file) => file && showFileStatus(path, file));
-  else view.showNothing(content);
+  else view.showNothing(content, sidebar.isEmpty());
 }
 
 function openFile(path: string, hash = "") {
@@ -69,20 +69,20 @@ function openFile(path: string, hash = "") {
   showContent(path);
 }
 
-// Links in a file point to `/raw/…`; those to a file of the tree open it
-// here instead. Others, such as a PDF, stay plain links.
+// Links in a file point to `/raw/…`; they open here instead. A missing
+// file gets the not-found page, a PDF one with a link to the raw file.
 content.addEventListener("click", (event) => {
   if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
   const link = (event.target as Element).closest<HTMLAnchorElement>("a[href]");
   if (!link) return;
   const url = new URL(link.href);
   const path = url.origin === location.origin ? view.rawPath(url.pathname) : null;
-  if (path === null || !sidebar.hasFile(path)) return;
+  if (path === null) return;
   event.preventDefault();
   openFile(path, url.hash);
 });
 
-function showWorkspace(state: State) {
+async function showWorkspace(state: State) {
   const { root, start } = state.workspace!;
   if (start && location.pathname === "/") {
     history.replaceState(null, "", sidebar.viewUrl(start));
@@ -105,7 +105,7 @@ function showWorkspace(state: State) {
   status.prepend(button);
   sidebar.setupLayout({ frame, handle, backdrop, button });
   bindKeys({ b: sidebar.toggleSidebar, "/": sidebar.focusFilter });
-  sidebar.mount(nav, { root, current, onOpen: openFile });
+  await sidebar.mount(nav, { root, current, onOpen: openFile });
   showContent(current);
 }
 

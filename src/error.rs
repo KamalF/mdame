@@ -15,6 +15,10 @@ pub enum ApiError {
     Forbidden(&'static str),
     #[error("{0}")]
     NotFound(String),
+    /// The file exists, but mdame does not show its type: the page offers
+    /// the raw file instead.
+    #[error("{0}")]
+    NotViewable(String),
     #[error("{0}")]
     Conflict(String),
     #[error("{0}")]
@@ -52,6 +56,7 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             ApiError::Forbidden(_) => (StatusCode::FORBIDDEN, "forbidden"),
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
+            ApiError::NotViewable(_) => (StatusCode::NOT_FOUND, "not_viewable"),
             ApiError::Conflict(_) => (StatusCode::CONFLICT, "conflict"),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
         };

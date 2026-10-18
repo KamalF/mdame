@@ -154,16 +154,16 @@ function store(key: string, value: unknown) {
 
 let select: (path: string | null) => void = () => {};
 let focusField = () => {};
-let known = new Set<string>();
+let fileCount = 0;
 
 /** Highlights `path` as the current file. */
 export function setCurrent(path: string | null) {
   select(path);
 }
 
-/** Whether `path` is a file of the tree. */
-export function hasFile(path: string): boolean {
-  return known.has(path);
+/** Whether the tree has no file. */
+export function isEmpty(): boolean {
+  return fileCount === 0;
 }
 
 interface MountOptions {
@@ -197,7 +197,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
 
   const fetched = await api<TreeNode>("GET", "/api/tree");
   const allFiles = files(fetched);
-  known = new Set(allFiles.map((file) => file.path));
+  fileCount = allFiles.length;
   let tree = sortTree(fetched, order);
   let query = "";
   let results: Match[] = [];

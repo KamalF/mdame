@@ -1,6 +1,7 @@
 import "../styles/base.css";
 import "../styles/components.css";
 import { api, type State } from "./api.ts";
+import { askHistory } from "./dialogs.ts";
 import * as picker from "./picker.ts";
 
 const app = document.getElementById("mdame-app") as HTMLElement;
@@ -35,4 +36,8 @@ function show(state: State) {
   }
 }
 
-show(await api<State>("GET", "/api/state"));
+const state = await api<State>("GET", "/api/state");
+show(state);
+if (state.needs_setup) {
+  askHistory();
+}

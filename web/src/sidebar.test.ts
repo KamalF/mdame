@@ -1,5 +1,15 @@
 import { expect, test } from "bun:test";
-import { ancestors, files, filterFiles, nextSort, sortTree, type TreeNode } from "./sidebar.ts";
+import {
+  ancestors,
+  files,
+  filterFiles,
+  nextSort,
+  pathFromUrl,
+  sortTree,
+  viewUrl,
+  type TreeNode,
+} from "./sidebar.ts";
+import { fileIcon } from "./icons.ts";
 
 const file = (path: string, modified: number): TreeNode => ({
   name: path.split("/").at(-1)!,
@@ -68,4 +78,19 @@ test("filter matches names fuzzily and marks the matched letters", () => {
   expect(results[0].parts[0]).toEqual({ text: "rate", matched: true });
   expect(results[0].parts.map((part) => part.text).join("")).toBe("rate-limiting.md");
   expect(filterFiles(list, "zzz")).toEqual([]);
+});
+
+test("view URLs encode each part and keep the slashes", () => {
+  expect(viewUrl("docs/a b.md")).toBe("/view/docs/a%20b.md");
+  expect(pathFromUrl("/view/docs/a%20b.md")).toBe("docs/a b.md");
+  expect(pathFromUrl("/view/%E0")).toBe(null);
+  expect(pathFromUrl("/")).toBe(null);
+});
+
+test("fileIcon picks the family from the extension", () => {
+  expect(fileIcon("README.MD")).toBe("text");
+  expect(fileIcon("logo.svg")).toBe("image");
+  expect(fileIcon("data.yml")).toBe("data");
+  expect(fileIcon("flow.mmd")).toBe("diagram");
+  expect(fileIcon("Makefile")).toBe("file");
 });

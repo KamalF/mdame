@@ -1,0 +1,18 @@
+.mdame-frame {
+  display: flex;
+  height: 100%;
+}
+
+#mdame-sidebar {
+  width: 260px;
+  flex: none;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+#mdame-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}

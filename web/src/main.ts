@@ -1,8 +1,10 @@
 import "../styles/base.css";
+import "../styles/layout.css";
 import "../styles/components.css";
 import { api, type State } from "./api.ts";
 import { askHistory } from "./dialogs.ts";
 import * as picker from "./picker.ts";
+import * as sidebar from "./sidebar.ts";
 
 const app = document.getElementById("mdame-app") as HTMLElement;
 const status = document.getElementById("mdame-status") as HTMLElement;
@@ -15,16 +17,46 @@ function showStatus(state: State) {
   status.replaceChildren(workspace, version);
 }
 
+const content = document.createElement("div");
+content.id = "mdame-content";
+
+function showContent(path: string | null) {
+  const line = document.createElement("p");
+  line.className = "mdame-placeholder";
+  line.textContent = path
+    ? `${path}: viewing files comes in milestone 4.`
+    : "Choose a file in the sidebar.";
+  content.replaceChildren(line);
+}
+
+function openFile(path: string) {
+  history.pushState(null, "", sidebar.viewUrl(path));
+  sidebar.setCurrent(path);
+  showContent(path);
+}
+
 function showWorkspace(state: State) {
   const { root, start } = state.workspace!;
   if (start && location.pathname === "/") {
-    history.pushState(null, "", `/view/${encodeURIComponent(start)}`);
+    history.replaceState(null, "", sidebar.viewUrl(start));
   }
-  const line = document.createElement("p");
-  line.className = "mdame-placeholder";
-  line.textContent = `${root} is open. Viewing files comes in milestone 4.`;
-  app.replaceChildren(line);
+  const current = sidebar.pathFromUrl(location.pathname);
+  const nav = document.createElement("nav");
+  nav.id = "mdame-sidebar";
+  nav.setAttribute("aria-label", "Files");
+  const frame = document.createElement("div");
+  frame.className = "mdame-frame";
+  frame.append(nav, content);
+  app.replaceChildren(frame);
+  sidebar.mount(nav, { root, current, onOpen: openFile });
+  showContent(current);
 }
+
+addEventListener("popstate", () => {
+  const path = sidebar.pathFromUrl(location.pathname);
+  sidebar.setCurrent(path);
+  showContent(path);
+});
 
 function show(state: State) {
   showStatus(state);

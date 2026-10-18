@@ -12,7 +12,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
-| 3 | Sidebar | In progress, on `m3-sidebar` | 2 of about 8 |
+| 3 | Sidebar | In progress, on `m3-sidebar` | 3 of about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
@@ -53,14 +53,14 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 - `GET /api/tree` in `tree.rs`: the `ignore` walker, run with `spawn_blocking`; `AppState::workspace()` gives 409 when none is open.
 - `sidebar.ts` pure functions with `bun test`: sort, flatten, folders to open, fuzzy filter with `@leeoniya/ufuzzy`. Sidebar details recorded in the spec.
+- The tree view: folders open and close, open folders are remembered per workspace, a click goes to `/view/<path>` (Back works), the current file is highlighted. Icons moved to a shared `icons.ts`.
 
 ## Next
 
-1. The tree view, with open-folder memory.
-2. Sort, then filter.
-3. Resize, hide and the narrow overlay.
-4. `keys.ts` with `k` and `/`.
-5. Copy path on hover.
+1. Sort, then filter.
+2. Resize, hide and the narrow overlay.
+3. `keys.ts` with `k` and `/`.
+4. Copy path on hover.
 
 ## Open points
 

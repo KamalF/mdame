@@ -1,4 +1,6 @@
 import uFuzzy from "@leeoniya/ufuzzy";
+import { api } from "./api.ts";
+import { fileIcon, icon } from "./icons.ts";
 
 /** A node of `/api/tree`. `modified` is in Unix seconds; for a folder, its newest file. */
 export interface TreeNode {
@@ -89,4 +91,120 @@ export function filterFiles(list: TreeNode[], query: string): Match[] {
 
 function plain(file: TreeNode): Part {
   return { text: file.name, matched: false };
+}
+
+/** `docs/a b.md` gives `/view/docs/a%20b.md`: each part is encoded, not the slashes. */
+export function viewUrl(path: string): string {
+  return "/view/" + path.split("/").map(encodeURIComponent).join("/");
+}
+
+export function pathFromUrl(pathname: string): string | null {
+  if (!pathname.startsWith("/view/")) return null;
+  try {
+    return decodeURIComponent(pathname.slice(6));
+  } catch {
+    return null;
+  }
+}
+
+// Storage can be missing or full (private windows, blocked site data); the
+// sidebar then works without memory.
+function load<T>(key: string, fallback: T): T {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function store(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+let select: (path: string | null) => void = () => {};
+
+/** Highlights `path` as the current file. */
+export function setCurrent(path: string | null) {
+  select(path);
+}
+
+interface MountOptions {
+  root: string;
+  current: string | null;
+  onOpen: (path: string) => void;
+}
+
+export async function mount(el: HTMLElement, { root, current, onOpen }: MountOptions) {
+  const openKey = `mdame:open:${root}`;
+  const open = new Set([...load(openKey, []), ...ancestors(current ?? "")]);
+  const list = document.createElement("ul");
+  list.className = "mdame-tree";
+  el.replaceChildren(list);
+  const tree = sortTree(await api<TreeNode>("GET", "/api/tree"), "name-asc");
+
+  function render() {
+    list.replaceChildren(...items(tree.children!, 0));
+  }
+
+  function items(nodes: TreeNode[], depth: number): HTMLLIElement[] {
+    return nodes.map((node) => {
+      const item = document.createElement("li");
+      const row = node.kind === "dir" ? folderRow(node) : fileRow(node);
+      row.style.paddingLeft = `${8 + depth * 16}px`;
+      item.append(row);
+      if (node.kind === "dir" && open.has(node.path)) {
+        const children = document.createElement("ul");
+        children.append(...items(node.children!, depth + 1));
+        item.append(children);
+      }
+      return item;
+    });
+  }
+
+  function folderRow(node: TreeNode) {
+    const expanded = open.has(node.path);
+    const row = document.createElement("button");
+    row.className = "mdame-tree-row";
+    row.setAttribute("aria-expanded", String(expanded));
+    row.append(icon(expanded ? "chevron-down" : "chevron-right"), label(node.name));
+    row.addEventListener("click", () => {
+      if (expanded) open.delete(node.path);
+      else open.add(node.path);
+      store(openKey, [...open]);
+      render();
+    });
+    return row;
+  }
+
+  function fileRow(node: TreeNode) {
+    const row = document.createElement("a");
+    row.className = "mdame-tree-row";
+    row.href = viewUrl(node.path);
+    if (node.path === current) row.setAttribute("aria-current", "page");
+    row.append(icon(fileIcon(node.name)), label(node.name));
+    row.addEventListener("click", (event) => {
+      // A modified click (new tab, new window) stays a normal link.
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      onOpen(node.path);
+    });
+    return row;
+  }
+
+  select = (path) => {
+    current = path;
+    for (const folder of ancestors(path ?? "")) open.add(folder);
+    render();
+  };
+  render();
+}
+
+function label(text: string) {
+  const span = document.createElement("span");
+  span.className = "mdame-tree-name";
+  span.textContent = text;
+  return span;
 }

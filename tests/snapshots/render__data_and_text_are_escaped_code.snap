@@ -4,7 +4,7 @@ expression: "format!(\"{json}\\n{text}\")"
 ---
 <pre><code class="language-json">{
   &quot;name&quot;: &quot;&lt;script&gt;alert(1)&lt;/script&gt;&quot;,
-  &quot;tags&quot;: [&quot;a &amp; b&quot;, &quot;it&#39;s&quot;]
+  &quot;tags&quot;: [&quot;a &amp; b&quot;, &quot;it's&quot;]
 }
 </code></pre>
 <pre><code class="language-txt">a &lt; b &amp; &quot;c&quot;

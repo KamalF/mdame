@@ -79,9 +79,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ## Next
 
-1. Rewrite the whole history, `main` included, so the front end is TypeScript from the start; TypeScript enters the spec in the first commit. Decided on 18 October 2026.
+1. Milestone 5: live updates, on a new branch `m5-live`.
 
 ## Open points
+
+- History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.

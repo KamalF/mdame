@@ -2,6 +2,7 @@ import "../styles/base.css";
 import "../styles/layout.css";
 import "../styles/components.css";
 import { api, type State } from "./api.ts";
+import { copyButton } from "./copy.ts";
 import { askHistory } from "./dialogs.ts";
 import { icon } from "./icons.ts";
 import { bindKeys } from "./keys.ts";
@@ -12,12 +13,36 @@ import * as view from "./view.ts";
 const app = document.getElementById("mdame-app") as HTMLElement;
 const status = document.getElementById("mdame-status") as HTMLElement;
 
+const fileStatus = document.createElement("span");
+fileStatus.className = "mdame-file-status";
+
 function showStatus(state: State) {
   const workspace = document.createElement("span");
   workspace.textContent = state.workspace ? state.workspace.root : "No workspace";
   const version = document.createElement("span");
   version.textContent = state.version;
-  status.replaceChildren(workspace, version);
+  status.replaceChildren(workspace, fileStatus, version);
+}
+
+function showFileStatus(path: string | null, file: view.FileView | null) {
+  if (!file) {
+    fileStatus.replaceChildren();
+    return;
+  }
+  const name = document.createElement("span");
+  name.textContent = path;
+  const modified = document.createElement("span");
+  modified.textContent = new Date(file.modified * 1000).toLocaleString();
+  const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path! });
+  fileStatus.replaceChildren(name, modified, copyPath);
+  if (file.family !== "image") {
+    const content = async () => {
+      const response = await fetch(view.rawUrl(path!));
+      if (!response.ok) throw new Error(`the server answered ${response.status}`);
+      return response.text();
+    };
+    fileStatus.append(copyButton({ label: "Copy content", iconName: "copy", text: content }));
+  }
 }
 
 const content = document.createElement("div");
@@ -32,7 +57,8 @@ function showContent(path: string | null) {
     return;
   }
   shown = path;
-  if (path) view.showFile(content, path);
+  showFileStatus(path, null);
+  if (path) view.showFile(content, path).then((file) => file && showFileStatus(path, file));
   else view.showNothing(content);
 }
 

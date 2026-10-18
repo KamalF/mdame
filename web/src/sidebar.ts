@@ -1,5 +1,6 @@
 import uFuzzy from "@leeoniya/ufuzzy";
 import { api } from "./api.ts";
+import { copyButton } from "./copy.ts";
 import { fileIcon, icon } from "./icons.ts";
 
 /** A node of `/api/tree`. `modified` is in Unix seconds; for a folder, its newest file. */
@@ -354,31 +355,10 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
 function line(row: HTMLElement, path: string) {
   const wrapper = document.createElement("div");
   wrapper.className = "mdame-tree-line";
-  wrapper.append(row, copyButton(path));
+  const copy = copyButton({ label: `Copy path ${path}`, iconName: "link", text: () => path });
+  copy.classList.add("mdame-copy");
+  wrapper.append(row, copy);
   return wrapper;
-}
-
-function copyButton(path: string) {
-  const button = document.createElement("button");
-  button.className = "mdame-icon-button mdame-copy";
-  button.setAttribute("aria-label", `Copy path ${path}`);
-  button.title = "Copy path";
-  button.append(icon("link"));
-  button.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(path);
-      button.replaceChildren(icon("check"));
-    } catch {
-      // The clipboard API exists only on secure pages: localhost, not a LAN address.
-      button.replaceChildren(icon("cross"));
-      button.title = "Copy failed: the clipboard works only through localhost";
-    }
-    setTimeout(() => {
-      button.replaceChildren(icon("link"));
-      button.title = "Copy path";
-    }, 1200);
-  });
-  return button;
 }
 
 function label(text: string) {

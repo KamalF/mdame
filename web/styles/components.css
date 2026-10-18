@@ -337,3 +337,15 @@
 .mdame-tree-line:focus-within .mdame-tree-folder {
   visibility: hidden;
 }
+
+.mdame-file-status {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.mdame-file-status .mdame-icon-button {
+  width: 24px;
+  height: 24px;
+}

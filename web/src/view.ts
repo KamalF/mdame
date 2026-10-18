@@ -1,5 +1,6 @@
 import "../styles/content.css";
 import { api } from "./api.ts";
+import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
 
@@ -31,8 +32,14 @@ function message(el: HTMLElement, text: string) {
 
 let request = 0;
 
-/** Shows the rendered file in `el`. */
-export async function showFile(el: HTMLElement, path: string) {
+/** `docs/a b.md` gives `/raw/docs/a%20b.md`. */
+export function rawUrl(path: string): string {
+  return "/raw/" + path.split("/").map(encodeURIComponent).join("/");
+}
+
+/** Shows the rendered file in `el`, and returns its `/api/file` answer, or
+ * null when it failed or another file was asked for meanwhile. */
+export async function showFile(el: HTMLElement, path: string): Promise<FileView | null> {
   const id = ++request;
   let file: FileView;
   try {
@@ -40,9 +47,9 @@ export async function showFile(el: HTMLElement, path: string) {
   } catch (error) {
     // A click on another file meanwhile wins over this answer.
     if (id === request) message(el, (error as Error).message);
-    return;
+    return null;
   }
-  if (id !== request) return;
+  if (id !== request) return null;
   const article = document.createElement("article");
   article.className = "mdame-document";
   // Sanitized by the server.
@@ -50,8 +57,21 @@ export async function showFile(el: HTMLElement, path: string) {
   el.replaceChildren(article);
   el.scrollTop = 0;
   scrollToHash();
+  addCopyButtons(article);
   highlightAll(article);
   renderDiagrams(article);
+  return file;
+}
+
+function addCopyButtons(root: HTMLElement) {
+  for (const code of root.querySelectorAll("pre > code:not(.language-mermaid)")) {
+    const pre = code.parentElement!;
+    const block = document.createElement("div");
+    block.className = "mdame-code";
+    pre.replaceWith(block);
+    const button = copyButton({ label: "Copy code", iconName: "copy", text: () => code.textContent });
+    block.append(pre, button);
+  }
 }
 
 export function showNothing(el: HTMLElement) {

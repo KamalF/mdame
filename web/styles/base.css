@@ -18,6 +18,7 @@
   --hl-type: #0b6f80;
   --hl-attr: #5a3fb0;
   --hl-meta: #8a6d00;
+  --mermaid-theme: default;
   --font-ui: system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
 }
@@ -42,6 +43,7 @@
     --hl-type: #6fd3e0;
     --hl-attr: #c4a7ff;
     --hl-meta: #e3c75a;
+    --mermaid-theme: dark;
   }
 }
 

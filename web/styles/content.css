@@ -164,6 +164,18 @@
   font-size: 0.9em;
 }
 
+.mdame-document .mdame-diagram {
+  margin: 0 0 1em;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mdame-document .mdame-diagram-error {
+  margin: -0.5em 0 1em;
+  color: var(--danger);
+  font-size: 0.9em;
+}
+
 /* Lezer's classHighlighter classes, shared with the editor. */
 .tok-keyword,
 .tok-operator {

@@ -82,7 +82,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 **Launching.** `mdame` with no path starts at the workspace picker. `mdame <file>` and `mdame <folder>` start the same server with that workspace already open; a file opens its folder, with that file shown first. One workspace per launch. Flags: `-H` bind address, `-p` port with fallback to the next free one, `--no-open`, `-v` verbose logging. Opens the browser on start. Ships as a single binary with all assets embedded.
 
-**Viewing.** GitHub-flavoured markdown, raw HTML (sanitized), front matter hidden, highlighted code blocks with a copy button, Mermaid in fenced blocks and `.mmd` files, images from the workspace, text, JSON, YAML, TOML and GraphQL shown highlighted, CSV as a table, a 1 MB render guard, a not-found page and an empty-workspace page. Find in page uses the browser's own Cmd/Ctrl+F.
+**Viewing.** GitHub-flavoured markdown, raw HTML (sanitized), front matter hidden, highlighted code blocks with a copy button, Mermaid in fenced blocks and `.mmd` files, images from the workspace, text, JSON, YAML and TOML shown highlighted, GraphQL as plain text, CSV as a table, a 1 MB render guard, a not-found page and an empty-workspace page. Find in page uses the browser's own Cmd/Ctrl+F.
 
 **Live updates.** Content updates in place when a file changes, new and removed files and folders show in the sidebar, editors' save-by-rename is handled, images refresh, scroll position is kept, the current view follows a rename, and the editor shows a "changed on disk" notice.
 

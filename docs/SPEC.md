@@ -161,7 +161,7 @@ Every request passes the guard before reaching a handler. Handlers stay thin and
 
 **Process model.** `mdame` with no path starts at the picker; with a path, it starts with that workspace open. There is no daemon handoff, port file, launchd service or desktop app in v1. If the port is busy, try the next ones and print the URL actually used; the browser opens on that URL once the port is bound.
 
-**Two launches on one workspace.** Allowed in v1. Each runs on its own port and sees the other's saves as changes on disk, and the save check works across them because it compares content, not process state. Shared writes are made safe instead of locked: `config.toml` is written to a temporary file and renamed over the original, snapshots are created with `create_new`, and pruning ignores snapshots that are already gone. A lost recent entry is acceptable. Detecting the second launch is a Later item.
+**Two launches on one workspace.** Allowed in v1. Each runs on its own port and sees the other's saves as changes on disk, and the save check works across them because it compares content, not process state. Shared writes are made safe instead of locked: `config.toml` and `recents.toml` are written to a temporary file and renamed over the original, snapshots are created with `create_new`, and pruning ignores snapshots that are already gone. A lost recent entry is acceptable. Detecting the second launch is a Later item.
 
 **Viewing a file.** The browser asks `GET /api/file?path=…`; the server reads the file through the `Dir`, renders it with comrak, sanitizes it with ammonia and returns HTML with source positions. The browser morphs it into the content area, highlights new code blocks with Lezer and runs Mermaid on new diagrams.
 
@@ -244,7 +244,7 @@ mdame/
     app.rs              AppState, startup, port fallback, open browser
     server.rs           router, security guard layer, static assets
     error.rs            ApiError (thiserror) → status code + JSON body
-    config.rs           config.toml: recents, settings; config, state and themes dirs
+    config.rs           config.toml (settings), recents.toml; config, state and themes dirs
     workspace.rs        Workspace: root, cap-std Dir, mode; open
     tree.rs             ignore walker → tree JSON; folder autocomplete
     watch.rs            debouncer → relative-path events → broadcast
@@ -425,21 +425,20 @@ mdame keeps its own files and imports nothing from mdlive, so it starts with no 
 
 **Watcher and tree.** `.mdame/` is never shown in the tree and its events are ignored, so snapshots never trigger `changed`.
 
-**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`), always written with a temporary file and a rename. Recents keep mdlive's format, up to 25 entries:
-
-```toml
-[[recent]]
-path = "/Users/me/notes"
-mode = "directory"        # or "file"
-last_opened = 1771273728  # unix seconds
-```
-
-Other fields, all optional:
+**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. All fields are optional:
 
 ```toml
 theme = "dark"            # default theme name
 snapshots_per_file = 20
 history = "workspace"     # or "state"; asked on first start
+```
+
+**Recents.** `~/.local/state/mdame/recents.toml` (or under `$XDG_STATE_HOME`) holds what mdame remembers: up to 25 workspaces, written with a temporary file and a rename. They are state, not config: opening a workspace never rewrites `config.toml`, so a dotfiles repo that tracks `~/.config` stays clean.
+
+```toml
+[[recent]]
+path = "/Users/me/notes"
+last_opened_secs = 1771273728
 ```
 
 mdlive's `last_workspaces` and `last_browse_dir` are not carried over.
@@ -543,7 +542,7 @@ Reuse mdlive's tests, formats and a few small functions; replace everything else
 | `tests/websocket_test.rs` | Specification for the watcher: vim-style rename saves, delete-then-create, folder moves | `tests/watch.rs`, ported to the new events |
 | `tests/api_test.rs`, `tests/workspace_test.rs` | Cases for path validation, create and save, switching | route tests |
 | `.mdlive/history` layout, prune-to-20 | Same layout under the history root, millisecond names, same default | `history.rs` |
-| `config.toml` recents | Same recents format | `config.rs` |
+| `config.toml` recents | `[[recent]]` entries with `path` and `last_opened_secs`, in `recents.toml` in the state folder | `config.rs` |
 | `expand_path` in `handlers/workspace.rs` | `~` expansion for the picker | `workspace.rs` |
 | `csv_to_html` in `state.rs` | Starting point for CSV tables | `render.rs` |
 | The 1 MB guard and its message | Same limit | `render.rs` |
@@ -619,6 +618,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Default theme follows the system; built-ins are GitHub Primer light and dark; Catppuccin and Minimal later | 15 October 2026 |
 | Token from getrandom; when bound to all interfaces, the token replaces the `Host` list | 17 October 2026 |
 | Bun is the bundler: its output is reproducible | 17 October 2026 |
+| Recents move from `config.toml` to `recents.toml` in the state folder: they are state, and `config.toml` stays the user's | 18 October 2026 |
 
 ### Review log, 14 October 2026
 

@@ -1,0 +1,26 @@
+---
+source: tests/render.rs
+expression: "render::markdown(&fixture(\"hostile.md\"))"
+---
+<h1 id="hostile-html" data-sourcepos="1:1-1:14">Hostile HTML<a href="#hostile-html" aria-label="Link to heading 'Hostile HTML'" data-heading-content="Hostile HTML" class="anchor"></a></h1>
+
+<img src="x.png" alt="handler">
+<a>script link</a>
+<a>mixed case</a>
+<a>data link</a>
+
+
+
+
+<p>styled</p>
+Send
+<input type="checkbox">
+
+
+<div>handlers</div>
+
+
+
+<p data-sourcepos="22:1-22:43"><a data-sourcepos="22:1-22:43">markdown script link</a></p>
+<p data-sourcepos="24:1-24:38"><img data-sourcepos="24:1-24:38" alt="markdown image"></p>
+<p data-sourcepos="26:1-26:53"><a href="#fn-1" id="fn-1">kept link</a></p>

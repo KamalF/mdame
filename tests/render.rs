@@ -34,3 +34,8 @@ fn yaml_front_matter_is_hidden() {
 fn toml_front_matter_is_hidden() {
     insta::assert_snapshot!(render::markdown(&fixture("front-matter-toml.md")));
 }
+
+#[test]
+fn hostile_html_is_inert() {
+    insta::assert_snapshot!(render::markdown(&fixture("hostile.md")));
+}

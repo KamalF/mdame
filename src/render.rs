@@ -1,11 +1,31 @@
 use std::borrow::Cow;
 
+use ammonia::Builder;
 use comrak::{Options, markdown_to_html};
 
-/// Markdown to HTML, with the extensions that the spec lists. Raw HTML
-/// passes through: the sanitizer decides what stays.
+/// Markdown to sanitized HTML, with the extensions that the spec lists.
 pub fn markdown(text: &str) -> String {
-    markdown_to_html(&blank_toml_front_matter(text), &options())
+    let html = markdown_to_html(&blank_toml_front_matter(text), &options());
+    sanitizer().clean(&html).to_string()
+}
+
+/// The ammonia defaults, widened for what comrak writes.
+fn sanitizer() -> Builder<'static> {
+    let mut builder = Builder::default();
+    builder
+        .add_generic_attributes(["class", "id", "aria-label", "data-sourcepos"])
+        .add_tag_attributes("a", ["data-footnote-ref", "data-footnote-backref"])
+        .add_tag_attributes("a", ["data-footnote-backref-idx", "data-heading-content"])
+        .add_tags(["section"])
+        .add_tag_attributes("section", ["data-footnotes"])
+        // Task lists. Any other input becomes a checkbox too.
+        .add_tags(["input"])
+        .add_tag_attributes("input", ["checked", "disabled"])
+        .set_tag_attribute_value("input", "type", "checkbox")
+        // No `target` is allowed, and the page sends `Referrer-Policy:
+        // no-referrer`, so `rel="noopener noreferrer"` adds nothing.
+        .link_rel(None);
+    builder
 }
 
 fn options() -> Options<'static> {

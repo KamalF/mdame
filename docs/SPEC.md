@@ -184,7 +184,7 @@ Each part of the app maps to one focused library; custom code is limited to snap
 | ignore | 0.4.33 | Walk the workspace, respecting `.gitignore` and hidden files; `follow_links` stays false | walkdir (no ignore rules) |
 | cap-std | 4.0.3 | Confine every file operation to the workspace directory | `canonicalize` + `starts_with` checks |
 | comrak | 0.56 | Markdown to HTML: GFM, footnotes, alerts, front matter, heading ids, `sourcepos`. About one breaking minor a month: pin it and update deliberately | `markdown` crate (fewer options), pulldown-cmark (fewer extensions) |
-| ammonia | 4.2.3 | Sanitize rendered HTML: keep markup, strip scripts and handlers | none |
+| ammonia | 4.2.4 | Sanitize rendered HTML: keep markup, strip scripts and handlers | none |
 | csv | 1.4 | CSV to table | a hand-written split (breaks on quoted fields and newlines) |
 | clap | 4.6 | CLI flags (derive) | hand parsing (teaches little, no `--help`) |
 | serde, serde_json, toml | 1.0.229; 1.0.154; 1.1 | Config and JSON API | none |
@@ -366,7 +366,9 @@ Files over 1 MB return `too_large: true` and a short notice instead of HTML; the
 Start from `ammonia::Builder::default()` and widen it just enough:
 
 - Allow `class` and `id` on all elements (highlighting, alerts, footnotes, heading ids) and `data-sourcepos`. Content ids stay unprefixed so footnote and heading links work. Collisions with the UI are avoided from the app's side: every app id starts with `mdame-`, and app code never reads elements through `window.<id>` named globals (DOM clobbering).
-- Allow `input` with `type`, `checked` and `disabled` for task lists.
+- Allow `input` with `checked` and `disabled` for task lists; `type="checkbox"` is forced, so any other input becomes a checkbox.
+- Allow `section` and the `data-footnote*`, `data-heading-content` and `aria-label` attributes that comrak writes for footnotes and heading anchors.
+- No `rel="noopener noreferrer"` on links (`link_rel(None)`): `target` is not allowed, and the page sends `Referrer-Policy: no-referrer`.
 - Rewrite relative URLs with `UrlRelative::Custom`: resolve against the file's folder and prefix `/raw/`. Images then load from `/raw/…`; the browser intercepts clicks on links to supported files and routes them to `/view/…`.
 - Leave fragment-only links (`#install`, `#fn-1`) unchanged. ammonia passes them to the custom evaluator too, so the evaluator returns any URL starting with `#` as it is.
 - Scripts, `on*` handlers, `javascript:` URLs, `<iframe>`, `<object>` and `<style>` are removed.

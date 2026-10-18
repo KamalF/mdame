@@ -1,6 +1,5 @@
 ---
 source: tests/render.rs
-assertion_line: 11
 expression: "render::markdown(&fixture(\"gfm.md\"))"
 ---
 <h1 id="release-notes" data-sourcepos="1:1-1:15">Release notes<a href="#release-notes" aria-label="Link to heading 'Release notes'" data-heading-content="Release notes" class="anchor"></a></h1>
@@ -25,8 +24,8 @@ A bare link: <a data-sourcepos="4:14-4:32" href="https://example.com">https://ex
 </tbody>
 </table>
 <ul data-sourcepos="11:1-12:24">
-<li data-sourcepos="11:1-11:32"><input type="checkbox" checked="" disabled="" /> Tasks render as checkboxes</li>
-<li data-sourcepos="12:1-13:0"><input type="checkbox" disabled="" /> Unchecked ones too</li>
+<li data-sourcepos="11:1-11:32"><input checked="" disabled="" type="checkbox"> Tasks render as checkboxes</li>
+<li data-sourcepos="12:1-13:0"><input disabled="" type="checkbox"> Unchecked ones too</li>
 </ul>
 <ol data-sourcepos="14:1-15:9">
 <li data-sourcepos="14:1-14:8">First</li>

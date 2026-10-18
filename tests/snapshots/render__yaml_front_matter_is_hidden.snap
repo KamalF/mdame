@@ -1,0 +1,7 @@
+---
+source: tests/render.rs
+assertion_line: 26
+expression: "render::markdown(&fixture(\"front-matter-yaml.md\"))"
+---
+<h1 id="body" data-sourcepos="5:1-5:6">Body<a href="#body" aria-label="Link to heading 'Body'" data-heading-content="Body" class="anchor"></a></h1>
+<p data-sourcepos="7:1-7:20">Only the body shows.</p>

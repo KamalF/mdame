@@ -13,7 +13,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
-| 4 | Viewing | In progress, on `m4-viewing` | 0 of about 11 |
+| 4 | Viewing | In progress, on `m4-viewing` | 1 of about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -61,9 +61,13 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - Copy path on hover: a button next to each row copies the workspace-relative path; a check or a cross shows the result.
 - Review loop over milestone 3: 5 rounds and a simplify pass; fixes in their own commits. Links that leave the workspace and ignore files above it no longer reach the tree; the filter matches accented names.
 
+## Milestone 4: viewing
+
+- `render.rs`: markdown with comrak (GFM, footnotes, alerts, heading ids without prefix, `data-sourcepos`). Front matter is hidden: `---` by comrak, `+++` replaced with blank lines so the line numbers still match the file. insta snapshots of the fixtures in `tests/fixtures/`.
+
 ## Next
 
-1. Milestone 4: `render.rs` for markdown, with comrak and insta snapshots.
+1. Milestone 4: the ammonia rules in `render.rs`, with a hostile-HTML fixture.
 
 ## Open points
 

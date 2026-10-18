@@ -1,0 +1,40 @@
+---
+source: tests/render.rs
+assertion_line: 11
+expression: "render::markdown(&fixture(\"gfm.md\"))"
+---
+<h1 id="release-notes" data-sourcepos="1:1-1:15">Release notes<a href="#release-notes" aria-label="Link to heading 'Release notes'" data-heading-content="Release notes" class="anchor"></a></h1>
+<p data-sourcepos="3:1-4:53">Some <em data-sourcepos="3:6-3:15">emphasis</em>, <strong data-sourcepos="3:18-3:27">strong</strong> text, <code data-sourcepos="3:35-3:47">inline code</code> and <del data-sourcepos="3:53-3:62">struck</del> words.
+A bare link: <a data-sourcepos="4:14-4:32" href="https://example.com">https://example.com</a> and <a data-sourcepos="4:38-4:52" href="http://www.example.com">www.example.com</a>.</p>
+<table data-sourcepos="6:1-9:23">
+<thead>
+<tr data-sourcepos="6:1-6:20">
+<th data-sourcepos="6:2-6:10">Feature</th>
+<th data-sourcepos="6:12-6:19" align="center">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr data-sourcepos="8:1-8:17">
+<td data-sourcepos="8:2-8:9">Tables</td>
+<td data-sourcepos="8:11-8:16" align="center">done</td>
+</tr>
+<tr data-sourcepos="9:1-9:23">
+<td data-sourcepos="9:2-9:12">Alignment</td>
+<td data-sourcepos="9:14-9:22" align="center">centred</td>
+</tr>
+</tbody>
+</table>
+<ul data-sourcepos="11:1-12:24">
+<li data-sourcepos="11:1-11:32"><input type="checkbox" checked="" disabled="" /> Tasks render as checkboxes</li>
+<li data-sourcepos="12:1-13:0"><input type="checkbox" disabled="" /> Unchecked ones too</li>
+</ul>
+<ol data-sourcepos="14:1-15:9">
+<li data-sourcepos="14:1-14:8">First</li>
+<li data-sourcepos="15:1-16:0">Second</li>
+</ol>
+<pre data-sourcepos="17:1-19:3"><code class="language-rust">fn main() {}
+</code></pre>
+<blockquote data-sourcepos="21:1-21:10">
+<p data-sourcepos="21:3-21:10">A quote.</p>
+</blockquote>
+<details><summary>Raw HTML</summary>Passes to the sanitizer.</details>

@@ -1,5 +1,6 @@
 [tools]
 bun = "1.4.3"
+cargo-insta = "1.49.0"
 rust = { version = "1.99.0", components = "rust-analyzer,clippy,rustfmt" }
 
 [vars]

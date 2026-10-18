@@ -1,0 +1,18 @@
+---
+source: tests/render.rs
+assertion_line: 16
+expression: "render::markdown(&fixture(\"links.md\"))"
+---
+<h1 id="install" data-sourcepos="1:1-1:9">Install<a href="#install" aria-label="Link to heading 'Install'" data-heading-content="Install" class="anchor"></a></h1>
+<p data-sourcepos="3:1-4:33">See <a data-sourcepos="3:5-3:19" href="#usage">usage</a>, the <a data-sourcepos="3:26-3:47" href="docs/guide.md">guide</a> and <img data-sourcepos="3:53-3:73" src="img/logo.png" alt="logo" />.
+A claim with a footnote.<sup data-sourcepos="4:25-4:33" class="footnote-ref"><a href="#fn-source" id="fnref-source" data-footnote-ref>1</a></sup></p>
+<h2 id="usage" data-sourcepos="6:1-6:8">Usage<a href="#usage" aria-label="Link to heading 'Usage'" data-heading-content="Usage" class="anchor"></a></h2>
+<p data-sourcepos="8:1-8:65">Back to <a data-sourcepos="8:9-8:27" href="#install">the top</a>. Duplicate headings get distinct ids:</p>
+<h2 id="usage-1" data-sourcepos="10:1-10:8">Usage<a href="#usage-1" aria-label="Link to heading 'Usage'" data-heading-content="Usage" class="anchor"></a></h2>
+<section data-sourcepos="12:1-12:29" class="footnotes" data-footnotes>
+<ol>
+<li data-sourcepos="12:1-12:29" id="fn-source">
+<p data-sourcepos="12:12-12:29">The footnote text. <a href="#fnref-source" class="footnote-backref" data-footnote-backref data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+</ol>
+</section>

@@ -1,0 +1,25 @@
+---
+source: tests/render.rs
+assertion_line: 21
+expression: "render::markdown(&fixture(\"alerts.md\"))"
+---
+<div class="markdown-alert markdown-alert-note" data-sourcepos="1:1-2:9">
+<p class="markdown-alert-title">Note</p>
+<p data-sourcepos="2:3-2:9">A note.</p>
+</div>
+<div class="markdown-alert markdown-alert-tip" data-sourcepos="4:1-5:8">
+<p class="markdown-alert-title">Tip</p>
+<p data-sourcepos="5:3-5:8">A tip.</p>
+</div>
+<div class="markdown-alert markdown-alert-important" data-sourcepos="7:1-8:12">
+<p class="markdown-alert-title">Important</p>
+<p data-sourcepos="8:3-8:12">Important.</p>
+</div>
+<div class="markdown-alert markdown-alert-warning" data-sourcepos="10:1-11:12">
+<p class="markdown-alert-title">Warning</p>
+<p data-sourcepos="11:3-11:12">A warning.</p>
+</div>
+<div class="markdown-alert markdown-alert-caution" data-sourcepos="13:1-14:10">
+<p class="markdown-alert-title">Caution</p>
+<p data-sourcepos="14:3-14:10">Caution.</p>
+</div>

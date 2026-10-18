@@ -235,7 +235,7 @@ One Cargo package (no Cargo workspace), one `web/` folder for the front end, and
 ```
 mdame/
   Cargo.toml
-  mise.toml             tools (rust, bun) and tasks: web, dev, fmt, lint, test, check-dist
+  mise.toml             tools (rust, bun, cargo-insta) and tasks: web, dev, fmt, lint, test, check-dist
   package.json          browser dependencies (no scripts beyond our own)
   bun.lock              committed text lockfile
   bunfig.toml           linker = "hoisted"

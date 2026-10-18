@@ -11,7 +11,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
-| 2 | Workspaces | In progress, on `m2-workspaces` | 10 of about 12 |
+| 2 | Workspaces | In progress, on `m2-workspaces` | 11 of about 12 |
 | 3 | Sidebar | — | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
@@ -43,13 +43,14 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `GET /api/complete` in `tree.rs`: path suggestions for the picker.
 - `GET /api/recents`, newest first. The Rust side of milestone 2 is complete.
 - `/api/state` returns `home`, so that the picker shows paths as `~/…`.
+- The picker screen: `api.ts`, `picker.ts`, provisional `base.css` and `components.css`, and `bun test` for its pure functions. Until milestone 4, an open workspace shows a one-line placeholder.
 
 ## Next
 
-1. The picker screen, as agreed in the design round of 18 October 2026.
-2. The first-start dialog.
+1. The first-start dialog.
 
 ## Open points
 
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
+- Error messages built from `io::Error` end with "(os error 2)". Write our own text for the common kinds (not found, permission denied) before the picker is called done.

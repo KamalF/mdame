@@ -504,7 +504,12 @@ The exact list is the owner's call during design; once fixed, document it in `we
 - File header: none. Path, modified time and the actions (edit, copy raw, copy path, revisions) live in the status bar; content starts at the top edge.
 - Editor: preview on the right, 50/50 by default, draggable divider, scroll sync.
 - Revisions: inline diff in the editor (CodeMirror merge view) against a revision picked from a list. `h` or `r` in view mode opens the editor in diff mode.
-- Picker: one centred path field with autocomplete; recents appear as suggestions in its dropdown.
+- Picker: one centred path field with autocomplete; recents appear as suggestions in its dropdown. Details decided on 18 October 2026:
+  - An empty field lists the recents, newest first. While you type, the recents that contain the typed text come first, tagged "recent", then the `/api/complete` results; a path shows once.
+  - Paths under the home folder show as `~/…`. Each row has an icon: folder, file, or recent.
+  - The first row is highlighted. ↑↓ move the highlight, Tab puts the highlighted path in the field, Enter opens the highlighted path (or the typed text when the list is empty), Esc closes the list.
+  - An error line under the field shows the API message until the next key press.
+  - After an open, the page shows the workspace; with a starting file, the URL becomes `/view/<file>`.
 - Typography, provisional until the theme pass: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. A mono toggle sets the content in Plex Mono at 72ch. Fonts are bundled (OFL).
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.

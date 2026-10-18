@@ -195,6 +195,7 @@
 }
 
 .mdame-tree-row {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -215,6 +216,10 @@
   background: var(--selection);
 }
 
+.mdame-tree-row.is-highlighted {
+  background: var(--selection);
+}
+
 .mdame-tree-row[aria-current="page"] {
   background: var(--selection);
   color: var(--accent);
@@ -230,7 +235,6 @@
 .mdame-sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 4px;
   padding: 10px 8px 4px 10px;
 }
@@ -252,4 +256,49 @@
 .mdame-icon-button:hover {
   background: var(--selection);
   color: var(--fg);
+}
+
+.mdame-filter {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+}
+
+.mdame-filter:focus-within {
+  border-color: var(--accent);
+}
+
+.mdame-filter input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+}
+
+.mdame-tree-name b {
+  font-weight: 700;
+}
+
+.mdame-tree-folder {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+.mdame-tree-empty {
+  padding: 6px 8px;
+  color: var(--fg-muted);
 }

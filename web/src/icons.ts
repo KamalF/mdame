@@ -13,6 +13,7 @@ const ICONS: Record<string, string> = {
     '<path d="M12 6v6l2 1"/><path d="M12.34 21.99a10 10 0 1 1 9.59-8.77"/><path d="m14 18 4 4 4-4"/><path d="M18 14v8"/>',
   "date-asc":
     '<path d="M12 6v6l1.56.78"/><path d="M13.23 21.93a10 10 0 1 1 8.77-9.59"/><path d="m14 18 4-4 4 4"/><path d="M18 22v-8"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
   "chevron-down": '<path d="m6 9 6 6 6-6"/>',
   text: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',

@@ -69,7 +69,9 @@ export function ancestors(path: string): string[] {
   return parts.map((_, index) => parts.slice(0, index + 1).join("/"));
 }
 
-const fuzzy = new uFuzzy();
+// By default uFuzzy allows no letters between matched ones, and treats
+// `.`, `-` and `_` as breaks: "mto" would not find "mise.toml".
+const fuzzy = new uFuzzy({ intraIns: Infinity, intraChars: "[a-z\\d'._ -]" });
 
 /**
  * Files whose name matches `query`, best first. `parts` splits the name
@@ -150,17 +152,28 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   let order = load("mdame:sort", "name-asc");
   if (!SORTS.includes(order)) order = "name-asc";
 
+  const filter = document.createElement("input");
+  filter.placeholder = "Filter  /";
+  filter.setAttribute("aria-label", "Filter files");
+  filter.autocomplete = "off";
+  filter.spellcheck = false;
+  const filterField = document.createElement("label");
+  filterField.className = "mdame-filter";
+  filterField.append(icon("search"), filter);
   const sortButton = document.createElement("button");
   sortButton.className = "mdame-icon-button";
   const header = document.createElement("div");
   header.className = "mdame-sidebar-header";
-  header.append(sortButton);
+  header.append(filterField, sortButton);
   const list = document.createElement("ul");
   list.className = "mdame-tree";
   el.replaceChildren(header, list);
 
   const fetched = await api<TreeNode>("GET", "/api/tree");
+  const allFiles = files(fetched);
   let tree = sortTree(fetched, order);
+  let results: Match[] = [];
+  let highlight = -1;
 
   function showSort() {
     const label = `Sort: ${SORT_LABELS[order]}`;
@@ -178,8 +191,70 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     render();
   });
 
+  filter.addEventListener("input", () => {
+    const query = filter.value.trim();
+    results = query ? filterFiles(allFiles, query) : [];
+    highlight = -1;
+    render();
+  });
+
+  filter.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" && results.length > 0) {
+      highlight = (highlight + 1) % results.length;
+      render();
+    } else if (event.key === "ArrowUp" && results.length > 0) {
+      highlight = highlight <= 0 ? results.length - 1 : highlight - 1;
+      render();
+    } else if (event.key === "Enter" && results.length > 0) {
+      onOpen((results[highlight] ?? results[0]).file.path);
+    } else if (event.key === "Escape") {
+      if (filter.value) {
+        filter.value = "";
+        filter.dispatchEvent(new Event("input"));
+      } else {
+        filter.blur();
+      }
+    } else {
+      return;
+    }
+    event.preventDefault();
+  });
+
   function render() {
-    list.replaceChildren(...items(tree.children!, 0));
+    if (!filter.value.trim()) {
+      list.replaceChildren(...items(tree.children!, 0));
+      return;
+    }
+    if (results.length === 0) {
+      const none = document.createElement("li");
+      none.className = "mdame-tree-empty";
+      none.textContent = "No file matches.";
+      list.replaceChildren(none);
+      return;
+    }
+    list.replaceChildren(...results.map(resultItem));
+    list.children[highlight]?.scrollIntoView({ block: "nearest" });
+  }
+
+  function resultItem(result: Match, index: number) {
+    const name = document.createElement("span");
+    name.className = "mdame-tree-name";
+    for (const part of result.parts) {
+      // textContent only: file names can hold markup.
+      const piece = document.createElement(part.matched ? "b" : "span");
+      piece.textContent = part.text;
+      name.append(piece);
+    }
+    const folder = document.createElement("span");
+    folder.className = "mdame-tree-folder";
+    folder.textContent = result.file.path.split("/").slice(0, -1).join("/");
+    const row = fileRow(result.file, name);
+    row.style.paddingLeft = "8px";
+    row.append(folder);
+    row.classList.toggle("is-highlighted", index === highlight);
+    const item = document.createElement("li");
+    item.append(row);
+    return item;
   }
 
   function items(nodes: TreeNode[], depth: number): HTMLLIElement[] {
@@ -212,12 +287,12 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     return row;
   }
 
-  function fileRow(node: TreeNode) {
+  function fileRow(node: TreeNode, name = label(node.name)) {
     const row = document.createElement("a");
     row.className = "mdame-tree-row";
     row.href = viewUrl(node.path);
     if (node.path === current) row.setAttribute("aria-current", "page");
-    row.append(icon(fileIcon(node.name)), label(node.name));
+    row.append(icon(fileIcon(node.name)), name);
     row.addEventListener("click", (event) => {
       // A modified click (new tab, new window) stays a normal link.
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;

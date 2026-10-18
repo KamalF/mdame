@@ -80,6 +80,11 @@ test("filter matches names fuzzily and marks the matched letters", () => {
   expect(filterFiles(list, "zzz")).toEqual([]);
 });
 
+test("filter skips letters and separators between matched letters", () => {
+  const list = [file("mise.toml", 1), file("Cargo.toml", 1)];
+  expect(filterFiles(list, "mto").map((result) => result.file.name)).toEqual(["mise.toml"]);
+});
+
 test("view URLs encode each part and keep the slashes", () => {
   expect(viewUrl("docs/a b.md")).toBe("/view/docs/a%20b.md");
   expect(pathFromUrl("/view/docs/a%20b.md")).toBe("docs/a b.md");

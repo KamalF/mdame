@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 use axum::{body::Body, http::Request, response::Response};
-use mdame::{app::AppState, server::router};
+use mdame::{app::AppState, config::Config, server::router};
 use tower::ServiceExt;
 
 pub async fn send(state: AppState, uri: &str, headers: &[(&str, &str)]) -> Response {
@@ -18,5 +19,7 @@ pub fn local() -> AppState {
         addr: "127.0.0.1:4891".parse().unwrap(),
         workspace: None,
         token: None,
+        config: RwLock::new(Config::default()),
+        config_path: PathBuf::new(),
     }
 }

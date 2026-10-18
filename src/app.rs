@@ -1,10 +1,12 @@
 use std::io::{self, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 use clap::Parser;
 use tokio::net::TcpListener;
 
+use crate::config::{self, Config};
 use crate::server;
 
 const PORT_ATTEMPTS: usize = 10;
@@ -30,9 +32,13 @@ pub struct AppState {
     pub workspace: Option<String>,
     /// Set when bound beyond loopback; every request must then carry it.
     pub token: Option<String>,
+    pub config: RwLock<Config>,
+    pub config_path: PathBuf,
 }
 
 pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = config::config_file().ok_or("set HOME or XDG_CONFIG_HOME: no home folder")?;
+    let config = config::load(&config_path)?;
     let listener = bind_first_free(args.host, args.port, PORT_ATTEMPTS).await?;
     let token = if args.host.is_loopback() {
         None
@@ -43,6 +49,8 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         addr: listener.local_addr()?,
         workspace: None,
         token,
+        config: RwLock::new(config),
+        config_path,
     };
     let state: Arc<AppState> = Arc::new(app_state);
 

@@ -8,8 +8,8 @@ use mdame::app::AppState;
 fn network() -> AppState {
     AppState {
         addr: "0.0.0.0:4891".parse().unwrap(),
-        workspace: None,
         token: Some("secret".to_string()),
+        ..local()
     }
 }
 

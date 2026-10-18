@@ -195,7 +195,7 @@ Each part of the app maps to one focused library; custom code is limited to snap
 Written ourselves instead of a crate:
 
 - **Config and state paths.** `$XDG_CONFIG_HOME` or `~/.config`, and `$XDG_STATE_HOME` or `~/.local/state`, each joined with `mdame`. About 10 lines; replaces etcetera.
-- **Errors in `main`.** `main` returns `Result<(), Box<dyn std::error::Error>>`; replaces anyhow.
+- **Errors in `main`.** `app::run` returns `Result<(), Box<dyn std::error::Error>>`; `main` prints the error and exits with a failure code. Replaces anyhow.
 
 Dev dependencies: tempfile, [insta](https://crates.io/crates/insta) for snapshot tests of rendered HTML (`cargo-insta` comes from the mise registry), and `tower::ServiceExt::oneshot` for route tests.
 
@@ -425,7 +425,7 @@ mdame keeps its own files and imports nothing from mdlive, so it starts with no 
 
 **Watcher and tree.** `.mdame/` is never shown in the tree and its events are ignored, so snapshots never trigger `changed`.
 
-**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. All fields are optional:
+**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. If the file is not valid, mdame stops at start with the error: a later save would otherwise replace the user's settings with the defaults. All fields are optional:
 
 ```toml
 theme = "dark"            # default theme name
@@ -619,6 +619,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Token from getrandom; when bound to all interfaces, the token replaces the `Host` list | 17 October 2026 |
 | Bun is the bundler: its output is reproducible | 17 October 2026 |
 | Recents move from `config.toml` to `recents.toml` in the state folder: they are state, and `config.toml` stays the user's | 18 October 2026 |
+| An invalid `config.toml` stops mdame at start | 18 October 2026 |
 
 ### Review log, 14 October 2026
 

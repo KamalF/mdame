@@ -17,12 +17,14 @@ use std::sync::Arc;
 struct StateResponse {
     version: &'static str,
     workspace: Option<String>,
+    needs_setup: bool,
 }
 
 async fn state(State(app): State<Arc<AppState>>) -> Json<StateResponse> {
     Json(StateResponse {
         version: env!("CARGO_PKG_VERSION"),
         workspace: app.workspace.clone(),
+        needs_setup: app.config.read().unwrap().history.is_none(),
     })
 }
 

@@ -11,8 +11,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
-| 2 | Workspaces | In progress, on `m2-workspaces` | 13 of about 13 |
-| 3 | Sidebar | — | about 8 |
+| 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
+| 3 | Sidebar | In progress, on `m3-sidebar` | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
@@ -51,7 +51,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ## Next
 
-1. Review milestone 2 and merge `m2-workspaces` into `main`.
+1. `GET /api/tree` with the `ignore` walker.
+2. Design round for the sidebar details, before its UI.
 
 ## Open points
 

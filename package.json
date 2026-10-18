@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@leeoniya/ufuzzy": "1.0.19"
+    "@codemirror/language": "6.13.1",
+    "@codemirror/language-data": "6.5.2",
+    "@leeoniya/ufuzzy": "1.0.19",
+    "@lezer/highlight": "1.2.5"
   },
   "devDependencies": {
     "@types/bun": "1.4.3",

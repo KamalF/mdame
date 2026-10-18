@@ -1,5 +1,6 @@
 import "../styles/content.css";
 import { api } from "./api.ts";
+import { highlightAll } from "./codehl.ts";
 
 /** What `/api/file` answers. */
 export interface FileView {
@@ -48,6 +49,7 @@ export async function showFile(el: HTMLElement, path: string) {
   el.replaceChildren(article);
   el.scrollTop = 0;
   scrollToHash();
+  highlightAll(article);
 }
 
 export function showNothing(el: HTMLElement) {

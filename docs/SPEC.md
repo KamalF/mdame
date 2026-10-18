@@ -345,7 +345,7 @@ All rendering happens in `render.rs`: one function takes a path and its contents
 | --- | --- |
 | `.md`, `.markdown` | comrak, then ammonia |
 | `.csv` | `<table>`, first row as header; rows may have different lengths |
-| `.json`, `.yaml`, `.yml`, `.toml`, `.graphql`, `.gql`, `.txt` | `<pre><code class="language-…">`, escaped, with the lowercased extension as the language; Lezer colours it in the browser, and an unknown language (`txt`) stays plain text |
+| `.json`, `.yaml`, `.yml`, `.toml`, `.graphql`, `.gql`, `.txt` | `<pre><code class="language-…">`, escaped, with the lowercased extension as the language; Lezer colours it in the browser, and an unknown language (`txt`, and GraphQL, which language-data lacks) stays plain text |
 | `.mmd` | `<pre class="mermaid">`, escaped |
 | `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` | `<img src="/raw/…">` |
 | anything else | Not listed in the tree in v1 |
@@ -611,7 +611,8 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 
 - **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
 - **Theme details.** Exact Primer values per contract variable and the final theme-contract list, at the theme pass in milestone 8.
-- **To settle in a milestone:** GraphQL and legacy-mode highlighting (milestone 4), rename pairing on inotify (milestone 5).
+- **To settle in a milestone:** rename pairing on inotify (milestone 5).
+- **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
 
 ## Decided
 

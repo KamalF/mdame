@@ -9,6 +9,15 @@
   --selection: #e3e9f8;
   --accent: #1d3f99;
   --danger: #b42318;
+  --code-bg: #f4f4f2;
+  --hl-keyword: #a0207a;
+  --hl-string: #1a7f37;
+  --hl-number: #9a5b00;
+  --hl-comment: #6e7781;
+  --hl-title: #1d3f99;
+  --hl-type: #0b6f80;
+  --hl-attr: #5a3fb0;
+  --hl-meta: #8a6d00;
   --font-ui: system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
 }
@@ -24,6 +33,15 @@
     --selection: #26355e;
     --accent: #a8c0ff;
     --danger: #ff8a7a;
+    --code-bg: #111112;
+    --hl-keyword: #ff7ac6;
+    --hl-string: #7ee08f;
+    --hl-number: #f5b35c;
+    --hl-comment: #8b949e;
+    --hl-title: #a8c0ff;
+    --hl-type: #6fd3e0;
+    --hl-attr: #c4a7ff;
+    --hl-meta: #e3c75a;
   }
 }
 

@@ -1,0 +1,17 @@
+---
+source: tests/render.rs
+expression: "render::markdown(\"notes/today.md\", &text)"
+---
+<p data-sourcepos="1:1-1:29">Rendered as <code data-sourcepos="1:13-1:28">notes/today.md</code>.</p>
+<ul data-sourcepos="3:1-11:101">
+<li data-sourcepos="3:1-3:52"><a data-sourcepos="3:3-3:24" href="/raw/notes/tomorrow.md">Sibling</a> and <img data-sourcepos="3:30-3:52" src="/raw/notes/img/chart.png" alt="image"></li>
+<li data-sourcepos="4:1-4:43"><a data-sourcepos="4:3-4:43" href="/raw/notes/tomorrow.md#plans">Section of a sibling</a></li>
+<li data-sourcepos="5:1-5:31"><a data-sourcepos="5:3-5:31" href="/raw/README.md">Parent folder</a></li>
+<li data-sourcepos="6:1-6:34"><a data-sourcepos="6:3-6:34" href="/raw/docs/guide.md">Workspace root</a></li>
+<li data-sourcepos="7:1-7:38"><a data-sourcepos="7:3-7:38" href="/raw/secret.md">Above the root</a></li>
+<li data-sourcepos="8:1-8:24"><a data-sourcepos="8:3-8:24" href="/raw/notes/my%20notes.md">Space</a></li>
+<li data-sourcepos="9:1-9:23"><a data-sourcepos="9:3-9:23" href="/raw/notes/data.csv?v=2">Query</a></li>
+<li data-sourcepos="10:1-10:17"><a data-sourcepos="10:3-10:17" href="#top">In page</a></li>
+<li data-sourcepos="11:1-12:0"><a data-sourcepos="11:3-11:33" href="https://example.com/a.md">Web</a>, <a data-sourcepos="11:36-11:68" href="//example.com/b.png">other host</a> and <a data-sourcepos="11:74-11:101" href="mailto:a@example.com">mail</a></li>
+</ul>
+<img src="/raw/notes/img/raw-html.png" alt="raw HTML">

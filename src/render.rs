@@ -1,16 +1,51 @@
 use std::borrow::Cow;
 
-use ammonia::Builder;
+use ammonia::{Builder, Url, UrlRelative, UrlRelativeEvaluate};
 use comrak::{Options, markdown_to_html};
 
+/// Only used to resolve relative URLs; it never leaves `render.rs`.
+const ORIGIN: &str = "http://mdame.invalid";
+
 /// Markdown to sanitized HTML, with the extensions that the spec lists.
-pub fn markdown(text: &str) -> String {
+/// `path` is the file's workspace-relative path: relative URLs resolve
+/// against its folder.
+pub fn markdown(path: &str, text: &str) -> String {
     let html = markdown_to_html(&blank_toml_front_matter(text), &options());
-    sanitizer().clean(&html).to_string()
+    sanitizer(RawUrls::new(path)).clean(&html).to_string()
+}
+
+/// Turns a relative URL into a `/raw/…` path from the workspace root.
+/// `/x` means the workspace root, as on GitHub, and `..` stops at the root.
+struct RawUrls {
+    folder: Url,
+}
+
+impl RawUrls {
+    fn new(path: &str) -> Self {
+        let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
+        let mut url = Url::parse(ORIGIN).expect("ORIGIN is a valid URL");
+        // `set_path` escapes spaces, `?` and `#`, but not `%`.
+        url.set_path(&format!("{}/", folder.replace('%', "%25")));
+        Self { folder: url }
+    }
+}
+
+impl UrlRelativeEvaluate<'static> for RawUrls {
+    fn evaluate<'u>(&self, url: &'u str) -> Option<Cow<'u, str>> {
+        if url.starts_with('#') {
+            return Some(Cow::Borrowed(url));
+        }
+        let resolved = self.folder.join(url).ok()?;
+        match resolved.as_str().strip_prefix(ORIGIN) {
+            Some(rest) => Some(Cow::Owned(format!("/raw{rest}"))),
+            // `//host/x` names another host.
+            None => Some(Cow::Borrowed(url)),
+        }
+    }
 }
 
 /// The ammonia defaults, widened for what comrak writes.
-fn sanitizer() -> Builder<'static> {
+fn sanitizer(raw_urls: RawUrls) -> Builder<'static> {
     let mut builder = Builder::default();
     builder
         .add_generic_attributes(["class", "id", "aria-label", "data-sourcepos"])
@@ -24,7 +59,8 @@ fn sanitizer() -> Builder<'static> {
         .set_tag_attribute_value("input", "type", "checkbox")
         // No `target` is allowed, and the page sends `Referrer-Policy:
         // no-referrer`, so `rel="noopener noreferrer"` adds nothing.
-        .link_rel(None);
+        .link_rel(None)
+        .url_relative(UrlRelative::Custom(Box::new(raw_urls)));
     builder
 }
 
@@ -84,10 +120,41 @@ mod tests {
         }
     }
 
+    fn raw(path: &str, url: &str) -> Option<String> {
+        RawUrls::new(path).evaluate(url).map(Cow::into_owned)
+    }
+
+    #[test]
+    fn relative_urls_resolve_against_the_folder() {
+        let cases = [
+            ("a.md", "b.png", "/raw/b.png"),
+            ("docs/a.md", "b.png", "/raw/docs/b.png"),
+            ("docs/a.md", "./img/b.png", "/raw/docs/img/b.png"),
+            ("docs/deep/a.md", "../b.md#usage", "/raw/docs/b.md#usage"),
+            ("docs/a.md", "/b.png", "/raw/b.png"),
+            ("docs/a.md", "../../../b.png", "/raw/b.png"),
+            ("docs/a.md", "b.png?v=2", "/raw/docs/b.png?v=2"),
+            ("docs/a.md", "my%20b.png", "/raw/docs/my%20b.png"),
+            ("my docs/a.md", "b.png", "/raw/my%20docs/b.png"),
+            ("100%/a.md", "b.png", "/raw/100%25/b.png"),
+            ("a#1?/a.md", "b.png", "/raw/a%231%3F/b.png"),
+        ];
+        for (path, url, expected) in cases {
+            assert_eq!(raw(path, url).as_deref(), Some(expected), "{path} {url}");
+        }
+    }
+
+    #[test]
+    fn fragments_and_other_hosts_are_kept() {
+        for url in ["#install", "#fn-1", "//example.com/b.png"] {
+            assert_eq!(raw("docs/a.md", url).as_deref(), Some(url));
+        }
+    }
+
     #[test]
     fn front_matter_keeps_the_line_numbers() {
         for fence in ["+++", "---"] {
-            let html = markdown(&format!("{fence}\ntitle: A\n{fence}\n# A\n"));
+            let html = markdown("a.md", &format!("{fence}\ntitle: A\n{fence}\n# A\n"));
             assert!(html.contains("data-sourcepos=\"4:1-4:3\""), "{html}");
         }
     }

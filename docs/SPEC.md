@@ -369,7 +369,7 @@ Start from `ammonia::Builder::default()` and widen it just enough:
 - Allow `input` with `checked` and `disabled` for task lists; `type="checkbox"` is forced, so any other input becomes a checkbox.
 - Allow `section` and the `data-footnote*`, `data-heading-content` and `aria-label` attributes that comrak writes for footnotes and heading anchors.
 - No `rel="noopener noreferrer"` on links (`link_rel(None)`): `target` is not allowed, and the page sends `Referrer-Policy: no-referrer`.
-- Rewrite relative URLs with `UrlRelative::Custom`: resolve against the file's folder and prefix `/raw/`. Images then load from `/raw/…`; the browser intercepts clicks on links to supported files and routes them to `/view/…`.
+- Rewrite relative URLs with `UrlRelative::Custom`: resolve against the file's folder and prefix `/raw/`. Images then load from `/raw/…`; the browser intercepts clicks on links to supported files and routes them to `/view/…`. A URL that starts with `/` resolves from the workspace root, as on GitHub, and `..` stops at the root. `//host/…` URLs are kept.
 - Leave fragment-only links (`#install`, `#fn-1`) unchanged. ammonia passes them to the custom evaluator too, so the evaluator returns any URL starting with `#` as it is.
 - Scripts, `on*` handlers, `javascript:` URLs, `<iframe>`, `<object>` and `<style>` are removed.
 

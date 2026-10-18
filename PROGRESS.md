@@ -13,7 +13,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
-| 4 | Viewing | In progress, on `m4-viewing` | 2 of about 11 |
+| 4 | Viewing | In progress, on `m4-viewing` | 3 of about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -65,10 +65,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 - `render.rs`: markdown with comrak (GFM, footnotes, alerts, heading ids without prefix, `data-sourcepos`). Front matter is hidden: `---` by comrak, `+++` replaced with blank lines so the line numbers still match the file. insta snapshots of the fixtures in `tests/fixtures/`.
 - ammonia rules in `render.rs`: the defaults, plus `class`, `id`, `data-sourcepos`, footnote and heading-anchor attributes, `section`, and task-list inputs (forced to checkboxes). A hostile-HTML fixture pins the output.
+- Relative URLs become `/raw/…` paths: `render::markdown` takes the file's path and resolves them against its folder with `url::Url::join`; `#…` links stay as they are.
 
 ## Next
 
-1. Milestone 4: relative URL rewriting with `UrlRelative::Custom` (resolve against the file's folder, prefix `/raw/`, keep `#…` links), so `render::markdown` takes the file's path.
+1. Milestone 4: `render.rs` for the other file types (CSV, code, Mermaid, images) behind one function, with the 1 MB guard and one extension table for the tree and the icons.
 
 ## Open points
 

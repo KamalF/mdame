@@ -12,8 +12,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
-| 3 | Sidebar | In progress, on `m3-sidebar` | 8 of about 8 |
-| 4 | Viewing | — | about 11 |
+| 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
+| 4 | Viewing | In progress, on `m4-viewing` | 0 of about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -63,7 +63,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ## Next
 
-1. Check the sidebar in the browser (narrow overlay with `/` and Esc, ↑↓ in the filter, long names, resize), then merge `m3-sidebar` into `main`.
+1. Milestone 4: `render.rs` for markdown, with comrak and insta snapshots.
 
 ## Open points
 

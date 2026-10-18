@@ -312,7 +312,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /api/recents` | Recent workspaces | JSON |
 | `POST /api/workspace` | Open `{path}`, a file or folder, when none is open (409 otherwise). `~` and `~/` name the home folder; a relative path gets 400 | new state |
 | `PUT /api/settings` | Save settings chosen in the page, such as `{history}` from the first-start dialog | new state |
-| `GET /api/complete?prefix=` | Folder and file suggestions for the picker | JSON |
+| `GET /api/complete?prefix=` | Folder and file suggestions for the picker: entries of the typed folder that start with the last part, in any case; folders first, ending with `/`; hidden ones once the last part starts with `.`; at most 50 | `[{path, dir}]` |
 | `GET /ws` | WebSocket upgrade | events |
 
 Errors share one shape, `{"error":{"code":"not_found","message":"…"}}`, with status 400, 403, 404, 409, 412, 413, 428 or 500. `ApiError` in `error.rs` maps each variant to one status.

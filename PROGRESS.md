@@ -11,7 +11,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
-| 2 | Workspaces | In progress, on `m2-workspaces` | 7 of about 9 |
+| 2 | Workspaces | In progress, on `m2-workspaces` | 8 of about 9 |
 | 3 | Sidebar | — | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
@@ -40,11 +40,13 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `workspace.rs`: `Workspace::open` canonicalizes the path and opens a cap-std `Dir` on the folder; a file opens its folder, with the file first.
 - `AppState` holds the workspace. `mdame <path>` opens it at start and adds it to the recents; a recents file that cannot be read or saved only warns. `/api/state` returns the workspace as `{root, start}`.
 - `POST /api/workspace`: `~` expansion, 409 when a workspace is open, 404 for a missing path, 400 for a relative one.
+- `GET /api/complete` in `tree.rs`: path suggestions for the picker.
 
 ## Next
 
-1. `/api/complete`.
+1. `GET /api/recents`.
 2. Design round for the picker screen and the first-start dialog, before their UI.
+3. The picker screen and the first-start dialog.
 
 ## Open points
 

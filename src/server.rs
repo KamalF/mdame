@@ -1,10 +1,14 @@
 use crate::app::{AppState, OpenError};
 use crate::config::{self, HistoryMode};
 use crate::error::ApiError;
+use crate::tree::{self, Suggestion};
 use crate::workspace;
 use axum::{
     Json, Router,
-    extract::{Path, Request, State, rejection::JsonRejection},
+    extract::{
+        Path, Query, Request, State,
+        rejection::{JsonRejection, QueryRejection},
+    },
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -271,6 +275,19 @@ async fn open_workspace(
     Ok(Json(state_response(&app)))
 }
 
+#[derive(Deserialize)]
+struct CompleteQuery {
+    prefix: String,
+}
+
+async fn complete(
+    query: Result<Query<CompleteQuery>, QueryRejection>,
+) -> Result<Json<Vec<Suggestion>>, ApiError> {
+    let Query(query) = query.map_err(|rejection| ApiError::BadRequest(rejection.body_text()))?;
+    let home = std::env::home_dir();
+    Ok(Json(tree::complete(&query.prefix, home.as_deref())))
+}
+
 pub fn router(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(page))
@@ -280,6 +297,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/state", get(state))
         .route("/api/settings", put(settings))
         .route("/api/workspace", post(open_workspace))
+        .route("/api/complete", get(complete))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

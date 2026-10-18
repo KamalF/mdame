@@ -48,6 +48,25 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
     })
 }
 
+/// The bytes of the file at `path` and the type to serve them with:
+/// images keep theirs, anything else is plain text, so that no workspace
+/// file becomes a page on mdame's origin.
+pub fn raw(dir: &Dir, path: &str) -> io::Result<(Vec<u8>, &'static str)> {
+    if !dir.metadata(path)?.is_file() {
+        return Err(io::Error::new(ErrorKind::NotFound, "not a file"));
+    }
+    let extension = path.rsplit_once('.').map(|(_, extension)| extension);
+    let content_type = match extension.map(str::to_ascii_lowercase).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("svg") => "image/svg+xml",
+        Some("webp") => "image/webp",
+        _ => "text/plain; charset=utf-8",
+    };
+    Ok((dir.read(path)?, content_type))
+}
+
 /// Unix seconds, or `None` where the OS gives no modified time.
 pub fn modified_secs(metadata: &Metadata) -> Option<u64> {
     let modified = metadata.modified().ok()?.into_std();

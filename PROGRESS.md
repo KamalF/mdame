@@ -13,7 +13,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
-| 4 | Viewing | In progress, on `m4-viewing` | 6 of about 11 |
+| 4 | Viewing | In progress, on `m4-viewing` | 7 of about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -69,10 +69,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - One extension table: `render::Family` maps each extension to a family; `/api/tree` sends it on each file, and the sidebar picks the icon from it. `VIEWABLE` and `FAMILIES` are gone.
 - `render::file(family, path, text)`: markdown, escaped code for text and data, `<pre class="mermaid">`, CSV tables with the `csv` crate, `<img src="/raw/…">`. A fixture and a snapshot for each.
 - `GET /api/file` with `document.rs`: read through the `Dir` in `spawn_blocking`, 1 MB guard (images are not read), 404 for unknown, missing and non-file paths, 403 for `..`, absolute paths and links out. Timed: a dense 1 MB markdown file takes 0.9 s in release, ten times that in debug.
+- `GET /raw/*path`: images with their type, any other file as `text/plain`, every response with the sandbox CSP; the page's CSP middleware keeps a policy that a handler set. Tests for a `.png`, an `.svg`, an `.html`, 404 and 403.
 
 ## Next
 
-1. Milestone 4: `GET /raw/*path` with its sandbox headers.
+1. Milestone 4: the view page: `view.ts` fetches `/api/file` for `/view/<path>` and shows the HTML, with content CSS; links to viewable files route to `/view/…`.
 
 ## Open points
 

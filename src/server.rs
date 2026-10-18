@@ -184,10 +184,10 @@ const PAGE_CSP: &str = "default-src 'self'; img-src 'self' data: https:; style-s
 async fn security_headers(req: Request, next: Next) -> Response {
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_SECURITY_POLICY,
-        HeaderValue::from_static(PAGE_CSP),
-    );
+    // `/raw` sets its own, stricter policy.
+    headers
+        .entry(header::CONTENT_SECURITY_POLICY)
+        .or_insert(HeaderValue::from_static(PAGE_CSP));
     headers.insert(
         header::X_CONTENT_TYPE_OPTIONS,
         HeaderValue::from_static("nosniff"),
@@ -317,15 +317,41 @@ async fn file(
     let view = tokio::task::spawn_blocking(move || document::view(&workspace.dir, &path))
         .await
         .map_err(|error| ApiError::Internal(error.to_string()))?;
-    view.map(Json).map_err(|error| {
-        let message = format!("{}: {}", query.path, io_message(&error));
-        match error.kind() {
-            io::ErrorKind::NotFound => ApiError::NotFound(message),
-            // cap-std's answer to `..`, absolute paths and links out.
-            io::ErrorKind::PermissionDenied => ApiError::Forbidden("path outside the workspace"),
-            _ => ApiError::Internal(message),
-        }
-    })
+    view.map(Json)
+        .map_err(|error| file_error(&query.path, error))
+}
+
+fn file_error(path: &str, error: io::Error) -> ApiError {
+    let message = format!("{path}: {}", io_message(&error));
+    match error.kind() {
+        io::ErrorKind::NotFound => ApiError::NotFound(message),
+        // cap-std's answer to `..`, absolute paths and links out.
+        io::ErrorKind::PermissionDenied => ApiError::Forbidden("path outside the workspace"),
+        _ => ApiError::Internal(message),
+    }
+}
+
+/// A sandboxed document gets an opaque origin: an SVG's script cannot call
+/// the API, since the guard refuses `Origin: null`, and gets no cookie.
+const RAW_CSP: &str =
+    "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
+
+async fn raw(
+    State(app): State<Arc<AppState>>,
+    Path(path): Path<String>,
+) -> Result<Response, ApiError> {
+    let workspace = app.workspace()?;
+    let relative = path.clone();
+    let (bytes, content_type) =
+        tokio::task::spawn_blocking(move || document::raw(&workspace.dir, &relative))
+            .await
+            .map_err(|error| ApiError::Internal(error.to_string()))?
+            .map_err(|error| file_error(&path, error))?;
+    let headers = [
+        (header::CONTENT_TYPE, content_type),
+        (header::CONTENT_SECURITY_POLICY, RAW_CSP),
+    ];
+    Ok((headers, bytes).into_response())
 }
 
 pub fn router(app_state: Arc<AppState>) -> Router {
@@ -334,6 +360,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/view/{*path}", get(page))
         .route("/edit/{*path}", get(page))
         .route("/assets/{*path}", get(asset))
+        .route("/raw/{*path}", get(raw))
         .route("/api/state", get(state))
         .route("/api/settings", put(settings))
         .route("/api/workspace", post(open_workspace))

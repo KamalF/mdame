@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use crate::error::io_message;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub theme: Option<String>,
     pub snapshots_per_file: Option<usize>,
@@ -261,6 +262,15 @@ mod tests {
 
         let error = save(&recents, &dir.path().join("recents.toml")).unwrap_err();
         assert!(matches!(error, ConfigError::Serialize { .. }));
+    }
+
+    #[test]
+    fn unknown_config_key_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        fs::write(&path, "snapshot_per_file = 5\n").unwrap();
+        let error = load::<Config>(&path).unwrap_err();
+        assert!(matches!(error, ConfigError::Parse { .. }));
     }
 
     #[test]

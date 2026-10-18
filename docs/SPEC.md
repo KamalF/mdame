@@ -425,7 +425,7 @@ mdame keeps its own files and imports nothing from mdlive, so it starts with no 
 
 **Watcher and tree.** `.mdame/` is never shown in the tree and its events are ignored, so snapshots never trigger `changed`.
 
-**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. If the file is not valid, mdame stops at start with the error: a later save would otherwise replace the user's settings with the defaults. All fields are optional:
+**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. If the file is not valid, or has an unknown key such as a misspelled one, mdame stops at start with the error: a later save would otherwise replace the user's settings with the defaults. All fields are optional:
 
 ```toml
 theme = "dark"            # default theme name

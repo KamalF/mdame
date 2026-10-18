@@ -11,7 +11,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
-| 2 | Workspaces | In progress, on `m2-workspaces` | 12 of about 13 |
+| 2 | Workspaces | In progress, on `m2-workspaces` | 13 of about 13 |
 | 3 | Sidebar | — | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
@@ -45,14 +45,13 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `/api/state` returns `home`, so that the picker shows paths as `~/…`.
 - The picker screen: `api.ts`, `picker.ts`, provisional `base.css` and `components.css`, and `bun test` for its pure functions. Until milestone 4, an open workspace shows a one-line placeholder.
 - The first-start dialog in `dialogs.ts`: a native `<dialog>`; Continue or Esc saves the choice through `PUT /api/settings`.
+- Messages that come from the OS lose their "(os error N)" suffix, on the command line and in the API.
 
 ## Next
 
-1. Our own text for the common `io::Error` kinds (see Open points).
-2. Review milestone 2 and merge `m2-workspaces` into `main`.
+1. Review milestone 2 and merge `m2-workspaces` into `main`.
 
 ## Open points
 
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
-- Error messages built from `io::Error` end with "(os error 2)". Write our own text for the common kinds (not found, permission denied) before the picker is called done.

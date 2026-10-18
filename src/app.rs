@@ -8,6 +8,7 @@ use clap::Parser;
 use tokio::net::TcpListener;
 
 use crate::config::{self, Config, Recents};
+use crate::error::io_message;
 use crate::server;
 use crate::workspace::Workspace;
 
@@ -36,7 +37,7 @@ pub struct Args {
 pub enum OpenError {
     #[error("a workspace is already open")]
     AlreadyOpen,
-    #[error(transparent)]
+    #[error("{}", io_message(.0))]
     Io(#[from] io::Error),
 }
 

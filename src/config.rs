@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+use crate::error::io_message;
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub theme: Option<String>,
@@ -50,7 +52,7 @@ pub struct Recent {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("{path}: {source}")]
+    #[error("{path}: {}", io_message(.source))]
     Io { path: PathBuf, source: io::Error },
     #[error("{path}: {source}")]
     Parse {

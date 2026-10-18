@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
+use std::io;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
@@ -17,6 +18,19 @@ pub enum ApiError {
     Conflict(String),
     #[error("{0}")]
     Internal(String),
+}
+
+/// The OS text without its " (os error 2)" suffix, which means nothing to
+/// a user.
+pub fn io_message(error: &io::Error) -> String {
+    let text = error.to_string();
+    match error.raw_os_error() {
+        Some(code) => text
+            .strip_suffix(&format!(" (os error {code})"))
+            .unwrap_or(&text)
+            .to_owned(),
+        None => text,
+    }
 }
 
 impl IntoResponse for ApiError {
@@ -36,6 +50,14 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn io_message_drops_the_os_error_number() {
+        let missing = std::fs::File::open("/no/such/path").unwrap_err();
+        assert_eq!(io_message(&missing), "No such file or directory");
+        let ours = io::Error::new(io::ErrorKind::InvalidInput, "not a file or a folder");
+        assert_eq!(io_message(&ours), "not a file or a folder");
+    }
 
     #[tokio::test]
     async fn forbidden_has_status_and_json_body() {

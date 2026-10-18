@@ -1,6 +1,6 @@
 use crate::app::{AppState, OpenError};
 use crate::config::{self, HistoryMode, Recent};
-use crate::error::ApiError;
+use crate::error::{ApiError, io_message};
 use crate::tree::{self, Suggestion};
 use crate::workspace;
 use axum::{
@@ -270,9 +270,9 @@ async fn open_workspace(
     app.open_workspace(&path).map_err(|error| match error {
         OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),
         OpenError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
-            ApiError::NotFound(format!("{}: {io}", request.path))
+            ApiError::NotFound(format!("{}: {}", request.path, io_message(&io)))
         }
-        OpenError::Io(io) => ApiError::BadRequest(format!("{}: {io}", request.path)),
+        OpenError::Io(io) => ApiError::BadRequest(format!("{}: {}", request.path, io_message(&io))),
     })?;
     Ok(Json(state_response(&app)))
 }

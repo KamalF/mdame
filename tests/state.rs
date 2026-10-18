@@ -207,8 +207,10 @@ async fn missing_or_relative_path_is_refused() {
         ("notes", StatusCode::BAD_REQUEST),
     ];
     for (path, expected) in cases {
-        let (status, _) = open(local(), path).await;
+        let (status, body) = open(local(), path).await;
         assert_eq!(status, expected, "{path}");
+        let message = body["error"]["message"].as_str().unwrap();
+        assert!(!message.contains("os error"), "{message}");
     }
 }
 

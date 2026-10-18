@@ -5,6 +5,14 @@ const ICONS: Record<string, string> = {
   file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
   recent:
     '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  "name-asc":
+    '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M20 8h-5"/><path d="M15 10V6.5a2.5 2.5 0 0 1 5 0V10"/><path d="M15 14h5l-5 6h5"/>',
+  "name-desc":
+    '<path d="m3 16 4 4 4-4"/><path d="M7 4v16"/><path d="M15 4h5l-5 6h5"/><path d="M15 20v-3.5a2.5 2.5 0 0 1 5 0V20"/><path d="M20 18h-5"/>',
+  "date-desc":
+    '<path d="M12 6v6l2 1"/><path d="M12.34 21.99a10 10 0 1 1 9.59-8.77"/><path d="m14 18 4 4 4-4"/><path d="M18 14v8"/>',
+  "date-asc":
+    '<path d="M12 6v6l1.56.78"/><path d="M13.23 21.93a10 10 0 1 1 8.77-9.59"/><path d="m14 18 4-4 4 4"/><path d="M18 22v-8"/>',
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
   "chevron-down": '<path d="m6 9 6 6 6-6"/>',
   text: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',

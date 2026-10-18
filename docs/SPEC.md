@@ -502,7 +502,7 @@ The exact list is the owner's call during design; once fixed, document it in `we
 - Overall feel: a mix. Compact chrome, like a quiet tool next to a terminal, around a reading-first content column (measure and type).
 - Sidebar: docked on wide windows, an overlay below about 900 px (opened with `k`). Width 180–480 px, default 260 px. Details decided on 18 October 2026:
   - At first load, only the folders on the path to the current file are open. Open folders are remembered per workspace (the `localStorage` key holds the root).
-  - One sort button cycles name A→Z, name Z→A, newest first, oldest first; folders always come first, and a folder's date is its newest file. The choice is remembered.
+  - One sort button cycles name A→Z, name Z→A, newest first, oldest first; its icon shows the current order. Folders always come first, and a folder's date is its newest file. The choice is remembered.
   - Clicking a file goes to `/view/<path>`. Icons: one per family (markdown and text, image, CSV, data files, Mermaid).
   - The filter matches file names with `@leeoniya/ufuzzy` and shows a flat list, matched letters in bold, folder in grey. ↑↓ choose (no row is highlighted until then), Enter opens, Esc clears the field and then leaves it.
   - Hover action in milestone 3: copy path. "New file in this folder" comes in milestone 6, with `POST /api/file`.

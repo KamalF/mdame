@@ -24,6 +24,13 @@ export interface Match {
 
 export const SORTS = ["name-asc", "name-desc", "date-desc", "date-asc"];
 
+const SORT_LABELS: Record<string, string> = {
+  "name-asc": "name, A to Z",
+  "name-desc": "name, Z to A",
+  "date-desc": "newest first",
+  "date-asc": "oldest first",
+};
+
 export function nextSort(order: string): string {
   return SORTS[(SORTS.indexOf(order) + 1) % SORTS.length];
 }
@@ -140,10 +147,36 @@ interface MountOptions {
 export async function mount(el: HTMLElement, { root, current, onOpen }: MountOptions) {
   const openKey = `mdame:open:${root}`;
   const open = new Set([...load(openKey, []), ...ancestors(current ?? "")]);
+  let order = load("mdame:sort", "name-asc");
+  if (!SORTS.includes(order)) order = "name-asc";
+
+  const sortButton = document.createElement("button");
+  sortButton.className = "mdame-icon-button";
+  const header = document.createElement("div");
+  header.className = "mdame-sidebar-header";
+  header.append(sortButton);
   const list = document.createElement("ul");
   list.className = "mdame-tree";
-  el.replaceChildren(list);
-  const tree = sortTree(await api<TreeNode>("GET", "/api/tree"), "name-asc");
+  el.replaceChildren(header, list);
+
+  const fetched = await api<TreeNode>("GET", "/api/tree");
+  let tree = sortTree(fetched, order);
+
+  function showSort() {
+    const label = `Sort: ${SORT_LABELS[order]}`;
+    sortButton.setAttribute("aria-label", label);
+    sortButton.title = label;
+    // The icons are named after the orders.
+    sortButton.replaceChildren(icon(order));
+  }
+
+  sortButton.addEventListener("click", () => {
+    order = nextSort(order);
+    store("mdame:sort", order);
+    tree = sortTree(fetched, order);
+    showSort();
+    render();
+  });
 
   function render() {
     list.replaceChildren(...items(tree.children!, 0));
@@ -194,6 +227,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     return row;
   }
 
+  showSort();
   select = (path) => {
     current = path;
     for (const folder of ancestors(path ?? "")) open.add(folder);

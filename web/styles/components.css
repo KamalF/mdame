@@ -226,3 +226,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.mdame-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 10px 8px 4px 10px;
+}
+
+.mdame-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.mdame-icon-button:hover {
+  background: var(--selection);
+  color: var(--fg);
+}

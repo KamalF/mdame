@@ -13,7 +13,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
-| 4 | Viewing | Done 18 October 2026, reviewed; merge into `main` next | 16, with the review fixes |
+| 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -79,8 +79,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ## Next
 
-1. Merge `m4-viewing` into `main`.
-2. After milestone 4: rewrite the whole history, `main` included, so the front end is TypeScript from the start; TypeScript enters the spec in the first commit. Decided on 18 October 2026.
+1. Rewrite the whole history, `main` included, so the front end is TypeScript from the start; TypeScript enters the spec in the first commit. Decided on 18 October 2026.
 
 ## Open points
 

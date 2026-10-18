@@ -1,5 +1,5 @@
 use crate::app::{AppState, OpenError};
-use crate::config::{self, HistoryMode};
+use crate::config::{self, HistoryMode, Recent};
 use crate::error::ApiError;
 use crate::tree::{self, Suggestion};
 use crate::workspace;
@@ -275,6 +275,10 @@ async fn open_workspace(
     Ok(Json(state_response(&app)))
 }
 
+async fn recents(State(app): State<Arc<AppState>>) -> Json<Vec<Recent>> {
+    Json(app.recents().entries)
+}
+
 #[derive(Deserialize)]
 struct CompleteQuery {
     prefix: String,
@@ -298,6 +302,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/settings", put(settings))
         .route("/api/workspace", post(open_workspace))
         .route("/api/complete", get(complete))
+        .route("/api/recents", get(recents))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

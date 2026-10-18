@@ -68,11 +68,15 @@ impl AppState {
 
     /// Recents are a convenience: a file that cannot be read or saved only
     /// gives a warning.
-    fn remember(&self, path: PathBuf) {
-        let mut recents: Recents = config::load(&self.recents_path).unwrap_or_else(|error| {
-            tracing::warn!("recents reset: {error}");
+    pub fn recents(&self) -> Recents {
+        config::load(&self.recents_path).unwrap_or_else(|error| {
+            tracing::warn!("recents ignored: {error}");
             Recents::default()
-        });
+        })
+    }
+
+    fn remember(&self, path: PathBuf) {
+        let mut recents = self.recents();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("the clock is after 1970")

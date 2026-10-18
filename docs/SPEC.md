@@ -309,7 +309,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /api/history?path=` | Snapshots, newest first: `id`, time, size | JSON |
 | `GET /api/history/view?path=&id=` | A snapshot's raw text, for the merge view | `{content}` |
 | `POST /api/history/restore` | `{path, id}`: snapshot current, write the old version | `{modified}` |
-| `GET /api/recents` | Recent workspaces | JSON |
+| `GET /api/recents` | Recent workspaces, newest first; an unreadable file gives `[]` | `[{path, last_opened_secs}]` |
 | `POST /api/workspace` | Open `{path}`, a file or folder, when none is open (409 otherwise). `~` and `~/` name the home folder; a relative path gets 400 | new state |
 | `PUT /api/settings` | Save settings chosen in the page, such as `{history}` from the first-start dialog | new state |
 | `GET /api/complete?prefix=` | Folder and file suggestions for the picker: entries of the typed folder that start with the last part, in any case; folders first, ending with `/`; hidden ones once the last part starts with `.`; at most 50 | `[{path, dir}]` |

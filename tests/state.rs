@@ -13,7 +13,11 @@ use serde_json::Value;
 use tower::ServiceExt;
 
 async fn get_state(state: AppState) -> Value {
-    let response = send(state, "/api/state", &[("host", "127.0.0.1:4891")]).await;
+    get_json(state, "/api/state").await
+}
+
+async fn get_json(state: AppState, uri: &str) -> Value {
+    let response = send(state, uri, &[("host", "127.0.0.1:4891")]).await;
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -206,4 +210,46 @@ async fn missing_or_relative_path_is_refused() {
         let (status, _) = open(local(), path).await;
         assert_eq!(status, expected, "{path}");
     }
+}
+
+#[tokio::test]
+async fn recents_newest_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let recents_path = dir.path().join("recents.toml");
+    let text = r#"
+        [[recent]]
+        path = "/b"
+        last_opened_secs = 2
+
+        [[recent]]
+        path = "/a"
+        last_opened_secs = 1
+    "#;
+    fs::write(&recents_path, text).unwrap();
+    let state = AppState {
+        recents_path,
+        ..local()
+    };
+
+    let body = get_json(state, "/api/recents").await;
+    assert_eq!(
+        body,
+        serde_json::json!([
+            { "path": "/b", "last_opened_secs": 2 },
+            { "path": "/a", "last_opened_secs": 1 },
+        ])
+    );
+}
+
+#[tokio::test]
+async fn unreadable_recents_are_an_empty_list() {
+    let dir = tempfile::tempdir().unwrap();
+    let recents_path = dir.path().join("recents.toml");
+    fs::write(&recents_path, "not toml [").unwrap();
+    let state = AppState {
+        recents_path,
+        ..local()
+    };
+
+    assert_eq!(get_json(state, "/api/recents").await, serde_json::json!([]));
 }

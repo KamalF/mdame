@@ -48,18 +48,9 @@ export function icon(name: string): SVGSVGElement {
   return svg;
 }
 
-// One entry per extension in VIEWABLE in src/tree.rs.
-const FAMILIES: Record<string, string[]> = {
-  text: ["md", "markdown", "txt"],
-  image: ["png", "jpg", "jpeg", "gif", "svg", "webp"],
-  table: ["csv"],
-  data: ["json", "yaml", "yml", "toml", "graphql", "gql"],
-  diagram: ["mmd"],
-};
-
-/** The icon name for a file, from its extension. */
-export function fileIcon(name: string): string {
-  const extension = name.split(".").at(-1)!.toLowerCase();
-  const family = Object.keys(FAMILIES).find((key) => FAMILIES[key].includes(extension));
-  return family ?? "file";
+/** The icon name for a file, from the family that /api/tree sends. */
+export function fileIcon(family: string | undefined): string {
+  if (family === "markdown") return "text";
+  // `undefined in ICONS` is false, so a missing family gives "file".
+  return (family as string) in ICONS ? (family as string) : "file";
 }

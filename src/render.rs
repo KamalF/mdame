@@ -1,7 +1,36 @@
 use std::borrow::Cow;
+use std::path::Path;
 
 use ammonia::{Builder, Url, UrlRelative, UrlRelativeEvaluate};
 use comrak::{Options, markdown_to_html};
+use serde::Serialize;
+
+/// How a file is shown. Files with no family stay out of the tree.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Family {
+    Markdown,
+    Text,
+    Data,
+    Table,
+    Diagram,
+    Image,
+}
+
+impl Family {
+    pub fn of(path: &str) -> Option<Self> {
+        let extension = Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
+        Some(match extension.as_str() {
+            "md" | "markdown" => Self::Markdown,
+            "txt" => Self::Text,
+            "json" | "yaml" | "yml" | "toml" | "graphql" | "gql" => Self::Data,
+            "csv" => Self::Table,
+            "mmd" => Self::Diagram,
+            "png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" => Self::Image,
+            _ => return None,
+        })
+    }
+}
 
 /// Only used to resolve relative URLs; it never leaves `render.rs`.
 const ORIGIN: &str = "http://mdame.invalid";
@@ -103,6 +132,16 @@ fn blank_toml_front_matter(text: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn family_from_the_extension() {
+        assert_eq!(Family::of("README.MD"), Some(Family::Markdown));
+        assert_eq!(Family::of("docs/data.yml"), Some(Family::Data));
+        assert_eq!(Family::of("logo.svg"), Some(Family::Image));
+        for path in ["Makefile", "a.rs", ".md", "md"] {
+            assert_eq!(Family::of(path), None, "{path}");
+        }
+    }
 
     #[test]
     fn toml_front_matter_becomes_blank_lines() {

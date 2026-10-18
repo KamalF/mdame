@@ -7,6 +7,7 @@ use cap_std::fs::Dir;
 use ignore::WalkBuilder;
 use serde::Serialize;
 
+use crate::render::Family;
 use crate::workspace::{Workspace, expand_home};
 
 const MAX_SUGGESTIONS: usize = 50;
@@ -59,13 +60,6 @@ pub fn complete(prefix: &str, home: Option<&Path>) -> Vec<Suggestion> {
     suggestions
 }
 
-/// The extensions that milestone 4's `render.rs` will show; other files stay
-/// out of the tree. `FAMILIES` in `web/src/icons.js` gives each one an icon.
-const VIEWABLE: &[&str] = &[
-    "md", "markdown", "csv", "json", "yaml", "yml", "toml", "graphql", "gql", "txt", "mmd", "png",
-    "jpg", "jpeg", "gif", "svg", "webp",
-];
-
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
@@ -79,6 +73,8 @@ pub struct Node {
     /// Relative to the workspace root, with `/` between parts.
     pub path: String,
     pub kind: Kind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<Family>,
     /// Unix seconds. For a folder, its newest file.
     pub modified: u64,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -108,27 +104,22 @@ pub fn build(workspace: &Workspace) -> Node {
         let Some(relative) = entry.path().strip_prefix(root).ok().and_then(Path::to_str) else {
             continue;
         };
-        let Some(modified) = viewable_file(&workspace.dir, relative) else {
+        let Some(file) = viewable_file(&workspace.dir, relative) else {
             continue;
         };
         let parts: Vec<&str> = relative.split('/').collect();
-        top.insert(&parts, modified);
+        top.insert(&parts, file);
     }
     top.into_node(String::new(), String::new())
 }
 
-/// The modified time of a viewable file, or `None` for anything else.
+/// The family and modified time of a viewable file, or `None` for
+/// anything else.
 /// The `Dir` follows a symlink only while it stays in the workspace, so a
 /// link to a file inside counts as a file and a link out is left out; the
 /// walker does not descend into a link to a folder.
-fn viewable_file(dir: &Dir, relative: &str) -> Option<u64> {
-    let extension = Path::new(relative).extension()?.to_str()?;
-    if !VIEWABLE
-        .iter()
-        .any(|known| extension.eq_ignore_ascii_case(known))
-    {
-        return None;
-    }
+fn viewable_file(dir: &Dir, relative: &str) -> Option<File> {
+    let family = Family::of(relative)?;
     let metadata = dir
         .metadata(relative)
         .ok()
@@ -139,26 +130,34 @@ fn viewable_file(dir: &Dir, relative: &str) -> Option<u64> {
         .into_std()
         .duration_since(UNIX_EPOCH)
         .ok()?;
-    Some(modified.as_secs())
+    Some(File {
+        family,
+        modified: modified.as_secs(),
+    })
+}
+
+struct File {
+    family: Family,
+    modified: u64,
 }
 
 #[derive(Default)]
 struct Folder {
     folders: BTreeMap<String, Folder>,
-    files: BTreeMap<String, u64>,
+    files: BTreeMap<String, File>,
 }
 
 impl Folder {
-    fn insert(&mut self, parts: &[&str], modified: u64) {
+    fn insert(&mut self, parts: &[&str], file: File) {
         match parts {
             [name] => {
-                self.files.insert(name.to_string(), modified);
+                self.files.insert(name.to_string(), file);
             }
             [folder, rest @ ..] => self
                 .folders
                 .entry(folder.to_string())
                 .or_default()
-                .insert(rest, modified),
+                .insert(rest, file),
             [] => {}
         }
     }
@@ -175,11 +174,12 @@ impl Folder {
             let child_path = join(&child);
             folder.into_node(child, child_path)
         });
-        let files = self.files.into_iter().map(|(child, modified)| Node {
+        let files = self.files.into_iter().map(|(child, file)| Node {
             path: join(&child),
             name: child,
             kind: Kind::File,
-            modified,
+            family: Some(file.family),
+            modified: file.modified,
             children: Vec::new(),
         });
         let children: Vec<Node> = folders.chain(files).collect();
@@ -192,6 +192,7 @@ impl Folder {
             name,
             path,
             kind: Kind::Dir,
+            family: None,
             modified,
             children,
         }

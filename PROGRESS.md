@@ -13,7 +13,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
-| 4 | Viewing | In progress, on `m4-viewing` | 3 of about 11 |
+| 4 | Viewing | In progress, on `m4-viewing` | 4 of about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -66,10 +66,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `render.rs`: markdown with comrak (GFM, footnotes, alerts, heading ids without prefix, `data-sourcepos`). Front matter is hidden: `---` by comrak, `+++` replaced with blank lines so the line numbers still match the file. insta snapshots of the fixtures in `tests/fixtures/`.
 - ammonia rules in `render.rs`: the defaults, plus `class`, `id`, `data-sourcepos`, footnote and heading-anchor attributes, `section`, and task-list inputs (forced to checkboxes). A hostile-HTML fixture pins the output.
 - Relative URLs become `/raw/…` paths: `render::markdown` takes the file's path and resolves them against its folder with `url::Url::join`; `#…` links stay as they are.
+- One extension table: `render::Family` maps each extension to a family; `/api/tree` sends it on each file, and the sidebar picks the icon from it. `VIEWABLE` and `FAMILIES` are gone.
 
 ## Next
 
-1. Milestone 4: `render.rs` for the other file types (CSV, code, Mermaid, images) behind one function, with the 1 MB guard and one extension table for the tree and the icons.
+1. Milestone 4: `render.rs` for the other file types (text and data as code, Mermaid, images) behind one function, then CSV, then the 1 MB guard with `/api/file`.
 
 ## Open points
 
@@ -81,6 +82,5 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
   - Tests: shared helpers in `tests/common`; `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.
 - From the review of milestone 3, for later:
   - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice, as in the picker.
-  - One extension table: the server sends a `family` per file, so `VIEWABLE` in `tree.rs` and `FAMILIES` in `icons.ts` become one list. Do it with `render.rs` in milestone 4.
   - Big workspaces: a limit on the filter results, latinized names computed once, cached icons; `/api/tree` walks the whole folder on each request. Measure with the milestone 5 refetches first.
   - Tests: a `get_json` helper in `tests/common` for `tree.rs`, `complete.rs` and `state.rs`.

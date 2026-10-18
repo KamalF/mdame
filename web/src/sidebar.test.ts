@@ -110,12 +110,12 @@ test("view URLs encode each part and keep the slashes", () => {
   expect(pathFromUrl("/")).toBe(null);
 });
 
-test("fileIcon picks the family from the extension", () => {
-  expect(fileIcon("README.MD")).toBe("text");
-  expect(fileIcon("logo.svg")).toBe("image");
-  expect(fileIcon("data.yml")).toBe("data");
-  expect(fileIcon("flow.mmd")).toBe("diagram");
-  expect(fileIcon("Makefile")).toBe("file");
+test("fileIcon maps a family to its icon", () => {
+  expect(fileIcon("markdown")).toBe("text");
+  expect(fileIcon("text")).toBe("text");
+  expect(fileIcon("image")).toBe("image");
+  expect(fileIcon("diagram")).toBe("diagram");
+  expect(fileIcon(undefined)).toBe("file");
 });
 
 test("clampWidth keeps the sidebar between 180 and 480 px", () => {

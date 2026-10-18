@@ -34,6 +34,8 @@ async fn tree_of_the_open_workspace() {
     assert_eq!(docs["path"], "docs");
     assert_eq!(docs["children"][0]["path"], "docs/a.md");
     assert_eq!(docs["children"][0]["kind"], "file");
+    assert_eq!(docs["children"][0]["family"], "markdown");
+    assert_eq!(docs.get("family"), None);
     assert_eq!(docs["children"][0].get("children"), None);
 }
 

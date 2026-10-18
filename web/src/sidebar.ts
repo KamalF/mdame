@@ -8,6 +8,7 @@ export interface TreeNode {
   /** Relative to the workspace root, with `/` between parts. */
   path: string;
   kind: "dir" | "file";
+  family?: string;
   modified: number;
   children?: TreeNode[];
 }
@@ -321,7 +322,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     row.className = "mdame-tree-row";
     row.href = viewUrl(node.path);
     if (node.path === current) row.setAttribute("aria-current", "page");
-    row.append(icon(fileIcon(node.name)), name);
+    row.append(icon(fileIcon(node.family)), name);
     row.addEventListener("click", (event) => {
       // A modified click (new tab, new window) stays a normal link.
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;

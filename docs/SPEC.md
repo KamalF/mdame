@@ -500,7 +500,12 @@ The exact list is the owner's call during design; once fixed, document it in `we
 ### Design decisions
 
 - Overall feel: a mix. Compact chrome, like a quiet tool next to a terminal, around a reading-first content column (measure and type).
-- Sidebar: docked on wide windows, an overlay below about 900 px (opened with `k`). Width 180–480 px, default 260 px.
+- Sidebar: docked on wide windows, an overlay below about 900 px (opened with `k`). Width 180–480 px, default 260 px. Details decided on 18 October 2026:
+  - At first load, only the folders on the path to the current file are open. Open folders are remembered per workspace (the `localStorage` key holds the root).
+  - One sort button cycles name A→Z, name Z→A, newest first, oldest first; folders always come first, and a folder's date is its newest file. The choice is remembered.
+  - Clicking a file goes to `/view/<path>`. Icons: one per family (markdown and text, image, CSV, data files, Mermaid).
+  - The filter matches file names with `@leeoniya/ufuzzy` and shows a flat list, matched letters in bold, folder in grey. ↑↓ choose (no row is highlighted until then), Enter opens, Esc clears the field and then leaves it.
+  - Hover action in milestone 3: copy path. "New file in this folder" comes in milestone 6, with `POST /api/file`.
 - File header: none. Path, modified time and the actions (edit, copy raw, copy path, revisions) live in the status bar; content starts at the top edge.
 - Editor: preview on the right, 50/50 by default, draggable divider, scroll sync.
 - Revisions: inline diff in the editor (CodeMirror merge view) against a revision picked from a list. `h` or `r` in view mode opens the editor in diff mode.
@@ -583,7 +588,7 @@ Eight milestones, each ending in something the owner can run, with a review befo
 2. **Workspaces.** Config read and write (atomic), recents, `POST /api/workspace`, `/api/complete`, `mdame <file>` and `<folder>`, picker screen, first-start history dialog (`needs_setup`, `PUT /api/settings`).
    - Done when: a folder opens from the picker and from the command line, recents persist, and the history choice is asked once.
    - Rust focus: cap-std `Dir`, shared state behind `RwLock`, serde.
-3. **Sidebar.** `/api/tree` via the ignore walker; tree UI with open-folder memory, resize, hide, fuzzy filter, sort, icons, hover actions.
+3. **Sidebar.** `/api/tree` via the ignore walker; tree UI with open-folder memory, resize, hide, fuzzy filter, sort, icons, the copy-path hover action.
    - Done when: a repo with `node_modules` shows only tracked content and the filter finds files by fuzzy name.
 4. **Viewing.** `render.rs` for every file type, ammonia rules, `/raw` with its headers, `/api/file`, Lezer highlighting with a fixture per listed type (check GraphQL and legacy-mode languages), Mermaid, copy buttons, not-found and empty pages, copy content and path. Time the 1 MB fixture.
    - Done when: insta snapshots cover each fixture and the hostile-HTML fixture renders inert.

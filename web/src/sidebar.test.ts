@@ -1,0 +1,71 @@
+import { expect, test } from "bun:test";
+import { ancestors, files, filterFiles, nextSort, sortTree, type TreeNode } from "./sidebar.ts";
+
+const file = (path: string, modified: number): TreeNode => ({
+  name: path.split("/").at(-1)!,
+  path,
+  kind: "file",
+  modified,
+});
+const dir = (path: string, children: TreeNode[]): TreeNode => ({
+  name: path.split("/").at(-1)!,
+  path,
+  kind: "dir",
+  modified: Math.max(...children.map((child) => child.modified)),
+  children,
+});
+
+const tree = dir("", [
+  file("b.md", 30),
+  dir("docs", [file("docs/z.md", 10), file("docs/a.md", 20)]),
+  file("A2.md", 5),
+  file("a10.md", 40),
+]);
+
+const names = (node: TreeNode) => node.children!.map((child) => child.name);
+
+test("sort puts folders first, then names in natural order", () => {
+  const sorted = sortTree(tree, "name-asc");
+  expect(names(sorted)).toEqual(["docs", "A2.md", "a10.md", "b.md"]);
+  expect(names(sorted.children![0])).toEqual(["a.md", "z.md"]);
+  expect(names(sortTree(tree, "name-desc"))).toEqual(["docs", "b.md", "a10.md", "A2.md"]);
+});
+
+test("sort by date, newest or oldest first", () => {
+  expect(names(sortTree(tree, "date-desc"))).toEqual(["docs", "a10.md", "b.md", "A2.md"]);
+  expect(names(sortTree(tree, "date-asc").children![0])).toEqual(["z.md", "a.md"]);
+});
+
+test("sort does not change the tree it gets", () => {
+  sortTree(tree, "name-asc");
+  expect(names(tree)).toEqual(["b.md", "docs", "A2.md", "a10.md"]);
+});
+
+test("nextSort cycles through the four orders", () => {
+  expect(nextSort("name-asc")).toBe("name-desc");
+  expect(nextSort("date-asc")).toBe("name-asc");
+});
+
+test("files lists every file, at any depth", () => {
+  expect(files(tree).map((f) => f.path)).toEqual([
+    "b.md",
+    "docs/z.md",
+    "docs/a.md",
+    "A2.md",
+    "a10.md",
+  ]);
+});
+
+test("ancestors gives the folders to open for a path", () => {
+  expect(ancestors("docs/api/a.md")).toEqual(["docs", "docs/api"]);
+  expect(ancestors("a.md")).toEqual([]);
+});
+
+test("filter matches names fuzzily and marks the matched letters", () => {
+  const list = [file("docs/api/rate-limiting.md", 1), file("notes/separate-tokens.md", 1)];
+  const results = filterFiles(list, "rate");
+  expect(results[0].file.path).toBe("docs/api/rate-limiting.md");
+  expect(results[0].parts[0]).toEqual({ text: "rate", matched: true });
+  expect(results[0].parts.map((part) => part.text).join("")).toBe("rate-limiting.md");
+  expect(filterFiles(list, "zzz")).toEqual([]);
+});

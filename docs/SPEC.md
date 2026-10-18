@@ -344,8 +344,8 @@ All rendering happens in `render.rs`: one function takes a path and its contents
 | Extensions | Output |
 | --- | --- |
 | `.md`, `.markdown` | comrak, then ammonia |
-| `.csv` | `<table>`, first row as header |
-| `.json`, `.yaml`, `.yml`, `.toml`, `.graphql`, `.gql`, `.txt` | `<pre><code class="language-…">`, escaped; Lezer colours it in the browser, and an unknown language stays plain text |
+| `.csv` | `<table>`, first row as header; rows may have different lengths |
+| `.json`, `.yaml`, `.yml`, `.toml`, `.graphql`, `.gql`, `.txt` | `<pre><code class="language-…">`, escaped, with the lowercased extension as the language; Lezer colours it in the browser, and an unknown language (`txt`) stays plain text |
 | `.mmd` | `<pre class="mermaid">`, escaped |
 | `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` | `<img src="/raw/…">` |
 | anything else | Not listed in the tree in v1 |

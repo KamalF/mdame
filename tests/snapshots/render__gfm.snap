@@ -1,6 +1,6 @@
 ---
 source: tests/render.rs
-expression: "render::markdown(&fixture(\"gfm.md\"))"
+expression: "markdown(\"gfm.md\")"
 ---
 <h1 id="release-notes" data-sourcepos="1:1-1:15">Release notes<a href="#release-notes" aria-label="Link to heading 'Release notes'" data-heading-content="Release notes" class="anchor"></a></h1>
 <p data-sourcepos="3:1-4:53">Some <em data-sourcepos="3:6-3:15">emphasis</em>, <strong data-sourcepos="3:18-3:27">strong</strong> text, <code data-sourcepos="3:35-3:47">inline code</code> and <del data-sourcepos="3:53-3:62">struck</del> words.

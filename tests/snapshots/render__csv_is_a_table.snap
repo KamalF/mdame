@@ -1,0 +1,15 @@
+---
+source: tests/render.rs
+expression: "render::file(Family::Table, \"t.csv\", &fixture(\"table.csv\"))"
+---
+<table>
+<thead>
+<tr><th>Name</th><th>Note</th><th>Count</th></tr>
+</thead>
+<tbody>
+<tr><td>Ada</td><td>Quoted, with a comma</td><td>1</td></tr>
+<tr><td>Bob</td><td>Two
+lines</td><td>2</td></tr>
+<tr><td>&lt;i&gt;Eve&lt;/i&gt;</td><td>ragged row</td></tr>
+</tbody>
+</table>

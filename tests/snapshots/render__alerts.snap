@@ -1,7 +1,6 @@
 ---
 source: tests/render.rs
-assertion_line: 21
-expression: "render::markdown(&fixture(\"alerts.md\"))"
+expression: "markdown(\"alerts.md\")"
 ---
 <div class="markdown-alert markdown-alert-note" data-sourcepos="1:1-2:9">
 <p class="markdown-alert-title">Note</p>

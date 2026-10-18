@@ -35,10 +35,35 @@ impl Family {
 /// Only used to resolve relative URLs; it never leaves `render.rs`.
 const ORIGIN: &str = "http://mdame.invalid";
 
+/// The HTML for a file of the workspace. `path` is relative to the root.
+/// An image is not read: its `text` is ignored.
+pub fn file(family: Family, path: &str, text: &str) -> String {
+    match family {
+        Family::Markdown => markdown(path, text),
+        Family::Text | Family::Data => {
+            let extension = path.rsplit_once('.').map_or("", |(_, extension)| extension);
+            format!(
+                "<pre><code class=\"language-{}\">{}</code></pre>",
+                escape(&extension.to_ascii_lowercase()),
+                escape(text)
+            )
+        }
+        Family::Table => table(text),
+        Family::Diagram => format!("<pre class=\"mermaid\">{}</pre>", escape(text)),
+        Family::Image => {
+            let name = path.rsplit('/').next().unwrap_or(path);
+            format!(
+                "<img src=\"/raw{}\" alt=\"{}\">",
+                workspace_url(path).path(),
+                escape(name)
+            )
+        }
+    }
+}
+
 /// Markdown to sanitized HTML, with the extensions that the spec lists.
-/// `path` is the file's workspace-relative path: relative URLs resolve
-/// against its folder.
-pub fn markdown(path: &str, text: &str) -> String {
+/// Relative URLs resolve against the folder of `path`.
+fn markdown(path: &str, text: &str) -> String {
     let html = markdown_to_html(&blank_toml_front_matter(text), &options());
     sanitizer(RawUrls::new(path)).clean(&html).to_string()
 }
@@ -51,12 +76,22 @@ struct RawUrls {
 
 impl RawUrls {
     fn new(path: &str) -> Self {
-        let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
-        let mut url = Url::parse(ORIGIN).expect("ORIGIN is a valid URL");
-        // `set_path` escapes spaces, `?` and `#`, but not `%`.
-        url.set_path(&format!("{}/", folder.replace('%', "%25")));
-        Self { folder: url }
+        // `docs/a.md` gives `docs/`, with the slash that `join` needs.
+        let folder = path.rfind('/').map_or("", |slash| &path[..=slash]);
+        Self {
+            folder: workspace_url(folder),
+        }
     }
+}
+
+/// `path` under `ORIGIN`, each part percent-encoded.
+fn workspace_url(path: &str) -> Url {
+    let mut url = Url::parse(ORIGIN).expect("ORIGIN is a valid URL");
+    url.path_segments_mut()
+        .expect("ORIGIN can have a path")
+        .clear()
+        .extend(path.split('/'));
+    url
 }
 
 impl UrlRelativeEvaluate<'static> for RawUrls {
@@ -108,6 +143,51 @@ fn options() -> Options<'static> {
     options.render.r#unsafe = true;
     options.render.sourcepos = true;
     options
+}
+
+/// The first row is the header. Rows may have different lengths.
+fn table(text: &str) -> String {
+    let mut rows = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .flexible(true)
+        .from_reader(text.as_bytes())
+        .into_records()
+        .filter_map(Result::ok);
+    let mut html = String::from("<table>\n");
+    if let Some(header) = rows.next() {
+        html += "<thead>\n";
+        push_row(&mut html, "th", &header);
+        html += "</thead>\n";
+    }
+    html += "<tbody>\n";
+    for row in rows {
+        push_row(&mut html, "td", &row);
+    }
+    html += "</tbody>\n</table>\n";
+    html
+}
+
+fn push_row(html: &mut String, cell: &str, row: &csv::StringRecord) {
+    *html += "<tr>";
+    for field in row {
+        *html += &format!("<{cell}>{}</{cell}>", escape(field));
+    }
+    *html += "</tr>\n";
+}
+
+fn escape(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for char in text.chars() {
+        match char {
+            '&' => escaped += "&amp;",
+            '<' => escaped += "&lt;",
+            '>' => escaped += "&gt;",
+            '"' => escaped += "&quot;",
+            '\'' => escaped += "&#39;",
+            _ => escaped.push(char),
+        }
+    }
+    escaped
 }
 
 /// comrak knows one front matter delimiter, so a leading `+++` block is

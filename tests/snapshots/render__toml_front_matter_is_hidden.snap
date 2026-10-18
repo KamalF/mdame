@@ -1,6 +1,6 @@
 ---
 source: tests/render.rs
-expression: "render::markdown(&fixture(\"front-matter-toml.md\"))"
+expression: "markdown(\"front-matter-toml.md\")"
 ---
 <h1 id="body" data-sourcepos="4:1-4:6">Body<a href="#body" aria-label="Link to heading 'Body'" data-heading-content="Body" class="anchor"></a></h1>
 <p data-sourcepos="6:1-6:20">Only the body shows.</p>

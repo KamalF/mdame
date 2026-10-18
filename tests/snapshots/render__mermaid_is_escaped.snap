@@ -1,0 +1,8 @@
+---
+source: tests/render.rs
+expression: "render::file(Family::Diagram, \"flow.mmd\", &fixture(\"flow.mmd\"))"
+---
+<pre class="mermaid">flowchart LR
+  A[&quot;&lt;b&gt;Start&lt;/b&gt;&quot;] --&gt; B{OK?}
+  B --&gt;|yes| C[Done]
+</pre>

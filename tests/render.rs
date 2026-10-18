@@ -1,6 +1,6 @@
 use std::fs;
 
-use mdame::render;
+use mdame::render::{self, Family};
 
 fn fixture(name: &str) -> String {
     fs::read_to_string(format!(
@@ -10,44 +10,72 @@ fn fixture(name: &str) -> String {
     .unwrap()
 }
 
+fn markdown(name: &str) -> String {
+    render::file(Family::Markdown, name, &fixture(name))
+}
+
 #[test]
 fn gfm() {
-    insta::assert_snapshot!(render::markdown("gfm.md", &fixture("gfm.md")));
+    insta::assert_snapshot!(markdown("gfm.md"));
 }
 
 #[test]
 fn footnotes_and_in_page_links() {
-    insta::assert_snapshot!(render::markdown("links.md", &fixture("links.md")));
+    insta::assert_snapshot!(markdown("links.md"));
 }
 
 #[test]
 fn alerts() {
-    insta::assert_snapshot!(render::markdown("alerts.md", &fixture("alerts.md")));
+    insta::assert_snapshot!(markdown("alerts.md"));
 }
 
 #[test]
 fn yaml_front_matter_is_hidden() {
-    insta::assert_snapshot!(render::markdown(
-        "front-matter-yaml.md",
-        &fixture("front-matter-yaml.md")
-    ));
+    insta::assert_snapshot!(markdown("front-matter-yaml.md"));
 }
 
 #[test]
 fn toml_front_matter_is_hidden() {
-    insta::assert_snapshot!(render::markdown(
-        "front-matter-toml.md",
-        &fixture("front-matter-toml.md")
-    ));
+    insta::assert_snapshot!(markdown("front-matter-toml.md"));
 }
 
 #[test]
 fn hostile_html_is_inert() {
-    insta::assert_snapshot!(render::markdown("hostile.md", &fixture("hostile.md")));
+    insta::assert_snapshot!(markdown("hostile.md"));
 }
 
 #[test]
 fn relative_urls_point_to_raw() {
     let text = fixture("relative-urls.md");
-    insta::assert_snapshot!(render::markdown("notes/today.md", &text));
+    insta::assert_snapshot!(render::file(Family::Markdown, "notes/today.md", &text));
+}
+
+#[test]
+fn data_and_text_are_escaped_code() {
+    let json = render::file(Family::Data, "data.JSON", &fixture("data.json"));
+    let text = render::file(Family::Text, "notes.txt", "a < b & \"c\"\n");
+    insta::assert_snapshot!(format!("{json}\n{text}"));
+}
+
+#[test]
+fn mermaid_is_escaped() {
+    insta::assert_snapshot!(render::file(
+        Family::Diagram,
+        "flow.mmd",
+        &fixture("flow.mmd")
+    ));
+}
+
+#[test]
+fn csv_is_a_table() {
+    insta::assert_snapshot!(render::file(Family::Table, "t.csv", &fixture("table.csv")));
+}
+
+#[test]
+fn image_points_to_raw() {
+    let html = render::file(Family::Image, "img/a b#1%.png", "");
+    assert_eq!(
+        html,
+        r#"<img src="/raw/img/a%20b%231%25.png" alt="a b#1%.png">"#
+    );
 }

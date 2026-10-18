@@ -1,6 +1,6 @@
 ---
 source: tests/render.rs
-expression: "render::markdown(\"notes/today.md\", &text)"
+expression: "render::file(Family::Markdown, \"notes/today.md\", &text)"
 ---
 <p data-sourcepos="1:1-1:29">Rendered as <code data-sourcepos="1:13-1:28">notes/today.md</code>.</p>
 <ul data-sourcepos="3:1-11:101">

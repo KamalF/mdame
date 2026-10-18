@@ -13,7 +13,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
-| 4 | Viewing | In progress, on `m4-viewing` | 4 of about 11 |
+| 4 | Viewing | In progress, on `m4-viewing` | 5 of about 11 |
 | 5 | Live updates | — | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
@@ -67,10 +67,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - ammonia rules in `render.rs`: the defaults, plus `class`, `id`, `data-sourcepos`, footnote and heading-anchor attributes, `section`, and task-list inputs (forced to checkboxes). A hostile-HTML fixture pins the output.
 - Relative URLs become `/raw/…` paths: `render::markdown` takes the file's path and resolves them against its folder with `url::Url::join`; `#…` links stay as they are.
 - One extension table: `render::Family` maps each extension to a family; `/api/tree` sends it on each file, and the sidebar picks the icon from it. `VIEWABLE` and `FAMILIES` are gone.
+- `render::file(family, path, text)`: markdown, escaped code for text and data, `<pre class="mermaid">`, CSV tables with the `csv` crate, `<img src="/raw/…">`. A fixture and a snapshot for each.
 
 ## Next
 
-1. Milestone 4: `render.rs` for the other file types (text and data as code, Mermaid, images) behind one function, then CSV, then the 1 MB guard with `/api/file`.
+1. Milestone 4: `GET /api/file` in `document.rs` and `api/files.rs`, with the 1 MB guard; time the 1 MB fixture.
 
 ## Open points
 

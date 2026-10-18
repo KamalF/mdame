@@ -1,6 +1,6 @@
 ---
 source: tests/render.rs
-expression: "render::markdown(\"hostile.md\", &fixture(\"hostile.md\"))"
+expression: "markdown(\"hostile.md\")"
 ---
 <h1 id="hostile-html" data-sourcepos="1:1-1:14">Hostile HTML<a href="#hostile-html" aria-label="Link to heading 'Hostile HTML'" data-heading-content="Hostile HTML" class="anchor"></a></h1>
 

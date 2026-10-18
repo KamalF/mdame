@@ -1,6 +1,6 @@
 ---
 source: tests/render.rs
-expression: "render::markdown(\"links.md\", &fixture(\"links.md\"))"
+expression: "markdown(\"links.md\")"
 ---
 <h1 id="install" data-sourcepos="1:1-1:9">Install<a href="#install" aria-label="Link to heading 'Install'" data-heading-content="Install" class="anchor"></a></h1>
 <p data-sourcepos="3:1-4:33">See <a data-sourcepos="3:5-3:19" href="#usage">usage</a>, the <a data-sourcepos="3:26-3:47" href="/raw/docs/guide.md">guide</a> and <img data-sourcepos="3:53-3:73" src="/raw/img/logo.png" alt="logo">.

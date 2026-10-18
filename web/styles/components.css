@@ -290,8 +290,13 @@
   font-weight: 700;
 }
 
+/* Shrinks long before the file name does: the name matters more. */
 .mdame-tree-folder {
-  flex: none;
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-left: auto;
   padding-left: 8px;
   color: var(--fg-muted);

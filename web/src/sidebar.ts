@@ -70,36 +70,49 @@ export function ancestors(path: string): string[] {
 }
 
 // By default uFuzzy allows no letters between matched ones, and treats
-// `.`, `-` and `_` as breaks: "mto" would not find "mise.toml".
-const fuzzy = new uFuzzy({ intraIns: Infinity, intraChars: "[a-z\\d'._ -]" });
+// `.`, `-` and `_` as breaks: "mto" would not find "mise.toml". Its
+// default classes are ASCII only; `\p{L}` lets "rsm" find "résumé.md".
+const fuzzy = new uFuzzy({
+  unicode: true,
+  interSplit: "[^\\p{L}\\d']+",
+  intraSplit: "\\p{Ll}\\p{Lu}",
+  intraBound: "\\p{L}\\d|\\d\\p{L}|\\p{Ll}\\p{Lu}",
+  intraContr: "'\\p{L}{1,2}\\b",
+  intraIns: Infinity,
+  intraChars: "[\\p{L}\\d'._ -]",
+});
 
 /**
- * Files whose name matches `query`, best first. `parts` splits the name
- * into matched and unmatched pieces, for bold letters.
+ * Files whose name matches `query`, best first, accents ignored. `parts`
+ * splits the name into matched and unmatched pieces, for bold letters.
  */
 export function filterFiles(list: TreeNode[], query: string): Match[] {
+  // NFC first: latinize knows only precomposed letters, and a name saved on
+  // macOS can hold "e" plus a combining accent. latinize then changes one
+  // letter for one letter, so the ranges still fit the NFC names.
+  const names = list.map((file) => file.name.normalize("NFC"));
   const [indexes, info, order] = fuzzy.search(
-    list.map((file) => file.name),
-    query,
+    uFuzzy.latinize(names),
+    uFuzzy.latinize(query.normalize("NFC")),
   );
   if (!indexes) return [];
   // uFuzzy skips ranking when too many names match.
-  if (!info) return indexes.map((index) => ({ file: list[index], parts: [plain(list[index])] }));
+  if (!info) return indexes.map((index) => ({ file: list[index], parts: [plain(names[index])] }));
   return order.map((rank) => {
-    const file = list[info.idx[rank]];
+    const index = info.idx[rank];
     const parts = uFuzzy.highlight<Part[], Part>(
-      file.name,
+      names[index],
       info.ranges[rank],
       (text, matched) => ({ text, matched }),
       [],
       (all, part) => [...all, part],
     );
-    return { file, parts: parts.filter((part) => part.text) };
+    return { file: list[index], parts: parts.filter((part) => part.text) };
   });
 }
 
-function plain(file: TreeNode): Part {
-  return { text: file.name, matched: false };
+function plain(name: string): Part {
+  return { text: name, matched: false };
 }
 
 /** `docs/a b.md` gives `/view/docs/a%20b.md`: each part is encoded, not the slashes. */

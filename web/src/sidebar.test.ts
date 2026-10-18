@@ -86,6 +86,23 @@ test("filter skips letters and separators between matched letters", () => {
   expect(filterFiles(list, "mto").map((result) => result.file.name)).toEqual(["mise.toml"]);
 });
 
+test("filter handles accented names, with or without the accents", () => {
+  const list = [file("résumé.md", 1), file("ÉTÉ.md", 1), file("Cargo.toml", 1)];
+  const names = (query: string) => filterFiles(list, query).map((result) => result.file.name);
+  expect(names("rsm")).toEqual(["résumé.md"]);
+  expect(names("ete")).toEqual(["ÉTÉ.md"]);
+  expect(names("été")).toEqual(["ÉTÉ.md"]);
+  const parts = filterFiles(list, "res")[0].parts;
+  expect(parts[0]).toEqual({ text: "rés", matched: true });
+});
+
+test("filter finds names saved with combining accents (NFD)", () => {
+  const list = [file("résumé.md".normalize("NFD"), 1)];
+  for (const query of ["resume", "rsm", "rés"]) {
+    expect(filterFiles(list, query).map((result) => result.file.path)).toEqual([list[0].path]);
+  }
+});
+
 test("view URLs encode each part and keep the slashes", () => {
   expect(viewUrl("docs/a b.md")).toBe("/view/docs/a%20b.md");
   expect(pathFromUrl("/view/docs/a%20b.md")).toBe("docs/a b.md");

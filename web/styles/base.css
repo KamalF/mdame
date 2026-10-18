@@ -49,11 +49,10 @@ main {
 
 #mdame-status {
   display: flex;
-  justify-content: space-between;
   gap: 12px;
   height: 32px;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 12px 0 6px;
   border-top: 1px solid var(--border);
   background: var(--bg-sunken);
   color: var(--fg-muted);
@@ -64,4 +63,8 @@ main {
   width: 16px;
   height: 16px;
   flex: none;
+}
+
+#mdame-status > :last-child {
+  margin-left: auto;
 }

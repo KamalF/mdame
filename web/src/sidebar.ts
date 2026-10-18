@@ -317,3 +317,107 @@ function label(text: string) {
   span.textContent = text;
   return span;
 }
+
+export const MIN_WIDTH = 180;
+export const MAX_WIDTH = 480;
+
+export function clampWidth(width: number): number {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)));
+}
+
+let toggle = () => {};
+let closeOverlay = () => {};
+
+/** Hides or shows the sidebar; below 900 px, opens or closes the overlay. */
+export function toggleSidebar() {
+  toggle();
+}
+
+export function closeSidebarOverlay() {
+  closeOverlay();
+}
+
+interface LayoutElements {
+  frame: HTMLElement;
+  handle: HTMLElement;
+  backdrop: HTMLElement;
+  button: HTMLButtonElement;
+}
+
+export function setupLayout({ frame, handle, backdrop, button }: LayoutElements) {
+  const narrow = matchMedia("(max-width: 899px)");
+  let width = MIN_WIDTH;
+
+  function setWidth(next: number) {
+    width = clampWidth(next);
+    frame.style.setProperty("--sidebar-width", `${width}px`);
+    handle.setAttribute("aria-valuenow", String(width));
+  }
+
+  handle.setAttribute("role", "separator");
+  handle.setAttribute("aria-orientation", "vertical");
+  handle.setAttribute("aria-label", "Sidebar width");
+  handle.setAttribute("aria-valuemin", String(MIN_WIDTH));
+  handle.setAttribute("aria-valuemax", String(MAX_WIDTH));
+  handle.tabIndex = 0;
+  setWidth(Number(load("mdame:sidebar-width", 260)) || 260);
+
+  handle.addEventListener("pointerdown", (event) => {
+    // Capture keeps the moves coming while the pointer is over the content.
+    handle.setPointerCapture(event.pointerId);
+    const left = frame.getBoundingClientRect().left;
+    const move = (moved: PointerEvent) => setWidth(moved.clientX - left);
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener(
+      "pointerup",
+      () => {
+        handle.removeEventListener("pointermove", move);
+        store("mdame:sidebar-width", width);
+      },
+      { once: true },
+    );
+  });
+
+  handle.addEventListener("keydown", (event) => {
+    const step = ({ ArrowLeft: -16, ArrowRight: 16 } as Record<string, number>)[event.key];
+    if (!step) return;
+    event.preventDefault();
+    setWidth(width + step);
+    store("mdame:sidebar-width", width);
+  });
+
+  function isOpen() {
+    return narrow.matches
+      ? frame.classList.contains("overlay-open")
+      : !frame.classList.contains("sidebar-hidden");
+  }
+
+  function showButton() {
+    const label = `${isOpen() ? "Hide" : "Show"} sidebar (k)`;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.setAttribute("aria-expanded", String(isOpen()));
+  }
+
+  toggle = () => {
+    if (narrow.matches) {
+      frame.classList.toggle("overlay-open");
+    } else {
+      store("mdame:sidebar-hidden", frame.classList.toggle("sidebar-hidden"));
+    }
+    showButton();
+  };
+  closeOverlay = () => {
+    frame.classList.remove("overlay-open");
+    showButton();
+  };
+
+  frame.classList.toggle("sidebar-hidden", load<boolean>("mdame:sidebar-hidden", false) === true);
+  button.addEventListener("click", toggle);
+  backdrop.addEventListener("click", closeOverlay);
+  addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape" && frame.classList.contains("overlay-open")) closeOverlay();
+  });
+  narrow.addEventListener("change", closeOverlay);
+  showButton();
+}

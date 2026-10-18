@@ -3,6 +3,7 @@ import "../styles/layout.css";
 import "../styles/components.css";
 import { api, type State } from "./api.ts";
 import { askHistory } from "./dialogs.ts";
+import { icon } from "./icons.ts";
 import * as picker from "./picker.ts";
 import * as sidebar from "./sidebar.ts";
 
@@ -32,6 +33,7 @@ function showContent(path: string | null) {
 function openFile(path: string) {
   history.pushState(null, "", sidebar.viewUrl(path));
   sidebar.setCurrent(path);
+  sidebar.closeSidebarOverlay();
   showContent(path);
 }
 
@@ -44,10 +46,19 @@ function showWorkspace(state: State) {
   const nav = document.createElement("nav");
   nav.id = "mdame-sidebar";
   nav.setAttribute("aria-label", "Files");
+  const handle = document.createElement("div");
+  handle.className = "mdame-resize";
+  const backdrop = document.createElement("div");
+  backdrop.className = "mdame-backdrop";
   const frame = document.createElement("div");
   frame.className = "mdame-frame";
-  frame.append(nav, content);
+  frame.append(nav, handle, content, backdrop);
   app.replaceChildren(frame);
+  const button = document.createElement("button");
+  button.className = "mdame-icon-button";
+  button.append(icon("panel"));
+  status.prepend(button);
+  sidebar.setupLayout({ frame, handle, backdrop, button });
   sidebar.mount(nav, { root, current, onOpen: openFile });
   showContent(current);
 }

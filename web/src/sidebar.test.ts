@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   ancestors,
+  clampWidth,
   files,
   filterFiles,
   nextSort,
@@ -98,4 +99,10 @@ test("fileIcon picks the family from the extension", () => {
   expect(fileIcon("data.yml")).toBe("data");
   expect(fileIcon("flow.mmd")).toBe("diagram");
   expect(fileIcon("Makefile")).toBe("file");
+});
+
+test("clampWidth keeps the sidebar between 180 and 480 px", () => {
+  expect(clampWidth(100)).toBe(180);
+  expect(clampWidth(300.6)).toBe(301);
+  expect(clampWidth(900)).toBe(480);
 });

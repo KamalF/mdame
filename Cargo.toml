@@ -12,6 +12,7 @@ comrak = { version = "0.56.0", default-features = false }
 csv = "1.4.0"
 getrandom = "0.4.3"
 ignore = "0.4.33"
+notify-debouncer-full = "0.7.0"
 open = "5.4.4"
 rust-embed = "8.13.0"
 serde = { version = "1.0.229", features = ["derive"] }

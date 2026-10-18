@@ -14,7 +14,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
-| 5 | Live updates | — | about 9 |
+| 5 | Live updates | In progress on `m5-live` | about 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
 | 8 | Themes and polish | — | about 9 |
@@ -77,9 +77,13 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - Not-found page, and a "not shown here" page with a link to the raw file for an existing file of another type (`/api/file` answers `not_viewable`, still 404). Links in content open in the app. Empty-workspace page when the tree has no file.
 - Review loop over milestone 4, fixes in their own commits: markdown whose HTML nests more than 256 deep gets a notice (ammonia is quadratic in depth; the check is a heuristic), at most two renders run at a time (409 otherwise), `/raw` refuses files over 64 MB (413) and reads with a bound, FIFOs are not opened, an unreadable file is no longer called "outside the workspace", `mdame-` ids and classes are dropped from content, the raw-file link on the "not shown here" page works, and a `#…` target is found again after Mermaid draws.
 
+## Milestone 5: live updates
+
+- `watch.rs`: the `Event` type sent to the browser, and the mapping from one debounced batch to events with workspace-relative paths. `.mdame/` and paths outside the root are skipped; a delete then create of one file is one `changed`; a batch over 100 events, or a rescan, gives `resync`. Events carry no `dir` flag (spec updated).
+
 ## Next
 
-1. Milestone 5: live updates, on a new branch `m5-live`.
+1. Start the watcher with the workspace: debouncer thread → tokio channel → broadcast; port the mdlive watcher cases to `tests/watch.rs`.
 
 ## Open points
 

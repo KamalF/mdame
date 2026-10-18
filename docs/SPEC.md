@@ -327,11 +327,13 @@ Server to client only, JSON with a `type` field:
 | Event | Fields | Browser reaction |
 | --- | --- | --- |
 | `changed` | `path` | If it is the open file: refetch and morph; in the editor, show the "changed on disk" notice |
-| `created` | `path`, `dir` | Refetch the tree |
-| `removed` | `path`, `dir` | Refetch the tree; if it was the open file, show not-found |
+| `created` | `path` | Refetch the tree; if it is the open file, refetch it too: a save through a temporary file and a rename arrives as `created` |
+| `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, show not-found |
 | `renamed` | `from`, `to` | Refetch the tree; if `from` was open, navigate to `to` |
 | `workspace` | `root` | Sent once, when the picker opens a workspace: reload state and go to the first file |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
+
+A file deleted and written again in one debounced batch is sent as `changed`. Events carry no folder flag: inotify does not tell whether a path moved out of the workspace was a folder, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.
 
 A new receiver only sees events sent after it subscribed, so the client refetches what is visible after connecting and reconnects with backoff. Image changes arrive as `changed` with an image path; the browser reloads matching `<img>` elements with a cache-busting query.
 

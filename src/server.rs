@@ -1,15 +1,16 @@
 use crate::app::AppState;
+use crate::config::{self, HistoryMode};
 use crate::error::ApiError;
 use axum::{
     Json, Router,
-    extract::{Path, Request, State},
+    extract::{Path, Request, State, rejection::JsonRejection},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, put},
 };
 use rust_embed::RustEmbed;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -20,12 +21,41 @@ struct StateResponse {
     needs_setup: bool,
 }
 
-async fn state(State(app): State<Arc<AppState>>) -> Json<StateResponse> {
-    Json(StateResponse {
+fn state_response(app: &AppState) -> StateResponse {
+    StateResponse {
         version: env!("CARGO_PKG_VERSION"),
         workspace: app.workspace.clone(),
         needs_setup: app.config.read().unwrap().history.is_none(),
-    })
+    }
+}
+
+async fn state(State(app): State<Arc<AppState>>) -> Json<StateResponse> {
+    Json(state_response(&app))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Settings {
+    history: HistoryMode,
+}
+
+/// Saves the file first, so the config in memory never differs from it.
+async fn settings(
+    State(app): State<Arc<AppState>>,
+    body: Result<Json<Settings>, JsonRejection>,
+) -> Result<Json<StateResponse>, ApiError> {
+    let Json(settings) = body.map_err(|rejection| ApiError::BadRequest(rejection.body_text()))?;
+    let mut config = app.config.write().unwrap();
+    let mut new = config.clone();
+    new.history = Some(settings.history);
+    config::save(&new, &app.config_path).map_err(|error| {
+        tracing::error!("could not save the settings: {error}");
+        ApiError::Internal(error.to_string())
+    })?;
+    *config = new;
+    // state_response takes the read lock: holding the write lock would deadlock.
+    drop(config);
+    Ok(Json(state_response(&app)))
 }
 
 /// Refuses requests that do not come from the mdame page itself.
@@ -206,6 +236,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/edit/{*path}", get(page))
         .route("/assets/{*path}", get(asset))
         .route("/api/state", get(state))
+        .route("/api/settings", put(settings))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

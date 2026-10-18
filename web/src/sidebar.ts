@@ -254,7 +254,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     row.append(folder);
     row.classList.toggle("is-highlighted", index === highlight);
     const item = document.createElement("li");
-    item.append(row);
+    item.append(line(row, result.file.path));
     return item;
   }
 
@@ -263,7 +263,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
       const item = document.createElement("li");
       const row = node.kind === "dir" ? folderRow(node) : fileRow(node);
       row.style.paddingLeft = `${8 + depth * 16}px`;
-      item.append(row);
+      item.append(line(row, node.path));
       if (node.kind === "dir" && open.has(node.path)) {
         const children = document.createElement("ul");
         children.append(...items(node.children!, depth + 1));
@@ -311,6 +311,35 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     render();
   };
   render();
+}
+
+/** A row with its hover action. HTML allows no button inside a link, so
+ * the button sits next to the row. */
+function line(row: HTMLElement, path: string) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "mdame-tree-line";
+  wrapper.append(row, copyButton(path));
+  return wrapper;
+}
+
+function copyButton(path: string) {
+  const button = document.createElement("button");
+  button.className = "mdame-icon-button mdame-copy";
+  button.setAttribute("aria-label", `Copy path ${path}`);
+  button.title = "Copy path";
+  button.append(icon("link"));
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(path);
+      button.replaceChildren(icon("check"));
+    } catch {
+      // The clipboard API exists only on secure pages: localhost, not a LAN address.
+      button.replaceChildren(icon("cross"));
+      button.title = "Copy failed: the clipboard works only through localhost";
+    }
+    setTimeout(() => button.replaceChildren(icon("link")), 1200);
+  });
+  return button;
 }
 
 function label(text: string) {

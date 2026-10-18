@@ -302,3 +302,26 @@
   padding: 6px 8px;
   color: var(--fg-muted);
 }
+
+.mdame-tree-line {
+  position: relative;
+}
+
+.mdame-copy {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  width: 24px;
+  height: 24px;
+  visibility: hidden;
+}
+
+.mdame-tree-line:hover .mdame-copy,
+.mdame-tree-line:focus-within .mdame-copy {
+  visibility: visible;
+}
+
+.mdame-tree-line:hover .mdame-tree-folder,
+.mdame-tree-line:focus-within .mdame-tree-folder {
+  visibility: hidden;
+}

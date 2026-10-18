@@ -10,8 +10,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
-| 1 | Skeleton | Done 17 October 2026, on `m1-skeleton`, not merged | 9 |
-| 2 | Workspaces | Next | about 9 |
+| 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
+| 2 | Workspaces | In progress, on `m2-workspaces` | about 9 |
 | 3 | Sidebar | — | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
@@ -33,11 +33,10 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ## Next
 
-1. Review milestone 1 and merge `m1-skeleton` into `main`.
-2. Milestone 2, Rust side first: config and recents, the cap-std `Workspace`, `POST /api/workspace`, `/api/complete`, and the path argument.
-3. Design round for the picker screen and the first-start dialog, before their UI.
+1. Milestone 2, Rust side first: config and recents, the cap-std `Workspace`, `POST /api/workspace`, `/api/complete`, and the path argument.
+2. Design round for the picker screen and the first-start dialog, before their UI.
 
 ## Open points
 
-- `--no-open` flag: proposed so that `mise run dev` stops opening a tab on each restart. Not in the spec; decide before milestone 2 if the extra tabs get in the way.
+- `--no-open` flag: proposed so that `mise run dev` stops opening a tab on each restart. Not in the spec; on 18 October 2026, put off until the extra tabs get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.

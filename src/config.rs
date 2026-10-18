@@ -26,6 +26,22 @@ pub struct Recents {
     pub entries: Vec<Recent>,
 }
 
+const MAX_RECENTS: usize = 25;
+
+impl Recents {
+    pub fn add(&mut self, path: PathBuf, now_secs: u64) {
+        self.entries.retain(|entry| entry.path != path);
+        self.entries.insert(
+            0,
+            Recent {
+                path,
+                last_opened_secs: now_secs,
+            },
+        );
+        self.entries.truncate(MAX_RECENTS);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Recent {
     pub path: PathBuf,
@@ -191,6 +207,43 @@ mod tests {
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(names, ["config.toml"], "no temporary file left");
+    }
+
+    fn paths(recents: &Recents) -> Vec<&str> {
+        recents
+            .entries
+            .iter()
+            .map(|entry| entry.path.to_str().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn add_puts_the_path_first() {
+        let mut recents = Recents::default();
+        recents.add("/a".into(), 1);
+        recents.add("/b.md".into(), 2);
+        assert_eq!(paths(&recents), ["/b.md", "/a"]);
+    }
+
+    #[test]
+    fn add_again_moves_the_path_first_with_the_new_time() {
+        let mut recents = Recents::default();
+        recents.add("/a".into(), 1);
+        recents.add("/b".into(), 2);
+        recents.add("/a".into(), 3);
+        assert_eq!(paths(&recents), ["/a", "/b"]);
+        assert_eq!(recents.entries[0].last_opened_secs, 3);
+    }
+
+    #[test]
+    fn add_keeps_the_newest_25() {
+        let mut recents = Recents::default();
+        for i in 0..30 {
+            recents.add(format!("/{i}").into(), i);
+        }
+        assert_eq!(recents.entries.len(), 25);
+        assert_eq!(recents.entries[0].path, PathBuf::from("/29"));
+        assert_eq!(recents.entries[24].path, PathBuf::from("/5"));
     }
 
     #[test]

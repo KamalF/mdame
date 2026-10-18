@@ -11,7 +11,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | # | Milestone | Status | Commits |
 | --- | --- | --- | --- |
 | 1 | Skeleton | Done 17 October 2026, merged into `main` 18 October | 9 |
-| 2 | Workspaces | In progress, on `m2-workspaces` | 1 of about 9 |
+| 2 | Workspaces | In progress, on `m2-workspaces` | 2 of about 9 |
 | 3 | Sidebar | — | about 8 |
 | 4 | Viewing | — | about 11 |
 | 5 | Live updates | — | about 9 |
@@ -34,13 +34,13 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 ## Milestone 2: workspaces
 
 - `config.rs`: `Config` (theme, snapshots_per_file, history) in `config.toml`, `Recents` in `recents.toml` in the state folder; generic load (a missing file gives the default) and atomic save; the config and state paths.
+- `Recents::add`: puts a path first, with no duplicate, and keeps 25.
 
 ## Next
 
-1. Recents: add or move an entry to the top, keep 25.
-2. `AppState` holds the config; `needs_setup` in `/api/state`; `PUT /api/settings`.
-3. The cap-std `Workspace`, `POST /api/workspace`, `/api/complete`, and the path argument.
-4. Design round for the picker screen and the first-start dialog, before their UI.
+1. `AppState` holds the config; `needs_setup` in `/api/state`; `PUT /api/settings`.
+2. The cap-std `Workspace`, `POST /api/workspace`, `/api/complete`, and the path argument.
+3. Design round for the picker screen and the first-start dialog, before their UI.
 
 ## Open points
 

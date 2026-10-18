@@ -507,7 +507,7 @@ The exact list is the owner's call during design; once fixed, document it in `we
 - Picker: one centred path field with autocomplete; recents appear as suggestions in its dropdown. Details decided on 18 October 2026:
   - An empty field lists the recents, newest first. While you type, the recents that contain the typed text come first, tagged "recent", then the `/api/complete` results; a path shows once.
   - Paths under the home folder show as `~/…`. Each row has an icon: folder, file, or recent.
-  - The first row is highlighted. ↑↓ move the highlight, Tab puts the highlighted path in the field, Enter opens the highlighted path (or the typed text when the list is empty), Esc closes the list.
+  - The first row is highlighted, except when the field ends with `/`: the rows are then the folder's contents, and Enter opens the folder itself. ↑↓ move the highlight, Tab puts the highlighted path in the field, Enter opens the highlighted path (or the typed text when the list is empty), Esc closes the list.
   - An error line under the field shows the API message until the next key press.
   - After an open, the page shows the workspace; with a starting file, the URL becomes `/view/<file>`.
 - Typography, provisional until the theme pass: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. A mono toggle sets the content in Plex Mono at 72ch. Fonts are bundled (OFL).

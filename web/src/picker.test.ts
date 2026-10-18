@@ -24,6 +24,14 @@ test("merge puts matching recents first, without duplicates", () => {
   ]);
 });
 
+test("merge matches recents by their absolute path too", () => {
+  const recents = [{ path: "/home/me/notes", last_opened_secs: 1 }];
+  const completions = [{ path: "/home/me/notes/", dir: true }];
+  expect(merge(recents, completions, "/home/me/no", "/home/me")).toEqual([
+    { path: "~/notes", kind: "recent" },
+  ]);
+});
+
 test("merge with an empty field lists every recent", () => {
   const recents = [{ path: "/a", last_opened_secs: 1 }];
   expect(merge(recents, [], "", "/home/me")).toEqual([{ path: "/a", kind: "recent" }]);

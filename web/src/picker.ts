@@ -62,12 +62,16 @@ export function merge(
   home: string | null,
 ): Item[] {
   const needle = typed.toLowerCase();
-  const items = recents
-    .map((recent) => ({ path: tildify(recent.path, home), kind: "recent" }))
-    .filter((item) => item.path.toLowerCase().includes(needle));
+  const items: Item[] = [];
+  for (const recent of recents) {
+    const path = tildify(recent.path, home);
+    if ([recent.path, path].some((form) => form.toLowerCase().includes(needle))) {
+      items.push({ path, kind: "recent" });
+    }
+  }
   const seen = new Set(items.map((item) => item.path));
   for (const completion of completions) {
-    if (seen.has(completion.path.replace(/\/$/, ""))) continue;
+    if (seen.has(tildify(completion.path.replace(/\/$/, ""), home))) continue;
     items.push({ path: completion.path, kind: completion.dir ? "folder" : "file" });
   }
   return items;
@@ -118,6 +122,7 @@ export function mount(
 
   let recents: Recent[] = [];
   let items: Item[] = [];
+  let itemsFor = "";
   let highlight = 0;
   let request = 0;
 
@@ -147,8 +152,9 @@ export function mount(
       }),
     );
     input.setAttribute("aria-expanded", String(items.length > 0));
-    if (items.length > 0) {
+    if (items[highlight]) {
       input.setAttribute("aria-activedescendant", `mdame-suggestion-${highlight}`);
+      list.children[highlight].scrollIntoView({ block: "nearest" });
     } else {
       input.removeAttribute("aria-activedescendant");
     }
@@ -166,7 +172,9 @@ export function mount(
     // A slower answer to an older prefix must not replace a newer one.
     if (current !== request) return;
     items = merge(recents, completions, typed, state.home);
-    highlight = 0;
+    itemsFor = typed;
+    // After a folder, the rows are its children: Enter opens the folder.
+    highlight = typed.endsWith("/") ? -1 : 0;
     render();
   }
 
@@ -184,12 +192,14 @@ export function mount(
   });
 
   input.addEventListener("keydown", (event) => {
-    const chosen = items[highlight];
+    error.textContent = "";
+    // Rows still built for older text (a paste, fast typing) are not chosen.
+    const chosen = itemsFor === input.value ? items[highlight] : undefined;
     if (event.key === "ArrowDown" && items.length > 0) {
       highlight = (highlight + 1) % items.length;
       render();
     } else if (event.key === "ArrowUp" && items.length > 0) {
-      highlight = (highlight - 1 + items.length) % items.length;
+      highlight = highlight <= 0 ? items.length - 1 : highlight - 1;
       render();
     } else if (event.key === "Tab" && chosen) {
       input.value = chosen.path;

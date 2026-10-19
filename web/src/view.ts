@@ -74,7 +74,10 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   await Promise.all([highlightAll(article), renderDiagrams(article)]);
   if (id !== request) return null;
   shown = { path, file };
-  Idiomorph.morph(el.querySelector(":scope > article")!, article);
+  Idiomorph.morph(el.querySelector(":scope > article")!, article, {
+    // The server's HTML never has it: a `<details>` the reader opened stays open.
+    callbacks: { beforeAttributeUpdated: (name, _, type) => !(name === "open" && type === "remove") },
+  });
   return file;
 }
 

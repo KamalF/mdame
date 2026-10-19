@@ -14,7 +14,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
-| 5 | Live updates | In progress on `m5-live` | about 9 |
+| 5 | Live updates | Done 19 October 2026, on `m5-live`; review next | 9 |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
 | 8 | Themes and polish | — | about 9 |
@@ -87,10 +87,25 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - The open file refreshes in place on `changed` or `created` (and after a reconnection): the new HTML is coloured and its diagrams drawn off-screen, then morphed in with idiomorph 0.8. Checked in the browser: a plain write, a vim-style save, diagrams and code blocks keep the scroll position and the unchanged elements; a not-found page shows the file once it is created.
 - The sidebar reloads on `created`, `removed` and `renamed`, keeping the open folders, the sort and the filter. A rename of the open file, or of a folder holding it, follows it with `replaceState` and keeps the scroll position. A removal asks the server again rather than showing not-found at once, since the file may already be back; the status bar is cleared on not-found. Checked in the browser.
 - Images refresh: a `changed` or `created` image gets a `?v=<time>` on every `<img>` that shows it, embedded or opened alone, and later renders keep that version so a morph cannot put the old image back. Checked in the browser.
+- `resync`, like a reconnection, refetches the state, the tree, the open file and every workspace image on screen.
+- Done when, checked on 19 October 2026: the ported mdlive watcher cases pass (`tests/watch.rs`), and saves from vim and nvim (`-u NONE`, run from a script) update the page with no reload, at the same scroll position.
+
+### Manual checklist
+
+Run mdame on a test folder, open a long markdown file, scroll halfway, then:
+
+1. Save the file from vim, nvim and another editor: the text updates, the scroll stays, no `~` file shows in the sidebar.
+2. Add, delete and rename files and folders from a terminal: the sidebar follows, keeping open folders, the sort and the filter.
+3. Rename the open file, then its folder: the address follows, Back does not lead to the old name.
+4. Delete the open file: "Not found", and an empty status bar. Write it again: the file shows.
+5. Change an image that the file shows, then the file itself: the new image stays.
+6. Create a few hundred files at once (`for i in (seq 300); touch $i.md; end`): the page catches up once.
+7. Open two tabs on the picker, open a workspace in one: the other follows.
+8. Restart mdame: the page reconnects; on another workspace, it reloads.
 
 ## Next
 
-1. `resync` refetches everything visible; the manual checklist of milestone 5; the spec and PROGRESS.
+1. Review loop over milestone 5, then merge `m5-live` into `main`.
 
 ## Open points
 

@@ -48,10 +48,11 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   return json;
 }
 
-/** Whether `url` answers, without its body. */
+/** Whether the file behind `url` exists: a file too large or unreadable
+ * to serve still does. */
 export async function exists(url: string): Promise<boolean> {
   return fetch(url, { method: "HEAD" }).then(
-    (response) => response.ok,
+    (response) => response.status !== 404,
     () => false,
   );
 }

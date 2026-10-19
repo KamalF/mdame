@@ -369,8 +369,10 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     fetched = next;
     allFiles = files(next);
     tree = sortTree(next, order);
+    // The arrow-key choice follows its file, which may move or be gone.
+    const chosen = results[highlight]?.file.path;
     results = query ? filterFiles(allFiles, query) : [];
-    highlight = -1;
+    highlight = results.findIndex((result) => result.file.path === chosen);
     render();
     return allFiles.length;
   };

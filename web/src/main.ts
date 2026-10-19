@@ -63,13 +63,20 @@ function refreshContent(path: string) {
   });
 }
 
+let treeTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Each request walks the whole folder: the events of one batch, which
+ * arrive together, share one. */
 function refreshTree() {
-  sidebar.refreshTree().then((count) => {
-    if (count === null) return;
-    fileCount = count;
-    // The empty-workspace page and "Choose a file" depend on the count.
-    if (!sidebar.pathFromUrl(location.pathname)) showContent(null);
-  });
+  clearTimeout(treeTimer);
+  treeTimer = setTimeout(() => {
+    sidebar.refreshTree().then((count) => {
+      if (count === null) return;
+      fileCount = count;
+      // The empty-workspace page and "Choose a file" depend on the count.
+      if (!sidebar.pathFromUrl(location.pathname)) showContent(null);
+    });
+  }, 50);
 }
 
 /** Keeps showing the open file, or a file in a folder, after a rename. */

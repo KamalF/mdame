@@ -214,6 +214,25 @@ async fn folder_delete_is_one_removal() {
 }
 
 #[tokio::test]
+async fn unreadable_folder_does_not_stop_the_watch() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let locked = dir.path().join("ws/locked");
+    fs::create_dir_all(&locked).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    let state = common::workspace(dir.path(), &[A, ("sub/b.md", b"")]);
+    let mut watched = Watched {
+        events: state.events.subscribe(),
+        dir,
+        state,
+    };
+    fs::write(watched.path("sub/b.md"), "# B\n").unwrap();
+    let result = watched.next().await;
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(result, [changed("sub/b.md")]);
+}
+
+#[tokio::test]
 async fn mdame_folder_is_ignored() {
     let mut watched = Watched::new(&[A, (".mdame/history/a.md/1.md", b"")]);
     fs::write(watched.path(".mdame/history/a.md/2.md"), "").unwrap();

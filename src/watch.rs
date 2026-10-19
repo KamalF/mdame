@@ -1,3 +1,5 @@
+use std::fs;
+use std::io::ErrorKind;
 use std::path::Path;
 use std::time::Duration;
 
@@ -47,7 +49,7 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
         RecommendedCache::new(),
         config,
     )?;
-    debouncer.watch(root, RecursiveMode::Recursive)?;
+    watch_readable(&mut debouncer, root)?;
     let root = root.to_owned();
     tokio::spawn(async move {
         while let Some(batch) = received.recv().await {
@@ -68,6 +70,38 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
         }
     });
     Ok(debouncer)
+}
+
+/// notify stops a recursive watch at the first folder it cannot read, so
+/// below a folder that fails, each subfolder is watched on its own and the
+/// unreadable ones are skipped. A folder created later on that path is not
+/// watched.
+fn watch_readable(debouncer: &mut Watcher, dir: &Path) -> notify::Result<()> {
+    let denied = match debouncer.watch(dir, RecursiveMode::Recursive) {
+        Err(error) if is_denied(&error) => error,
+        result => return result,
+    };
+    if let Err(error) = debouncer.watch(dir, RecursiveMode::NonRecursive) {
+        return if is_denied(&error) {
+            tracing::warn!("not watched: {denied}");
+            Ok(())
+        } else {
+            Err(error)
+        };
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Ok(());
+    };
+    for entry in entries.flatten() {
+        if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            watch_readable(debouncer, &entry.path())?;
+        }
+    }
+    Ok(())
+}
+
+fn is_denied(error: &notify::Error) -> bool {
+    matches!(&error.kind, notify::ErrorKind::Io(io) if io.kind() == ErrorKind::PermissionDenied)
 }
 
 /// Turns one debounced batch into events with workspace-relative paths.

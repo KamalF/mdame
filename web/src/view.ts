@@ -110,6 +110,8 @@ const versions = new Map<string, number>();
 
 /** The workspace path that `img` shows, or null for an image from elsewhere. */
 function rawPath(img: HTMLImageElement): string | null {
+  // The sanitizer removes a `src` it refuses, such as `data:`, and "" is no URL.
+  if (!img.src) return null;
   const url = new URL(img.src);
   if (url.origin !== location.origin || !url.pathname.startsWith("/raw/")) return null;
   try {

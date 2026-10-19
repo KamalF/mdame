@@ -53,6 +53,10 @@ function showContent(path: string | null) {
   else view.showNothing(content, fileCount === 0);
 }
 
+function refreshContent(path: string) {
+  view.refreshFile(content, path).then((file) => file && showFileStatus(path, file));
+}
+
 function openFile(path: string, hash = "") {
   history.pushState(null, "", sidebar.viewUrl(path) + hash);
   sidebar.setCurrent(path);
@@ -132,11 +136,16 @@ function show(state: State) {
 
 async function refresh() {
   show(await api<State>("GET", "/api/state"));
+  const current = sidebar.pathFromUrl(location.pathname);
+  if (current) refreshContent(current);
 }
 
 live.connect({
   onEvent: (event) => {
     if (event.type === "workspace" && shownRoot === null) refresh();
+    // A save through a temporary file and a rename arrives as `created`.
+    const changed = event.type === "changed" || event.type === "created";
+    if (changed && event.path === sidebar.pathFromUrl(location.pathname)) refreshContent(event.path);
   },
   onReconnect: refresh,
 });

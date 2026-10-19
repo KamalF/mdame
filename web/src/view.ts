@@ -1,4 +1,5 @@
 import "../styles/content.css";
+import { Idiomorph } from "idiomorph";
 import { api, type ApiError } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
@@ -45,16 +46,54 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   }
   const id = ++request;
   shown = undefined;
-  let file: FileView;
-  try {
-    file = await api<FileView>("GET", `/api/file?path=${encodeURIComponent(path)}`);
-  } catch (error) {
-    // A click on another file meanwhile wins over this answer.
-    if (id === request) notFound(el, path, error as ApiError);
-    return null;
-  }
+  const file = await fetchFile(el, path, id);
+  if (!file) return null;
+  shown = { path, file };
+  const article = articleFor(file);
+  el.replaceChildren(article);
+  el.scrollTop = 0;
+  scrollToHash();
+  highlightAll(article);
+  // A diagram above the `#…` target moves it once drawn.
+  renderDiagrams(article).then(() => id === request && scrollToHash());
+  return file;
+}
+
+/**
+ * Shows the new content of the file on screen, replacing only what changed:
+ * the scroll position, a text selection and open `<details>` stay. A file
+ * that failed to show, such as a deleted one now back, is shown anew.
+ */
+export async function refreshFile(el: HTMLElement, path: string): Promise<FileView | null> {
+  if (shown?.path !== path) return showFile(el, path);
+  const id = ++request;
+  const file = await fetchFile(el, path, id);
+  if (!file) return null;
+  const article = articleFor(file);
+  // Coloured and drawn before the morph, so plain code never flashes.
+  await Promise.all([highlightAll(article), renderDiagrams(article)]);
   if (id !== request) return null;
   shown = { path, file };
+  Idiomorph.morph(el.querySelector(":scope > article")!, article);
+  return file;
+}
+
+/** The file, or null when it failed or request `id` is no longer the latest. */
+async function fetchFile(el: HTMLElement, path: string, id: number): Promise<FileView | null> {
+  try {
+    const file = await api<FileView>("GET", `/api/file?path=${encodeURIComponent(path)}`);
+    return id === request ? file : null;
+  } catch (error) {
+    // A click on another file meanwhile wins over this answer.
+    if (id === request) {
+      shown = undefined;
+      notFound(el, path, error as ApiError);
+    }
+    return null;
+  }
+}
+
+function articleFor(file: FileView): HTMLElement {
   const article = document.createElement("article");
   article.className = "mdame-document";
   // Sanitized by the server.
@@ -62,14 +101,8 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   for (const link of article.querySelectorAll('a[href^="/raw/"]')) {
     link.setAttribute("href", viewHref(link.getAttribute("href")!));
   }
-  el.replaceChildren(article);
-  el.scrollTop = 0;
-  scrollToHash();
   addCopyButtons(article);
-  highlightAll(article);
-  // A diagram above the `#…` target moves it once drawn.
-  renderDiagrams(article).then(() => id === request && scrollToHash());
-  return file;
+  return article;
 }
 
 function addCopyButtons(root: HTMLElement) {

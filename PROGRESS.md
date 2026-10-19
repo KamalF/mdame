@@ -84,10 +84,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `GET /ws` in `ws.rs`: each tab gets its own receiver; a lagging tab gets `resync`; a closed tab drops its receiver at once. Tests with a real client (`tokio-tungstenite`), including a foreign `Origin` refused with 403.
 - Opening a workspace sends `workspace` with its root, so the other tabs still at the picker can follow.
 - `live.ts`: the page connects to `/ws` before its first request and reconnects with backoff (500 ms doubling to 10 s); after a lost connection it reloads the state. A tab on the picker follows a workspace opened in another tab; a server restarted on another workspace reloads the page.
+- The open file refreshes in place on `changed` or `created` (and after a reconnection): the new HTML is coloured and its diagrams drawn off-screen, then morphed in with idiomorph 0.8. Checked in the browser: a plain write, a vim-style save, diagrams and code blocks keep the scroll position and the unchanged elements; a not-found page shows the file once it is created.
 
 ## Next
 
-1. Refetch and morph the open file on `changed`, with idiomorph, keeping the scroll position.
+1. Tree refresh on `created`, `removed` and `renamed`; follow a rename of the open file; not-found when it is removed.
 
 ## Open points
 

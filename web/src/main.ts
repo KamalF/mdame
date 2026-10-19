@@ -101,7 +101,8 @@ function onEvent(event: live.LiveEvent) {
       refreshTree();
       // A save through a temporary file and a rename arrives as `created`.
       view.refreshImages(content, event.path);
-      if (event.path === current) refreshContent(current);
+      // A folder moved in can bring the open file back.
+      if (current && live.isWithin(current, event.path)) refreshContent(current);
       break;
     case "changed":
       view.refreshImages(content, event.path);
@@ -114,8 +115,9 @@ function onEvent(event: live.LiveEvent) {
       break;
     case "renamed":
       refreshTree();
-      // A file moved onto the open one replaces its content.
-      if (event.to === current) refreshContent(current);
+      // A file moved onto the open one replaces its content; a folder can
+      // bring it back.
+      if (current && live.isWithin(current, event.to)) refreshContent(current);
       else follow(event.from, event.to);
       break;
     case "resync":

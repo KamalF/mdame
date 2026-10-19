@@ -322,7 +322,7 @@ Errors share one shape, `{"error":{"code":"not_found","message":"…"}}`, with s
 
 ### WebSocket
 
-Server to client only, JSON with a `type` field:
+Server to client only, JSON with a `type` field. The upgrade request passes the guard like any other: browsers always send `Origin` on a WebSocket handshake, so another site cannot connect. The server subscribes before the upgrade completes, and reads the socket only to notice a closed tab.
 
 | Event | Fields | Browser reaction |
 | --- | --- | --- |

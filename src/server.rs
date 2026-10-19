@@ -4,6 +4,7 @@ use crate::document::{self, View};
 use crate::error::{ApiError, io_message};
 use crate::tree::{self, Suggestion};
 use crate::workspace;
+use crate::ws;
 use axum::{
     Json, Router,
     extract::{
@@ -379,6 +380,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/recents", get(recents))
         .route("/api/tree", get(tree))
         .route("/api/file", get(file))
+        .route("/ws", get(ws::handler))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))
         .with_state(app_state)

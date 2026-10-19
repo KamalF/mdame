@@ -81,10 +81,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 - `watch.rs`: the `Event` type sent to the browser, and the mapping from one debounced batch to events with workspace-relative paths. `.mdame/` and paths outside the root are skipped; a delete then create of one file is one `changed`; a batch over 100 events, or a rescan, gives `resync`. Events carry no `dir` flag (spec updated).
 - The watcher starts with the workspace and stops when it is dropped: debouncer thread → tokio `mpsc` → a task → `AppState::events` (`broadcast`, 256). A watch that cannot start only warns. `tests/watch.rs` ports the mdlive cases; rename pairing on inotify is settled.
+- `GET /ws` in `ws.rs`: each tab gets its own receiver; a lagging tab gets `resync`; a closed tab drops its receiver at once. Tests with a real client (`tokio-tungstenite`), including a foreign `Origin` refused with 403.
 
 ## Next
 
-1. `GET /ws`: forward the events to each tab, `resync` when a tab lags.
+1. The `workspace` event when the picker opens a workspace.
 
 ## Open points
 

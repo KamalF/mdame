@@ -377,11 +377,21 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     fetched = next;
     allFiles = files(next);
     tree = sortTree(next, order);
-    // The arrow-key choice follows its file, which may move or be gone.
+    // The arrow-key choice and the keyboard focus follow their file, which
+    // may move or be gone.
     const chosen = results[highlight]?.file.path;
+    const focused = list.contains(document.activeElement)
+      ? document.activeElement!.closest<HTMLElement>(".mdame-tree-line")?.dataset.path
+      : undefined;
     results = query ? filterFiles(allFiles, query) : [];
     highlight = results.findIndex((result) => result.file.path === chosen);
     render();
+    if (focused !== undefined) {
+      const line = [...list.querySelectorAll<HTMLElement>(".mdame-tree-line")].find(
+        (line) => line.dataset.path === focused,
+      );
+      line?.querySelector<HTMLElement>(".mdame-tree-row")?.focus();
+    }
     return allFiles.length;
   };
 
@@ -403,6 +413,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
 function line(row: HTMLElement, path: string) {
   const wrapper = document.createElement("div");
   wrapper.className = "mdame-tree-line";
+  wrapper.dataset.path = path;
   const copy = copyButton({ label: `Copy path ${path}`, iconName: "link", text: () => path });
   copy.classList.add("mdame-copy");
   wrapper.append(row, copy);

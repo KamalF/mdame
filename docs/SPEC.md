@@ -330,7 +330,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 | `created` | `path` | Refetch the tree; if it is the open file, refetch it too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, show not-found |
 | `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, navigate to its new path; if `to` is the open file, refetch it |
-| `workspace` | `root` | Sent once, when the picker opens a workspace: reload state and go to the first file |
+| `workspace` | `root` | Sent when a workspace opens: a tab still at the picker reloads the state and shows the workspace, at its start file when mdame was given one |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
 
 A file deleted and written again in one debounced batch is sent as `changed`; a file renamed to a backup and written again, as Emacs saves, is sent as `created` for the backup and `changed` for the file. The watcher does not follow symlinked folders: one that points out of the workspace would leak outside names in its events. Events carry no folder flag: notify reports a move out of the workspace with no file or folder kind, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.

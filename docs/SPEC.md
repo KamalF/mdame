@@ -257,7 +257,7 @@ mdame/
     api/                files.rs, history.rs, workspace.rs: one per route group
   web/
     index.html
-    src/                main.ts, api.ts, ws.ts, sidebar.ts, view.ts,
+    src/                main.ts, api.ts, live.ts, sidebar.ts, view.ts,
                         editor.ts, revisions.ts, picker.ts, dialogs.ts,
                         toast.ts, theme.ts, keys.ts, codehl.ts
     styles/             base.css, layout.css, components.css, content.css

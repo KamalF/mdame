@@ -286,7 +286,7 @@ mdame/
 
 **Watcher threading.** The debouncer calls back on its own OS thread. Forward its results into a tokio `mpsc` channel with `blocking_send`; a tokio task turns them into `Event`s with workspace-relative paths, skips `.mdame/`, and sends them on the broadcast channel. Each WebSocket connection subscribes its own receiver, so a slow tab never slows the watcher or the other tabs. The debounce is 200 ms. If the watch cannot start, for example at the inotify watch limit, mdame logs a warning and runs without live updates. The debouncer releases each path's events on its own, so a file deleted and written again with a gap can arrive as `removed`, then `created`.
 
-**Bursts and lag.** The broadcast channel holds 256 events (`EVENT_CAPACITY`). When one debounced batch holds more than 100 events (`BURST_THRESHOLD`), for example after a `git checkout`, `watch.rs` sends a single `resync` instead of the individual events. A tab whose receiver still returns `Lagged` also gets `resync`. Both numbers are named constants to tune later.
+**Bursts and lag.** The broadcast channel holds 256 events (`EVENT_CAPACITY`). When one debounced batch holds more than 100 events (`BURST_THRESHOLD`), for example after a `git checkout`, and not counting reads (inotify reports each open, and mdame's own tree walk opens every folder), `watch.rs` sends a single `resync` instead of the individual events. A tab whose receiver still returns `Lagged` also gets `resync`. Both numbers are named constants to tune later.
 
 ## HTTP API and WebSocket protocol
 

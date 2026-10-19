@@ -72,6 +72,12 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
 
 /// Turns one debounced batch into events with workspace-relative paths.
 pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
+    // Reads count for nothing: mdame's own tree walk opens every folder,
+    // and a resync makes each tab walk it again.
+    let batch: Vec<_> = batch
+        .iter()
+        .filter(|event| !matches!(event.kind, EventKind::Access(_)))
+        .collect();
     if batch.len() > BURST_THRESHOLD {
         return vec![Event::Resync];
     }
@@ -343,6 +349,12 @@ mod tests {
             .collect();
         assert_eq!(map(&burst), [Event::Resync]);
         assert_eq!(map(&burst[1..]).len(), BURST_THRESHOLD);
+
+        let reads: Vec<_> = (0..=BURST_THRESHOLD)
+            .map(|_| notify_event(EventKind::Access(AccessKind::Any), &["/ws/a.md"]))
+            .chain([write("/ws/a.md")])
+            .collect();
+        assert_eq!(map(&reads), [Event::Changed { path: path("a.md") }]);
 
         let rescan = notify_event(EventKind::Other, &[]).set_flag(Flag::Rescan);
         assert_eq!(map(&[write("/ws/a.md"), rescan]), [Event::Resync]);

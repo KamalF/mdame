@@ -194,6 +194,16 @@ async fn mdame_folder_is_ignored() {
 }
 
 #[tokio::test]
+async fn reading_the_tree_sends_nothing() {
+    // More folders than the burst threshold: each one is opened.
+    let paths: Vec<String> = (0..150).map(|i| format!("d{i}/a.md")).collect();
+    let files: Vec<(&str, &[u8])> = paths.iter().map(|path| (path.as_str(), &b""[..])).collect();
+    let mut watched = Watched::new(&files);
+    mdame::tree::build(&watched.state.workspace().unwrap());
+    watched.assert_next(&[]).await;
+}
+
+#[tokio::test]
 async fn burst_gives_resync() {
     let mut watched = Watched::new(&[A]);
     for i in 0..300 {

@@ -145,14 +145,28 @@ fn push(events: &mut Vec<Event>, event: Event) {
     }
 }
 
-/// `None` for paths outside the root, under `.mdame/`, or not UTF-8.
+/// `None` for paths outside the root, under `.mdame/` or a symlink, or not
+/// UTF-8.
 fn relative(root: &Path, path: &Path) -> Option<String> {
     let relative = path.strip_prefix(root).ok()?;
-    if relative.starts_with(".mdame") {
+    if relative.starts_with(".mdame") || below_a_link(root, relative) {
         return None;
     }
     let relative = relative.to_str()?;
     (!relative.is_empty()).then(|| relative.to_owned())
+}
+
+/// notify still watches a folder that is replaced by a symlink right after
+/// its creation, so the events of an outside folder can come through it.
+fn below_a_link(root: &Path, relative: &Path) -> bool {
+    let mut ancestor = root.to_owned();
+    let mut parents = relative.parent().into_iter().flat_map(Path::components);
+    parents.any(|part| {
+        ancestor.push(part);
+        ancestor
+            .symlink_metadata()
+            .is_ok_and(|m| m.file_type().is_symlink())
+    })
 }
 
 #[cfg(test)]
@@ -304,6 +318,22 @@ mod tests {
                 path: path(".mdamex.md")
             }]
         );
+    }
+
+    #[test]
+    fn paths_below_a_symlink_are_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = dir.path().join("outside");
+        std::fs::create_dir_all(outside.join("deep")).unwrap();
+        std::fs::create_dir(dir.path().join("ws")).unwrap();
+        std::os::unix::fs::symlink(&outside, dir.path().join("ws/x")).unwrap();
+        let root = dir.path().join("ws");
+        let below = root.join("x/deep/private.md");
+        let batch = [
+            create(below.to_str().unwrap()),
+            create(root.join("x").to_str().unwrap()),
+        ];
+        assert_eq!(events(&root, &batch), [Event::Created { path: path("x") }]);
     }
 
     #[test]

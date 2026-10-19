@@ -9,8 +9,9 @@ use mdame::{
     app::{AppState, RENDER_SLOTS},
     config::Config,
     server::router,
+    watch::EVENT_CAPACITY,
 };
-use tokio::sync::Semaphore;
+use tokio::sync::{Semaphore, broadcast};
 use tower::ServiceExt;
 
 pub async fn send(state: AppState, uri: &str, headers: &[(&str, &str)]) -> Response {
@@ -31,6 +32,7 @@ pub fn local() -> AppState {
         config_path: PathBuf::new(),
         recents_path: PathBuf::new(),
         renders: Arc::new(Semaphore::new(RENDER_SLOTS)),
+        events: broadcast::channel(EVENT_CAPACITY).0,
     }
 }
 

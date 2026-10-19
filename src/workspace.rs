@@ -4,12 +4,16 @@ use std::path::{Path, PathBuf};
 use cap_std::ambient_authority;
 use cap_std::fs::Dir;
 
+use crate::watch::Watcher;
+
 pub struct Workspace {
     pub root: PathBuf,
     /// Every file access goes through it, so no path can leave `root`.
     pub dir: Dir,
     /// The file to show first, when mdame was given a file.
     pub start: Option<String>,
+    /// Watches `root` as long as the workspace lives.
+    pub watcher: Option<Watcher>,
 }
 
 impl Workspace {
@@ -32,7 +36,12 @@ impl Workspace {
             ));
         };
         let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
-        Ok(Workspace { root, dir, start })
+        Ok(Workspace {
+            root,
+            dir,
+            start,
+            watcher: None,
+        })
     }
 
     /// The canonical path that was opened: the folder, or the file.

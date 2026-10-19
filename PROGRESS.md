@@ -80,15 +80,17 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 ## Milestone 5: live updates
 
 - `watch.rs`: the `Event` type sent to the browser, and the mapping from one debounced batch to events with workspace-relative paths. `.mdame/` and paths outside the root are skipped; a delete then create of one file is one `changed`; a batch over 100 events, or a rescan, gives `resync`. Events carry no `dir` flag (spec updated).
+- The watcher starts with the workspace and stops when it is dropped: debouncer thread → tokio `mpsc` → a task → `AppState::events` (`broadcast`, 256). A watch that cannot start only warns. `tests/watch.rs` ports the mdlive cases; rename pairing on inotify is settled.
 
 ## Next
 
-1. Start the watcher with the workspace: debouncer thread → tokio channel → broadcast; port the mdlive watcher cases to `tests/watch.rs`.
+1. `GET /ws`: forward the events to each tab, `resync` when a tab lags.
 
 ## Open points
 
 - History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 
+- The watcher watches gitignored folders too (`target/`, `node_modules/`: 2 600 of this repo's 2 900 folders), so a `cargo build` in the workspace sends events and `resync`s for files the tree never shows. Measure in the browser after milestone 5 before filtering.
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
 - From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread; "Copy content" fetches before it writes to the clipboard, which Safari may refuse, and the failure tooltip then blames localhost.

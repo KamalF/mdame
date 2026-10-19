@@ -284,7 +284,7 @@ mdame/
 
 **No render cache.** Render on each request; comrak is fast enough for files under the 1 MB guard, and this removes the old app's global mutex problem. Render time is logged at debug level (`-v`), and milestone 4 times the 1 MB fixture. The editor preview is the heavier load, and a cache cannot help it. Add a cache keyed by path and content only if the numbers ask for it.
 
-**Watcher threading.** The debouncer calls back on its own OS thread. Forward its results into a tokio `mpsc` channel with `blocking_send`; a tokio task turns them into `Event`s with workspace-relative paths, skips `.mdame/`, and sends them on the broadcast channel. Each WebSocket connection subscribes its own receiver, so a slow tab never slows the watcher or the other tabs.
+**Watcher threading.** The debouncer calls back on its own OS thread. Forward its results into a tokio `mpsc` channel with `blocking_send`; a tokio task turns them into `Event`s with workspace-relative paths, skips `.mdame/`, and sends them on the broadcast channel. Each WebSocket connection subscribes its own receiver, so a slow tab never slows the watcher or the other tabs. The debounce is 200 ms. If the watch cannot start, for example at the inotify watch limit, mdame logs a warning and runs without live updates. The debouncer releases each path's events on its own, so a file deleted and written again with a gap can arrive as `removed`, then `created`.
 
 **Bursts and lag.** The broadcast channel holds 256 events (`EVENT_CAPACITY`). When one debounced batch holds more than 100 events (`BURST_THRESHOLD`), for example after a `git checkout`, `watch.rs` sends a single `resync` instead of the individual events. A tab whose receiver still returns `Lagged` also gets `resync`. Both numbers are named constants to tune later.
 
@@ -333,7 +333,7 @@ Server to client only, JSON with a `type` field:
 | `workspace` | `root` | Sent once, when the picker opens a workspace: reload state and go to the first file |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
 
-A file deleted and written again in one debounced batch is sent as `changed`. Events carry no folder flag: inotify does not tell whether a path moved out of the workspace was a folder, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.
+A file deleted and written again in one debounced batch is sent as `changed`. Events carry no folder flag: notify reports a move out of the workspace with no file or folder kind, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.
 
 A new receiver only sees events sent after it subscribed, so the client refetches what is visible after connecting and reconnects with backoff. Image changes arrive as `changed` with an image path; the browser reloads matching `<img>` elements with a cache-busting query.
 
@@ -615,7 +615,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 
 - **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
 - **Theme details.** Exact Primer values per contract variable and the final theme-contract list, at the theme pass in milestone 8.
-- **To settle in a milestone:** rename pairing on inotify (milestone 5).
+- **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
 
 ## Decided

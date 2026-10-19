@@ -1,14 +1,23 @@
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use notify_debouncer_full::notify::{
-    self,
+    self, RecommendedWatcher, RecursiveMode,
     event::{EventKind, ModifyKind, RenameMode},
 };
+use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer};
 use serde::Serialize;
+use tokio::sync::{broadcast, mpsc};
+
+pub const EVENT_CAPACITY: usize = 256;
 
 /// A batch with more events than this, for example after a `git checkout`,
 /// is sent as one `resync`.
 pub const BURST_THRESHOLD: usize = 100;
+
+const DEBOUNCE: Duration = Duration::from_millis(200);
+
+pub type Watcher = Debouncer<RecommendedWatcher, RecommendedCache>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -19,6 +28,36 @@ pub enum Event {
     Renamed { from: String, to: String },
     Workspace { root: PathBuf },
     Resync,
+}
+
+/// Sends the events under `root` on `sender` until the watcher is dropped.
+pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Watcher> {
+    let (batches, mut received) = mpsc::channel(16);
+    // The debouncer calls back on its own thread, outside tokio.
+    let mut debouncer = new_debouncer(DEBOUNCE, None, move |batch| {
+        let _ = batches.blocking_send(batch);
+    })?;
+    debouncer.watch(root, RecursiveMode::Recursive)?;
+    let root = root.to_owned();
+    tokio::spawn(async move {
+        while let Some(batch) = received.recv().await {
+            match batch {
+                Ok(batch) => {
+                    let batch: Vec<_> = batch.into_iter().map(|event| event.event).collect();
+                    for event in events(&root, &batch) {
+                        // An error only means that no tab is connected.
+                        let _ = sender.send(event);
+                    }
+                }
+                Err(errors) => {
+                    for error in errors {
+                        tracing::warn!("watcher: {error}");
+                    }
+                }
+            }
+        }
+    });
+    Ok(debouncer)
 }
 
 /// Turns one debounced batch into events with workspace-relative paths.
@@ -63,8 +102,13 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
 }
 
 /// A file deleted and written again in one batch, as some editors save,
-/// is one change.
+/// is one change. A change to a file created in the batch is not sent.
 fn push(events: &mut Vec<Event>, event: Event) {
+    if let Event::Changed { path } = &event
+        && events.contains(&Event::Created { path: path.clone() })
+    {
+        return;
+    }
     if let Event::Created { path } = &event {
         let removed = Event::Removed { path: path.clone() };
         if let Some(index) = events.iter().position(|e| *e == removed) {
@@ -192,6 +236,12 @@ mod tests {
     fn delete_then_create_is_a_change() {
         let batch = [remove("/ws/a.md"), create("/ws/a.md")];
         assert_eq!(map(&batch), [Event::Changed { path: path("a.md") }]);
+    }
+
+    #[test]
+    fn change_after_create_is_not_sent() {
+        let batch = [create("/ws/a.md"), write("/ws/a.md")];
+        assert_eq!(map(&batch), [Event::Created { path: path("a.md") }]);
     }
 
     #[test]

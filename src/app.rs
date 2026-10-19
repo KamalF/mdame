@@ -79,8 +79,11 @@ impl AppState {
             Err(error) => tracing::warn!("live updates are off: {error}"),
         }
         let opened = workspace.path();
+        let root = workspace.root.clone();
         *slot = Some(Arc::new(workspace));
         drop(slot);
+        // Other tabs still show the picker. At start no tab is connected.
+        let _ = self.events.send(Event::Workspace { root });
         self.remember(opened);
         Ok(())
     }

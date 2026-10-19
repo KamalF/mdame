@@ -9,6 +9,7 @@ use common::{local, send};
 use mdame::app::AppState;
 use mdame::config::{self, Config, HistoryMode, Recents};
 use mdame::server::router;
+use mdame::watch::Event;
 use serde_json::Value;
 use tower::ServiceExt;
 
@@ -185,10 +186,12 @@ async fn picker_opens_a_folder() {
         recents_path: dir.path().join("recents.toml"),
         ..local()
     };
+    let mut events = state.events.subscribe();
     let (status, body) = open(state, dir.path().to_str().unwrap()).await;
     assert_eq!(status, StatusCode::OK);
     let root = dir.path().canonicalize().unwrap();
     assert_eq!(body["workspace"]["root"], root.display().to_string());
+    assert_eq!(events.try_recv().unwrap(), Event::Workspace { root });
 }
 
 #[tokio::test]

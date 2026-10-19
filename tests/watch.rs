@@ -155,6 +155,16 @@ async fn delete_then_create_is_a_change() {
 }
 
 #[tokio::test]
+async fn folder_deleted_then_created_is_removed_and_created() {
+    let mut watched = Watched::new(&[A, ("docs/child.md", b"")]);
+    fs::remove_dir_all(watched.path("docs")).unwrap();
+    fs::create_dir(watched.path("docs")).unwrap();
+    watched
+        .assert_next(&[removed("docs"), created("docs")])
+        .await;
+}
+
+#[tokio::test]
 async fn renames_are_paired() {
     let mut watched = Watched::new(&[A, ("sub/b.md", b"")]);
     fs::rename(watched.path("a.md"), watched.path("c.md")).unwrap();

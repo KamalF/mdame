@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode,
-    event::{EventKind, ModifyKind, RenameMode},
+    event::{CreateKind, EventKind, ModifyKind, RenameMode},
 };
 use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer_opt};
 use serde::Serialize;
@@ -111,7 +111,10 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
             EventKind::Access(_) | EventKind::Any | EventKind::Other => None,
         };
         if let Some(event) = event {
-            push(&mut events, event);
+            // A new folder in place of an old one is no save: what it holds
+            // may differ.
+            let merge = !matches!(notify_event.kind, EventKind::Create(CreateKind::Folder));
+            push(&mut events, event, merge);
         }
     }
     events
@@ -121,17 +124,17 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
 /// is one change. A file renamed to a backup and written again, as Emacs
 /// saves, stays where it is: the backup is a new file. A change to a file
 /// created in the batch is not sent.
-fn push(events: &mut Vec<Event>, event: Event) {
+fn push(events: &mut Vec<Event>, event: Event, merge: bool) {
     if let Event::Changed { path } = &event
         && events.contains(&Event::Created { path: path.clone() })
     {
         return;
     }
-    if let Event::Created { path } = &event {
+    if merge && let Event::Created { path } = &event {
         let removed = Event::Removed { path: path.clone() };
         if let Some(index) = events.iter().position(|e| *e == removed) {
             events.remove(index);
-            push(events, Event::Changed { path: path.clone() });
+            push(events, Event::Changed { path: path.clone() }, true);
             return;
         }
         let renamed = events
@@ -141,8 +144,8 @@ fn push(events: &mut Vec<Event>, event: Event) {
             let Event::Renamed { to, .. } = events.remove(index) else {
                 unreachable!("found as a rename")
             };
-            push(events, Event::Created { path: to });
-            push(events, Event::Changed { path: path.clone() });
+            push(events, Event::Created { path: to }, true);
+            push(events, Event::Changed { path: path.clone() }, true);
             return;
         }
     }
@@ -178,9 +181,7 @@ fn below_a_link(root: &Path, relative: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use notify_debouncer_full::notify::event::{
-        AccessKind, CreateKind, DataChange, Flag, RemoveKind,
-    };
+    use notify_debouncer_full::notify::event::{AccessKind, DataChange, Flag, RemoveKind};
     use std::path::PathBuf;
 
     const ROOT: &str = "/ws";
@@ -292,6 +293,21 @@ mod tests {
                     path: path("a.md~")
                 },
                 Event::Changed { path: path("a.md") },
+            ]
+        );
+    }
+
+    #[test]
+    fn folder_deleted_then_created_is_not_a_change() {
+        let batch = [
+            notify_event(EventKind::Remove(RemoveKind::Folder), &["/ws/docs"]),
+            notify_event(EventKind::Create(CreateKind::Folder), &["/ws/docs"]),
+        ];
+        assert_eq!(
+            map(&batch),
+            [
+                Event::Removed { path: path("docs") },
+                Event::Created { path: path("docs") },
             ]
         );
     }

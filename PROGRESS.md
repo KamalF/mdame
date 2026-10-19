@@ -79,16 +79,24 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ## Milestone 5: live updates
 
-- `watch.rs`: the `Event` type sent to the browser, and the mapping from one debounced batch to events with workspace-relative paths. `.mdame/` and paths outside the root are skipped; a delete then create of one file is one `changed`; a batch over 100 events, or a rescan, gives `resync`. Events carry no `dir` flag (spec updated).
+- `watch.rs`: the `Event` type sent to the browser, and the mapping from one debounced batch to events with workspace-relative paths. `.mdame/`, paths outside the root and paths below a symlink are skipped; events are sent unmerged; a batch over 100 events (reads not counted), or a rescan, gives `resync`. Events carry no `dir` flag (spec updated).
 - The watcher starts with the workspace and stops when it is dropped: debouncer thread → tokio `mpsc` → a task → `AppState::events` (`broadcast`, 256). A watch that cannot start only warns. `tests/watch.rs` ports the mdlive cases; rename pairing on inotify is settled.
 - `GET /ws` in `ws.rs`: each tab gets its own receiver; a lagging tab gets `resync`; a closed tab drops its receiver at once. Tests with a real client (`tokio-tungstenite`), including a foreign `Origin` refused with 403.
 - Opening a workspace sends `workspace` with its root, so the other tabs still at the picker can follow.
 - `live.ts`: the page connects to `/ws` before its first request and reconnects with backoff (500 ms doubling to 10 s); after a lost connection it reloads the state. A tab on the picker follows a workspace opened in another tab; a server restarted on another workspace reloads the page.
-- The open file refreshes in place on `changed` or `created` (and after a reconnection): the new HTML is coloured and its diagrams drawn off-screen, then morphed in with idiomorph 0.8. Checked in the browser: a plain write, a vim-style save, diagrams and code blocks keep the scroll position and the unchanged elements; a not-found page shows the file once it is created.
+- The open file refreshes in place on `changed`, and on `created`, `removed` or `renamed` of it or of a folder holding it (and after a reconnection): the new HTML is coloured and its diagrams drawn off-screen, then morphed in with idiomorph 0.8. Checked in the browser: a plain write, a vim-style save, diagrams and code blocks keep the scroll position and the unchanged elements; a not-found page shows the file once it is created.
 - The sidebar reloads on `created`, `removed` and `renamed`, keeping the open folders, the sort and the filter. A rename of the open file, or of a folder holding it, follows it with `replaceState` and keeps the scroll position. A removal asks the server again rather than showing not-found at once, since the file may already be back; the status bar is cleared on not-found. Checked in the browser.
-- Images refresh: a `changed` or `created` image gets a `?v=<time>` on every `<img>` that shows it, embedded or opened alone, and later renders keep that version so a morph cannot put the old image back. Checked in the browser.
+- Images refresh: a `changed`, `created` or `renamed`-to image, or one in such a folder, gets a `?v=<time>` on every `<img>` that shows it, embedded or opened alone, and later renders keep that version so a morph cannot put the old image back. Checked in the browser.
 - `resync`, like a reconnection, refetches the state, the tree, the open file and every workspace image on screen.
 - Done when, checked on 19 October 2026: the ported mdlive watcher cases pass (`tests/watch.rs`), and saves from vim and nvim (`-u NONE`, run from a script) update the page with no reload, at the same scroll position.
+
+- Review loop over milestone 5, rounds 1–8, fixes in their own commits:
+  - The watcher no longer follows symlinked folders, and drops events below a symlink inside the workspace, so outside names never reach the tabs.
+  - Reads (inotify `IN_OPEN`) no longer count in the burst rule: a tree walk in a workspace of over 100 folders made an endless `resync` loop.
+  - The server sends events unmerged: three rounds found folder swaps that a merge turned into a wrong `changed`. The page tells saves from swaps by asking for the open file again, and follows a rename only when the open file is gone (Emacs and `set backup` saves).
+  - The workspace opens in `spawn_blocking`, with the watcher started before the lock; the `workspace` root goes out as text.
+  - Page: an image without `src` no longer breaks a file; a file moved onto the open one, a folder brought back, and images in a swapped folder refresh; one tree reload per batch; events during the first tree load are not lost; an open `<details>` stays open; a busy 409 during a refresh is retried; the filter keeps its arrow-key choice.
+  - Follow-ups and deferred nits are under Open points.
 
 ### Manual checklist
 
@@ -111,6 +119,13 @@ Run mdame on a test folder, open a long markdown file, scroll halfway, then:
 
 - History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 
+- From the review of milestone 5, for later:
+  - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target; mdame drops the events, but the watches use up the inotify limit. Report upstream to notify-rs.
+  - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
+  - `versions` in `view.ts` keeps one entry per changed path, images or not, for the life of the tab.
+  - Two tabs that open different folders at the same moment both start a watcher; the loser's events reach the tabs for about 50 ms.
+  - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
+  - The status bar's "Copy content" calls `fetch` directly, outside `api.ts` (from milestone 4).
 - The watcher watches gitignored folders too (`target/`, `node_modules/`: 2 600 of this repo's 2 900 folders), so a `cargo build` in the workspace sends events and `resync`s for files the tree never shows. Measure in the browser after milestone 5 before filtering.
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.

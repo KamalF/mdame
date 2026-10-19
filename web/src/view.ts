@@ -81,6 +81,8 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   await Promise.all([highlightAll(article), renderDiagrams(article)]);
   if (id !== request) return null;
   shown = { path, file };
+  // An image may have changed during the wait above.
+  for (const img of article.querySelectorAll("img")) useVersion(img);
   const shownArticle = el.querySelector<HTMLElement>(":scope > article")!;
   Idiomorph.morph(shownArticle, article, {
     // The server's HTML never has it: a `<details>` the reader opened stays open.

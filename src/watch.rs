@@ -112,7 +112,9 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
 }
 
 /// A file deleted and written again in one batch, as some editors save,
-/// is one change. A change to a file created in the batch is not sent.
+/// is one change. A file renamed to a backup and written again, as Emacs
+/// saves, stays where it is: the backup is a new file. A change to a file
+/// created in the batch is not sent.
 fn push(events: &mut Vec<Event>, event: Event) {
     if let Event::Changed { path } = &event
         && events.contains(&Event::Created { path: path.clone() })
@@ -123,6 +125,17 @@ fn push(events: &mut Vec<Event>, event: Event) {
         let removed = Event::Removed { path: path.clone() };
         if let Some(index) = events.iter().position(|e| *e == removed) {
             events.remove(index);
+            push(events, Event::Changed { path: path.clone() });
+            return;
+        }
+        let renamed = events
+            .iter()
+            .position(|e| matches!(e, Event::Renamed { from, .. } if from == path));
+        if let Some(index) = renamed {
+            let Event::Renamed { to, .. } = events.remove(index) else {
+                unreachable!("found as a rename")
+            };
+            push(events, Event::Created { path: to });
             push(events, Event::Changed { path: path.clone() });
             return;
         }
@@ -246,6 +259,20 @@ mod tests {
     fn delete_then_create_is_a_change() {
         let batch = [remove("/ws/a.md"), create("/ws/a.md")];
         assert_eq!(map(&batch), [Event::Changed { path: path("a.md") }]);
+    }
+
+    #[test]
+    fn rename_to_a_backup_then_create_keeps_the_file() {
+        let batch = [rename("/ws/a.md", "/ws/a.md~"), create("/ws/a.md")];
+        assert_eq!(
+            map(&batch),
+            [
+                Event::Created {
+                    path: path("a.md~")
+                },
+                Event::Changed { path: path("a.md") },
+            ]
+        );
     }
 
     #[test]

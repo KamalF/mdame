@@ -102,6 +102,17 @@ async fn vim_save_recreates_the_file() {
 }
 
 #[tokio::test]
+async fn emacs_save_keeps_the_file_and_adds_the_backup() {
+    let mut watched = Watched::new(&[A]);
+    let file = watched.path("a.md");
+    fs::rename(&file, watched.path("a.md~")).unwrap();
+    fs::write(&file, "# Saved\n").unwrap();
+    watched
+        .assert_next(&[created("a.md~"), changed("a.md")])
+        .await;
+}
+
+#[tokio::test]
 async fn symlinked_folder_out_of_the_workspace_is_not_watched() {
     let dir = tempfile::tempdir().unwrap();
     let outside = dir.path().join("outside");

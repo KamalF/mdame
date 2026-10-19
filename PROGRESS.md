@@ -90,12 +90,12 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `resync`, like a reconnection, refetches the state, the tree, the open file and every workspace image on screen.
 - Done when, checked on 19 October 2026: the ported mdlive watcher cases pass (`tests/watch.rs`), and saves from vim and nvim (`-u NONE`, run from a script) update the page with no reload, at the same scroll position.
 
-- Review loop over milestone 5, rounds 1–8, fixes in their own commits:
+- Review loop over milestone 5, fixes in their own commits:
   - The watcher no longer follows symlinked folders, and drops events below a symlink inside the workspace, so outside names never reach the tabs.
   - Reads (inotify `IN_OPEN`) no longer count in the burst rule: a tree walk in a workspace of over 100 folders made an endless `resync` loop.
   - The server sends events unmerged: three rounds found folder swaps that a merge turned into a wrong `changed`. The page tells saves from swaps by asking for the open file again, and follows a rename only when the open file is gone (Emacs and `set backup` saves).
   - The workspace opens in `spawn_blocking`, with the watcher started before the lock; the `workspace` root goes out as text.
-  - Page: an image without `src` no longer breaks a file; a file moved onto the open one, a folder brought back, and images in a swapped folder refresh; one tree reload per batch; events during the first tree load are not lost; an open `<details>` stays open; a busy 409 during a refresh is retried; the filter keeps its arrow-key choice.
+  - Page: an image without `src` no longer breaks a file; a file moved onto the open one, a folder brought back, and images in a swapped folder refresh; one tree reload per batch; events during the first tree load are not lost; an open `<details>` stays open; a busy 409 during a refresh is retried; the filter keeps its arrow-key choice and the tree its keyboard focus; a date sort reorders on a change; a removed image leaves the page.
   - Follow-ups and deferred nits are under Open points.
 
 ### Manual checklist

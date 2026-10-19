@@ -127,6 +127,7 @@ function onEvent(event: live.LiveEvent) {
       break;
     case "renamed":
       refreshTree();
+      view.refreshImages(content, event.to);
       // A file moved onto the open one replaces its content; a folder can
       // bring it back.
       if (current && live.isWithin(current, event.to)) refreshContent(current);

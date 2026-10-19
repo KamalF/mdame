@@ -159,7 +159,13 @@ function store(key: string, value: unknown) {
 
 let select: (path: string | null) => void = () => {};
 let focusField = () => {};
-let refetch: () => Promise<number | null> = async () => null;
+// Set when a reload is asked for while the first tree loads: that answer
+// may be older than the change.
+let reloadAfterMount = false;
+let refetch: () => Promise<number | null> = async () => {
+  reloadAfterMount = true;
+  return null;
+};
 
 // The current file, also while the tree is still loading.
 let latest: string | null;
@@ -207,6 +213,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   list.className = "mdame-tree";
   el.replaceChildren(header, list);
 
+  reloadAfterMount = false;
   let fetched = await api<TreeNode>("GET", "/api/tree");
   // The page can show another file while the tree loads.
   current = latest;
@@ -376,6 +383,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     render();
   };
   render();
+  if (reloadAfterMount) return (await refetch()) ?? allFiles.length;
   return allFiles.length;
 }
 

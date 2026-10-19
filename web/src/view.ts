@@ -37,8 +37,13 @@ export function viewHref(href: string): string {
 }
 
 /** Shows the rendered file in `el`, and returns its `/api/file` answer, or
- * null when it failed or a later request replaced this one. */
-export async function showFile(el: HTMLElement, path: string): Promise<FileView | null> {
+ * null when it failed or a later request replaced this one. With
+ * `waitWhenBusy`, a busy server is asked again rather than reported. */
+export async function showFile(
+  el: HTMLElement,
+  path: string,
+  waitWhenBusy = false,
+): Promise<FileView | null> {
   // Moving between `#…` of the file on screen only scrolls, and its
   // diagrams may still move the target.
   if (shown?.path === path) {
@@ -47,7 +52,7 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   }
   const id = ++request;
   shown = undefined;
-  const file = await fetchFile(el, path, id);
+  const file = await fetchFile(el, path, id, waitWhenBusy);
   if (!file) return null;
   shown = { path, file };
   const article = articleFor(file);
@@ -66,7 +71,7 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
  * that failed to show, such as a deleted one now back, is shown anew.
  */
 export async function refreshFile(el: HTMLElement, path: string): Promise<FileView | null> {
-  if (shown?.path !== path) return showFile(el, path);
+  if (shown?.path !== path) return showFile(el, path, true);
   const id = ++request;
   const file = await fetchFile(el, path, id, true);
   if (!file) return null;

@@ -66,11 +66,12 @@ impl AppState {
         workspace.ok_or_else(|| ApiError::Conflict("no workspace is open".to_owned()))
     }
 
-    /// The check and the store share one write lock, so two tabs that open
-    /// a workspace at the same time cannot both succeed.
+    /// The watcher starts before the lock is taken: its first walk reads the
+    /// whole folder, and every request waits for the lock. The store checks
+    /// again, so two tabs that open a workspace at the same time cannot both
+    /// succeed.
     pub fn open_workspace(&self, path: &Path) -> Result<(), OpenError> {
-        let mut slot = self.workspace.write().unwrap();
-        if slot.is_some() {
+        if self.workspace.read().unwrap().is_some() {
             return Err(OpenError::AlreadyOpen);
         }
         let mut workspace = Workspace::open(path)?;
@@ -80,6 +81,10 @@ impl AppState {
         }
         let opened = workspace.path();
         let root = workspace.root.display().to_string();
+        let mut slot = self.workspace.write().unwrap();
+        if slot.is_some() {
+            return Err(OpenError::AlreadyOpen);
+        }
         *slot = Some(Arc::new(workspace));
         drop(slot);
         // Other tabs still show the picker. At start no tab is connected.

@@ -333,7 +333,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 | `workspace` | `root` | Sent once, when the picker opens a workspace: reload state and go to the first file |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
 
-A file deleted and written again in one debounced batch is sent as `changed`. Events carry no folder flag: notify reports a move out of the workspace with no file or folder kind, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.
+A file deleted and written again in one debounced batch is sent as `changed`. The watcher does not follow symlinked folders: one that points out of the workspace would leak outside names in its events. Events carry no folder flag: notify reports a move out of the workspace with no file or folder kind, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.
 
 A new receiver only sees events sent after it subscribed, so the client opens the socket before its first request, reconnects with backoff (500 ms, doubling up to 10 s), and refetches what is visible after each reconnection. Image changes arrive as `changed` (or `created`) with an image path; the browser reloads matching `<img>` elements with a `?v=<time>` query, and keeps that version in later renders so that a morph cannot restore the old URL.
 

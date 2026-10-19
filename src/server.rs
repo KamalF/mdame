@@ -263,7 +263,13 @@ async fn open_workspace(
             request.path
         )));
     }
-    app.open_workspace(&path).map_err(|error| {
+    // Starting the watcher walks the whole folder, under the workspace lock.
+    let opened = tokio::task::spawn_blocking({
+        let (app, path) = (app.clone(), path.clone());
+        move || app.open_workspace(&path)
+    })
+    .await?;
+    opened.map_err(|error| {
         let message = format!("{}: {error}", request.path);
         match error {
             OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),

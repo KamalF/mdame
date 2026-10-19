@@ -5,7 +5,7 @@ use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode,
     event::{EventKind, ModifyKind, RenameMode},
 };
-use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer};
+use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer_opt};
 use serde::Serialize;
 use tokio::sync::{broadcast, mpsc};
 
@@ -34,9 +34,19 @@ pub enum Event {
 pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Watcher> {
     let (batches, mut received) = mpsc::channel(16);
     // The debouncer calls back on its own thread, outside tokio.
-    let mut debouncer = new_debouncer(DEBOUNCE, None, move |batch| {
+    let handler = move |batch| {
         let _ = batches.blocking_send(batch);
-    })?;
+    };
+    // A symlinked folder can point out of the workspace: its events would
+    // leak outside names, and a link to `/` would watch the whole disk.
+    let config = notify::Config::default().with_follow_symlinks(false);
+    let mut debouncer = new_debouncer_opt::<_, RecommendedWatcher, _>(
+        DEBOUNCE,
+        None,
+        handler,
+        RecommendedCache::new(),
+        config,
+    )?;
     debouncer.watch(root, RecursiveMode::Recursive)?;
     let root = root.to_owned();
     tokio::spawn(async move {

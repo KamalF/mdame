@@ -102,6 +102,23 @@ async fn vim_save_recreates_the_file() {
 }
 
 #[tokio::test]
+async fn symlinked_folder_out_of_the_workspace_is_not_watched() {
+    let dir = tempfile::tempdir().unwrap();
+    let outside = dir.path().join("outside");
+    fs::create_dir_all(&outside).unwrap();
+    fs::create_dir_all(dir.path().join("ws")).unwrap();
+    std::os::unix::fs::symlink(&outside, dir.path().join("ws/link")).unwrap();
+    let state = common::workspace(dir.path(), &[A]);
+    let mut watched = Watched {
+        events: state.events.subscribe(),
+        dir,
+        state,
+    };
+    fs::write(outside.join("private.md"), "").unwrap();
+    watched.assert_next(&[]).await;
+}
+
+#[tokio::test]
 async fn save_through_a_temporary_file_creates_it() {
     let mut watched = Watched::new(&[A]);
     let temporary = watched.path("a.md.tmp.12345");

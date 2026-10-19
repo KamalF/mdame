@@ -107,7 +107,9 @@ function onEvent(event: live.LiveEvent) {
       break;
     case "renamed":
       refreshTree();
-      follow(event.from, event.to);
+      // A file moved onto the open one replaces its content.
+      if (event.to === current) refreshContent(current);
+      else follow(event.from, event.to);
       break;
     case "resync":
       refresh();

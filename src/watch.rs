@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode,
-    event::{CreateKind, EventKind, ModifyKind, RemoveKind, RenameMode},
+    event::{EventKind, ModifyKind, RenameMode},
 };
 use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer_opt};
 use serde::Serialize;
@@ -82,7 +82,6 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
         return vec![Event::Resync];
     }
     let mut events = Vec::new();
-    let mut removed_folders = Vec::new();
     for notify_event in batch {
         if notify_event.need_rescan() {
             return vec![Event::Resync];
@@ -111,54 +110,22 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
             EventKind::Modify(_) => path(0).map(|path| Event::Changed { path }),
             EventKind::Access(_) | EventKind::Any | EventKind::Other => None,
         };
-        let Some(event) = event else { continue };
-        // A folder deleted and created again, or swapped with a file, is no
-        // save: what it holds may differ.
-        if let (EventKind::Remove(RemoveKind::Folder), Event::Removed { path }) =
-            (notify_event.kind, &event)
-        {
-            removed_folders.push(path.clone());
+        if let Some(event) = event {
+            push(&mut events, event);
         }
-        let merge = match &event {
-            Event::Created { path } => {
-                !matches!(notify_event.kind, EventKind::Create(CreateKind::Folder))
-                    && !removed_folders.contains(path)
-            }
-            _ => true,
-        };
-        push(&mut events, event, merge);
     }
     events
 }
 
-/// A file deleted and written again in one batch, as some editors save,
-/// is one change. A file renamed to a backup and written again, as Emacs
-/// saves, stays where it is: the backup is a new file. A change to a file
-/// created in the batch is not sent.
-fn push(events: &mut Vec<Event>, event: Event, merge: bool) {
+/// Sends each event once, and no change to a file created in the batch.
+/// Nothing else is merged: a delete then create, or a rename to a backup
+/// then create, can be a save or a folder swapped for another, and the
+/// browser tells them apart by asking for the open file again.
+fn push(events: &mut Vec<Event>, event: Event) {
     if let Event::Changed { path } = &event
         && events.contains(&Event::Created { path: path.clone() })
     {
         return;
-    }
-    if merge && let Event::Created { path } = &event {
-        let removed = Event::Removed { path: path.clone() };
-        if let Some(index) = events.iter().position(|e| *e == removed) {
-            events.remove(index);
-            push(events, Event::Changed { path: path.clone() }, true);
-            return;
-        }
-        let renamed = events
-            .iter()
-            .position(|e| matches!(e, Event::Renamed { from, .. } if from == path));
-        if let Some(index) = renamed {
-            let Event::Renamed { to, .. } = events.remove(index) else {
-                unreachable!("found as a rename")
-            };
-            push(events, Event::Created { path: to }, true);
-            push(events, Event::Changed { path: path.clone() }, true);
-            return;
-        }
     }
     if !events.contains(&event) {
         events.push(event);
@@ -192,7 +159,9 @@ fn below_a_link(root: &Path, relative: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use notify_debouncer_full::notify::event::{AccessKind, DataChange, Flag, RemoveKind};
+    use notify_debouncer_full::notify::event::{
+        AccessKind, CreateKind, DataChange, Flag, RemoveKind,
+    };
     use std::path::PathBuf;
 
     const ROOT: &str = "/ws";
@@ -289,21 +258,28 @@ mod tests {
     }
 
     #[test]
-    fn delete_then_create_is_a_change() {
+    fn delete_then_create_is_not_merged() {
         let batch = [remove("/ws/a.md"), create("/ws/a.md")];
-        assert_eq!(map(&batch), [Event::Changed { path: path("a.md") }]);
+        assert_eq!(
+            map(&batch),
+            [
+                Event::Removed { path: path("a.md") },
+                Event::Created { path: path("a.md") },
+            ]
+        );
     }
 
     #[test]
-    fn rename_to_a_backup_then_create_keeps_the_file() {
+    fn rename_to_a_backup_then_create_is_not_merged() {
         let batch = [rename("/ws/a.md", "/ws/a.md~"), create("/ws/a.md")];
         assert_eq!(
             map(&batch),
             [
-                Event::Created {
-                    path: path("a.md~")
+                Event::Renamed {
+                    from: path("a.md"),
+                    to: path("a.md~")
                 },
-                Event::Changed { path: path("a.md") },
+                Event::Created { path: path("a.md") },
             ]
         );
     }

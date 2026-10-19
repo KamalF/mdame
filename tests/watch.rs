@@ -102,14 +102,16 @@ async fn vim_save_recreates_the_file() {
 }
 
 #[tokio::test]
-async fn emacs_save_keeps_the_file_and_adds_the_backup() {
+async fn emacs_save_is_a_rename_then_a_creation() {
     let mut watched = Watched::new(&[A]);
     let file = watched.path("a.md");
     fs::rename(&file, watched.path("a.md~")).unwrap();
     fs::write(&file, "# Saved\n").unwrap();
-    watched
-        .assert_next(&[created("a.md~"), changed("a.md")])
-        .await;
+    let renamed = Event::Renamed {
+        from: "a.md".to_owned(),
+        to: "a.md~".to_owned(),
+    };
+    watched.assert_next(&[renamed, created("a.md")]).await;
 }
 
 #[tokio::test]
@@ -147,11 +149,13 @@ async fn delete_is_a_removal() {
 }
 
 #[tokio::test]
-async fn delete_then_create_is_a_change() {
+async fn delete_then_create_is_removed_and_created() {
     let mut watched = Watched::new(&[A]);
     fs::remove_file(watched.path("a.md")).unwrap();
     fs::write(watched.path("a.md"), "# Rewritten\n").unwrap();
-    watched.assert_next(&[changed("a.md")]).await;
+    watched
+        .assert_next(&[removed("a.md"), created("a.md")])
+        .await;
 }
 
 #[tokio::test]
@@ -159,6 +163,19 @@ async fn folder_deleted_then_created_is_removed_and_created() {
     let mut watched = Watched::new(&[A, ("docs/child.md", b"")]);
     fs::remove_dir_all(watched.path("docs")).unwrap();
     fs::create_dir(watched.path("docs")).unwrap();
+    watched
+        .assert_next(&[removed("docs"), created("docs")])
+        .await;
+}
+
+#[tokio::test]
+async fn folder_swapped_through_moves_is_removed_and_created() {
+    let mut watched = Watched::new(&[A, ("docs/a.md", b"")]);
+    let outside = tempfile::tempdir().unwrap();
+    fs::create_dir(outside.path().join("new")).unwrap();
+    fs::write(outside.path().join("new/b.md"), "").unwrap();
+    fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
+    fs::rename(outside.path().join("new"), watched.path("docs")).unwrap();
     watched
         .assert_next(&[removed("docs"), created("docs")])
         .await;

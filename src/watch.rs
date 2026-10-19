@@ -77,24 +77,39 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
 /// unreadable ones are skipped. A folder created later on that path is not
 /// watched.
 fn watch_readable(debouncer: &mut Watcher, dir: &Path) -> notify::Result<()> {
-    let denied = match debouncer.watch(dir, RecursiveMode::Recursive) {
-        Err(error) if is_denied(&error) => error,
-        result => return result,
-    };
-    if let Err(error) = debouncer.watch(dir, RecursiveMode::NonRecursive) {
-        return if is_denied(&error) {
-            tracing::warn!("not watched: {denied}");
-            Ok(())
-        } else {
-            Err(error)
-        };
+    match debouncer.watch(dir, RecursiveMode::Recursive) {
+        Err(error) if is_denied(&error) => {
+            let denied = error
+                .paths
+                .first()
+                .map_or_else(|| dir.to_owned(), Clone::clone);
+            watch_around(debouncer, dir, &denied)
+        }
+        result => result,
     }
+}
+
+/// Watches `dir` and what it holds but `denied`. The way down to `denied`
+/// is walked once: a recursive watch on each folder of it would walk the
+/// rest of the way again.
+fn watch_around(debouncer: &mut Watcher, dir: &Path, denied: &Path) -> notify::Result<()> {
+    if dir == denied {
+        tracing::warn!("not watched, permission denied: {}", denied.display());
+        return Ok(());
+    }
+    debouncer.watch(dir, RecursiveMode::NonRecursive)?;
     let Ok(entries) = fs::read_dir(dir) else {
         return Ok(());
     };
     for entry in entries.flatten() {
-        if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-            watch_readable(debouncer, &entry.path())?;
+        if !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            continue;
+        }
+        let child = entry.path();
+        if denied.starts_with(&child) {
+            watch_around(debouncer, &child, denied)?;
+        } else {
+            watch_readable(debouncer, &child)?;
         }
     }
     Ok(())

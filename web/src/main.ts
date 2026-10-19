@@ -6,6 +6,7 @@ import { copyButton } from "./copy.ts";
 import { askHistory } from "./dialogs.ts";
 import { icon } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
+import * as live from "./live.ts";
 import * as picker from "./picker.ts";
 import * as sidebar from "./sidebar.ts";
 import * as view from "./view.ts";
@@ -107,7 +108,19 @@ addEventListener("popstate", () => {
   showContent(path);
 });
 
+/** The root on screen: null on the picker, undefined before the first show. */
+let shownRoot: string | null | undefined;
+
 function show(state: State) {
+  const root = state.workspace?.root ?? null;
+  // The tab that opened a workspace also gets its `workspace` event.
+  if (root === shownRoot) return;
+  // The server restarted on another workspace, or on the picker.
+  if (shownRoot) {
+    location.reload();
+    return;
+  }
+  shownRoot = root;
   showStatus(state);
   if (state.workspace) {
     picker.unmount();
@@ -116,6 +129,17 @@ function show(state: State) {
     picker.mount(app, { state, onOpen: show });
   }
 }
+
+async function refresh() {
+  show(await api<State>("GET", "/api/state"));
+}
+
+live.connect({
+  onEvent: (event) => {
+    if (event.type === "workspace" && shownRoot === null) refresh();
+  },
+  onReconnect: refresh,
+});
 
 const state = await api<State>("GET", "/api/state");
 show(state);

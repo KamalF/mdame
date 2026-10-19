@@ -83,10 +83,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - The watcher starts with the workspace and stops when it is dropped: debouncer thread → tokio `mpsc` → a task → `AppState::events` (`broadcast`, 256). A watch that cannot start only warns. `tests/watch.rs` ports the mdlive cases; rename pairing on inotify is settled.
 - `GET /ws` in `ws.rs`: each tab gets its own receiver; a lagging tab gets `resync`; a closed tab drops its receiver at once. Tests with a real client (`tokio-tungstenite`), including a foreign `Origin` refused with 403.
 - Opening a workspace sends `workspace` with its root, so the other tabs still at the picker can follow.
+- `live.ts`: the page connects to `/ws` before its first request and reconnects with backoff (500 ms doubling to 10 s); after a lost connection it reloads the state. A tab on the picker follows a workspace opened in another tab; a server restarted on another workspace reloads the page.
 
 ## Next
 
-1. `live.ts` in the page: connect to `/ws`, reconnect with backoff, refetch what is visible after connecting.
+1. Refetch and morph the open file on `changed`, with idiomorph, keeping the scroll position.
 
 ## Open points
 

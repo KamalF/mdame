@@ -81,10 +81,15 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   await Promise.all([highlightAll(article), renderDiagrams(article)]);
   if (id !== request) return null;
   shown = { path, file };
-  Idiomorph.morph(el.querySelector(":scope > article")!, article, {
+  const shownArticle = el.querySelector<HTMLElement>(":scope > article")!;
+  Idiomorph.morph(shownArticle, article, {
     // The server's HTML never has it: a `<details>` the reader opened stays open.
     callbacks: { beforeAttributeUpdated: (name, _, type) => !(name === "open" && type === "remove") },
   });
+  // idiomorph inserts copies of new nodes, without their click listeners.
+  for (const block of shownArticle.querySelectorAll(".mdame-code")) {
+    block.querySelector(":scope > button")?.replaceWith(codeCopyButton(block));
+  }
   return file;
 }
 
@@ -189,9 +194,14 @@ function addCopyButtons(root: HTMLElement) {
     const block = document.createElement("div");
     block.className = "mdame-code";
     pre.replaceWith(block);
-    const button = copyButton({ label: "Copy code", iconName: "copy", text: () => code.textContent });
-    block.append(pre, button);
+    block.append(pre, codeCopyButton(block));
   }
+}
+
+/** Reads the code when clicked: a morph can put new code in the block. */
+function codeCopyButton(block: Element) {
+  const text = () => block.querySelector("code")?.textContent ?? "";
+  return copyButton({ label: "Copy code", iconName: "copy", text });
 }
 
 function notFound(el: HTMLElement, path: string, error: ApiError) {

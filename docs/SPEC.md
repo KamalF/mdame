@@ -329,7 +329,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 | `changed` | `path` | If it is the open file: refetch and morph; in the editor, show the "changed on disk" notice |
 | `created` | `path` | Refetch the tree; if it is the open file or a folder holding it, refetch the file too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, show not-found |
-| `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, navigate to its new path; if `to` is the open file or a folder holding it, refetch the file |
+| `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again); if `to` is the open file or a folder holding it, refetch the file |
 | `workspace` | `root` | Sent when a workspace opens: a tab still at the picker reloads the state and shows the workspace, at its start file when mdame was given one |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
 

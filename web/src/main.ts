@@ -80,10 +80,18 @@ function refreshTree() {
 }
 
 /** Keeps showing the open file, or a file in a folder, after a rename. */
-function follow(from: string, to: string) {
+async function follow(from: string, to: string) {
   const current = sidebar.pathFromUrl(location.pathname);
   const moved = current && live.movedPath(current, from, to);
   if (!moved) return;
+  // An editor that saves by renaming the file to a backup writes it again
+  // at once, possibly in the next batch: the page stays on the file.
+  const response = await fetch(view.rawUrl(current), { method: "HEAD" }).catch(() => null);
+  if (sidebar.pathFromUrl(location.pathname) !== current) return;
+  if (response?.ok) {
+    refreshContent(current);
+    return;
+  }
   // The old address names nothing now: replace it rather than add to Back.
   history.replaceState(null, "", sidebar.viewUrl(moved) + location.hash);
   view.renameShown(moved);

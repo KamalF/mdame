@@ -103,6 +103,39 @@ async function fetchFile(el: HTMLElement, path: string, id: number): Promise<Fil
   }
 }
 
+/** The time each workspace file last changed, for those that changed since
+ * the page loaded. Images carry it in their URL, or the browser would keep
+ * showing the copy it has. */
+const versions = new Map<string, number>();
+
+/** The workspace path that `img` shows, or null for an image from elsewhere. */
+function rawPath(img: HTMLImageElement): string | null {
+  const url = new URL(img.src);
+  if (url.origin !== location.origin || !url.pathname.startsWith("/raw/")) return null;
+  try {
+    return decodeURIComponent(url.pathname.slice("/raw/".length));
+  } catch {
+    return null;
+  }
+}
+
+function useVersion(img: HTMLImageElement) {
+  const path = rawPath(img);
+  const version = path === null ? undefined : versions.get(path);
+  if (version === undefined) return;
+  const url = new URL(img.src);
+  url.searchParams.set("v", String(version));
+  img.src = url.pathname + url.search;
+}
+
+/** Reloads the images of `path` shown in `el`, after it changed on disk. */
+export function refreshImages(el: HTMLElement, path: string) {
+  versions.set(path, Date.now());
+  for (const img of el.querySelectorAll("img")) {
+    if (rawPath(img) === path) useVersion(img);
+  }
+}
+
 function articleFor(file: FileView): HTMLElement {
   const article = document.createElement("article");
   article.className = "mdame-document";
@@ -111,6 +144,8 @@ function articleFor(file: FileView): HTMLElement {
   for (const link of article.querySelectorAll('a[href^="/raw/"]')) {
     link.setAttribute("href", viewHref(link.getAttribute("href")!));
   }
+  // A morph would otherwise put back the URL of the old image.
+  for (const img of article.querySelectorAll("img")) useVersion(img);
   addCopyButtons(article);
   return article;
 }

@@ -93,9 +93,11 @@ function onEvent(event: live.LiveEvent) {
     case "created":
       refreshTree();
       // A save through a temporary file and a rename arrives as `created`.
+      view.refreshImages(content, event.path);
       if (event.path === current) refreshContent(current);
       break;
     case "changed":
+      view.refreshImages(content, event.path);
       if (event.path === current) refreshContent(current);
       break;
     case "removed":

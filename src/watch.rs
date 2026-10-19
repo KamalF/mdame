@@ -72,32 +72,38 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
     Ok(debouncer)
 }
 
-/// notify stops a recursive watch at the first folder it cannot read, so
-/// below a folder that fails, each subfolder is watched on its own and the
-/// unreadable ones are skipped. A folder created later on that path is not
-/// watched.
+/// notify stops a recursive watch at the first folder it cannot read, or
+/// that is deleted while it walks, so below a folder that fails, each
+/// subfolder is watched on its own and the failing ones are skipped. A
+/// folder created later on that path is not watched.
 fn watch_readable(debouncer: &mut Watcher, dir: &Path) -> notify::Result<()> {
     match debouncer.watch(dir, RecursiveMode::Recursive) {
-        Err(error) if is_denied(&error) => {
-            let denied = error
+        Err(error) if can_skip(&error) => {
+            let skipped = error
                 .paths
                 .first()
                 .map_or_else(|| dir.to_owned(), Clone::clone);
-            watch_around(debouncer, dir, &denied)
+            watch_around(debouncer, dir, &skipped)
         }
         result => result,
     }
 }
 
-/// Watches `dir` and what it holds but `denied`. The way down to `denied`
+/// Watches `dir` and what it holds but `skipped`. The way down to `skipped`
 /// is walked once: a recursive watch on each folder of it would walk the
 /// rest of the way again.
-fn watch_around(debouncer: &mut Watcher, dir: &Path, denied: &Path) -> notify::Result<()> {
-    if dir == denied {
-        tracing::warn!("not watched, permission denied: {}", denied.display());
+fn watch_around(debouncer: &mut Watcher, dir: &Path, skipped: &Path) -> notify::Result<()> {
+    if dir == skipped {
+        tracing::warn!("not watched: {}", skipped.display());
         return Ok(());
     }
-    debouncer.watch(dir, RecursiveMode::NonRecursive)?;
+    match debouncer.watch(dir, RecursiveMode::NonRecursive) {
+        Err(error) if can_skip(&error) => {
+            tracing::warn!("not watched: {}", dir.display());
+            return Ok(());
+        }
+        result => result?,
+    }
     let Ok(entries) = fs::read_dir(dir) else {
         return Ok(());
     };
@@ -106,8 +112,8 @@ fn watch_around(debouncer: &mut Watcher, dir: &Path, denied: &Path) -> notify::R
             continue;
         }
         let child = entry.path();
-        if denied.starts_with(&child) {
-            watch_around(debouncer, &child, denied)?;
+        if skipped.starts_with(&child) {
+            watch_around(debouncer, &child, skipped)?;
         } else {
             watch_readable(debouncer, &child)?;
         }
@@ -115,8 +121,12 @@ fn watch_around(debouncer: &mut Watcher, dir: &Path, denied: &Path) -> notify::R
     Ok(())
 }
 
-fn is_denied(error: &notify::Error) -> bool {
-    matches!(&error.kind, notify::ErrorKind::Io(io) if io.kind() == ErrorKind::PermissionDenied)
+fn can_skip(error: &notify::Error) -> bool {
+    match &error.kind {
+        notify::ErrorKind::PathNotFound => true,
+        notify::ErrorKind::Io(io) => io.kind() == ErrorKind::PermissionDenied,
+        _ => false,
+    }
 }
 
 /// Turns one debounced batch into events with workspace-relative paths.
@@ -417,6 +427,16 @@ mod tests {
 
         let rescan = notify_event(EventKind::Other, &[]).set_flag(Flag::Rescan);
         assert_eq!(map(&[write("/ws/a.md"), rescan]), [Event::Resync]);
+    }
+
+    #[test]
+    fn only_a_denied_or_vanished_folder_is_skipped() {
+        let denied = std::io::Error::from(ErrorKind::PermissionDenied);
+        assert!(can_skip(&notify::Error::io(denied)));
+        assert!(can_skip(&notify::Error::path_not_found()));
+        assert!(!can_skip(&notify::Error::new(
+            notify::ErrorKind::MaxFilesWatch
+        )));
     }
 
     #[test]

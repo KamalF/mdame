@@ -47,3 +47,11 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   }
   return json;
 }
+
+/** Whether `url` answers, without its body. */
+export async function exists(url: string): Promise<boolean> {
+  return fetch(url, { method: "HEAD" }).then(
+    (response) => response.ok,
+    () => false,
+  );
+}

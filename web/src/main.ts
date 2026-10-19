@@ -1,7 +1,7 @@
 import "../styles/base.css";
 import "../styles/layout.css";
 import "../styles/components.css";
-import { api, errorFrom, type State } from "./api.ts";
+import { api, errorFrom, exists, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { askHistory } from "./dialogs.ts";
 import { icon } from "./icons.ts";
@@ -86,9 +86,9 @@ async function follow(from: string, to: string) {
   if (!moved) return;
   // An editor that saves by renaming the file to a backup writes it again
   // at once, possibly in the next batch: the page stays on the file.
-  const response = await fetch(view.rawUrl(current), { method: "HEAD" }).catch(() => null);
+  const stayed = await exists(view.rawUrl(current));
   if (sidebar.pathFromUrl(location.pathname) !== current) return;
-  if (response?.ok) {
+  if (stayed) {
     refreshContent(current);
     return;
   }

@@ -54,7 +54,60 @@ function showContent(path: string | null) {
 }
 
 function refreshContent(path: string) {
-  view.refreshFile(content, path).then((file) => file && showFileStatus(path, file));
+  view.refreshFile(content, path).then((file) => {
+    if (file) showFileStatus(path, file);
+    // Not found now: the old time and copy buttons would be wrong.
+    else if (view.shownPath() === undefined && path === sidebar.pathFromUrl(location.pathname)) {
+      fileStatus.replaceChildren();
+    }
+  });
+}
+
+function refreshTree() {
+  sidebar.refreshTree().then((count) => {
+    if (count === null) return;
+    fileCount = count;
+    // The empty-workspace page and "Choose a file" depend on the count.
+    if (!sidebar.pathFromUrl(location.pathname)) showContent(null);
+  });
+}
+
+/** Keeps showing the open file, or a file in a folder, after a rename. */
+function follow(from: string, to: string) {
+  const current = sidebar.pathFromUrl(location.pathname);
+  const moved = current && live.movedPath(current, from, to);
+  if (!moved) return;
+  // The old address names nothing now: replace it rather than add to Back.
+  history.replaceState(null, "", sidebar.viewUrl(moved) + location.hash);
+  view.renameShown(moved);
+  sidebar.setCurrent(moved);
+  refreshContent(moved);
+}
+
+function onEvent(event: live.LiveEvent) {
+  const current = sidebar.pathFromUrl(location.pathname);
+  switch (event.type) {
+    case "workspace":
+      if (shownRoot === null) refresh();
+      break;
+    case "created":
+      refreshTree();
+      // A save through a temporary file and a rename arrives as `created`.
+      if (event.path === current) refreshContent(current);
+      break;
+    case "changed":
+      if (event.path === current) refreshContent(current);
+      break;
+    case "removed":
+      refreshTree();
+      // Asks again rather than showing "Not found": the file may be back.
+      if (current && live.isWithin(current, event.path)) refreshContent(current);
+      break;
+    case "renamed":
+      refreshTree();
+      follow(event.from, event.to);
+      break;
+  }
 }
 
 function openFile(path: string, hash = "") {
@@ -136,19 +189,13 @@ function show(state: State) {
 
 async function refresh() {
   show(await api<State>("GET", "/api/state"));
+  if (!shownRoot) return;
+  refreshTree();
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
 }
 
-live.connect({
-  onEvent: (event) => {
-    if (event.type === "workspace" && shownRoot === null) refresh();
-    // A save through a temporary file and a rename arrives as `created`.
-    const changed = event.type === "changed" || event.type === "created";
-    if (changed && event.path === sidebar.pathFromUrl(location.pathname)) refreshContent(event.path);
-  },
-  onReconnect: refresh,
-});
+live.connect({ onEvent, onReconnect: refresh });
 
 const state = await api<State>("GET", "/api/state");
 show(state);

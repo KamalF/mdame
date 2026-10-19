@@ -159,6 +159,7 @@ function store(key: string, value: unknown) {
 
 let select: (path: string | null) => void = () => {};
 let focusField = () => {};
+let refetch: () => Promise<number | null> = async () => null;
 
 // The current file, also while the tree is still loading.
 let latest: string | null;
@@ -167,6 +168,12 @@ let latest: string | null;
 export function setCurrent(path: string | null) {
   latest = path;
   select(path);
+}
+
+/** Loads the tree again, keeping the open folders, the sort and the filter.
+ * Returns the number of files, or null when a later call replaced this one. */
+export function refreshTree(): Promise<number | null> {
+  return refetch();
 }
 
 /** Shows the tree in `el`, and returns its number of files. */
@@ -200,11 +207,11 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   list.className = "mdame-tree";
   el.replaceChildren(header, list);
 
-  const fetched = await api<TreeNode>("GET", "/api/tree");
+  let fetched = await api<TreeNode>("GET", "/api/tree");
   // The page can show another file while the tree loads.
   current = latest;
   for (const folder of ancestors(current ?? "")) open.add(folder);
-  const allFiles = files(fetched);
+  let allFiles = files(fetched);
   let tree = sortTree(fetched, order);
   let query = "";
   let results: Match[] = [];
@@ -346,6 +353,20 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     });
     return row;
   }
+
+  let fetches = 0;
+  refetch = async () => {
+    const id = ++fetches;
+    const next = await api<TreeNode>("GET", "/api/tree");
+    if (id !== fetches) return null;
+    fetched = next;
+    allFiles = files(next);
+    tree = sortTree(next, order);
+    results = query ? filterFiles(allFiles, query) : [];
+    highlight = -1;
+    render();
+    return allFiles.length;
+  };
 
   showSort();
   focusField = () => filter.focus();

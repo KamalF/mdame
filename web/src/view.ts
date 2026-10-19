@@ -78,6 +78,16 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   return file;
 }
 
+/** The path of the file on screen, if one is. */
+export function shownPath(): string | undefined {
+  return shown?.path;
+}
+
+/** The file on screen moved to `path`: a refresh then patches it in place. */
+export function renameShown(path: string) {
+  if (shown) shown = { ...shown, path };
+}
+
 /** The file, or null when it failed or request `id` is no longer the latest. */
 async function fetchFile(el: HTMLElement, path: string, id: number): Promise<FileView | null> {
   try {

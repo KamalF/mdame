@@ -85,10 +85,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - Opening a workspace sends `workspace` with its root, so the other tabs still at the picker can follow.
 - `live.ts`: the page connects to `/ws` before its first request and reconnects with backoff (500 ms doubling to 10 s); after a lost connection it reloads the state. A tab on the picker follows a workspace opened in another tab; a server restarted on another workspace reloads the page.
 - The open file refreshes in place on `changed` or `created` (and after a reconnection): the new HTML is coloured and its diagrams drawn off-screen, then morphed in with idiomorph 0.8. Checked in the browser: a plain write, a vim-style save, diagrams and code blocks keep the scroll position and the unchanged elements; a not-found page shows the file once it is created.
+- The sidebar reloads on `created`, `removed` and `renamed`, keeping the open folders, the sort and the filter. A rename of the open file, or of a folder holding it, follows it with `replaceState` and keeps the scroll position. A removal asks the server again rather than showing not-found at once, since the file may already be back; the status bar is cleared on not-found. Checked in the browser.
 
 ## Next
 
-1. Tree refresh on `created`, `removed` and `renamed`; follow a rename of the open file; not-found when it is removed.
+1. Image refresh: `changed` on an image reloads the matching `<img>` elements.
 
 ## Open points
 

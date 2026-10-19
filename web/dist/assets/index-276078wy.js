@@ -1,0 +1,1 @@
+import{Xe,Ki,Ji,ea,Da}from"./main-ne2y47vc.js";import"./main-b3snjnan.js";import"./main-amqkd4b1.js";import"./main-kgevd6y7.js";export{Da as javascript,Xe as javascriptLanguage,Ji as jsxLanguage,ea as tsxLanguage,Ki as typescriptLanguage};

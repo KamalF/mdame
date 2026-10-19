@@ -5,6 +5,16 @@ export type LiveEvent =
   | { type: "workspace"; root: string }
   | { type: "resync" };
 
+/** Whether `open` is `path` or inside the folder `path`. */
+export function isWithin(open: string, path: string): boolean {
+  return open === path || open.startsWith(path + "/");
+}
+
+/** Where `open` is after `from` moved to `to`, or null if it did not move. */
+export function movedPath(open: string, from: string, to: string): string | null {
+  return isWithin(open, from) ? to + open.slice(from.length) : null;
+}
+
 const FIRST_RETRY_MS = 500;
 const MAX_RETRY_MS = 10_000;
 

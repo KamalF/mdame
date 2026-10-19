@@ -1,2 +1,0 @@
-import{e,n,N,V}from"./main-8tb3dy83.js";import{ie}from"./main-m44xsvf1.js";var i={parse:e(async(r)=>{let t=await ie("info",r);n.debug(t)},"parse")},s={version:"12.2.0"},p=e(()=>s.version,"getVersion"),g={getVersion:p},m=e((r,t,o)=>{n.debug(`rendering info diagram
-`+r);let a=V(t);N(a,100,400,!0),a.append("g").append("text").attr("x",100).attr("y",40).attr("class","version").attr("font-size",32).style("text-anchor","middle").text(`v${o}`)},"draw"),v={draw:m},y={parser:i,db:g,renderer:v};export{y as diagram};

@@ -117,6 +117,7 @@ function onEvent(event: live.LiveEvent) {
       if (current && live.isWithin(current, event.path)) refreshContent(current);
       break;
     case "changed":
+      if (sidebar.orderDependsOn(event.path)) refreshTree();
       view.refreshImages(content, event.path);
       if (event.path === current) refreshContent(current);
       break;

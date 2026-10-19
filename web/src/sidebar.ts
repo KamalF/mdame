@@ -159,6 +159,14 @@ function store(key: string, value: unknown) {
 
 let select: (path: string | null) => void = () => {};
 let focusField = () => {};
+let datedFile: (path: string) => boolean = () => false;
+
+/** Whether a change to `path` can move it in the tree: a date sort orders
+ * by the time a file changed. */
+export function orderDependsOn(path: string): boolean {
+  return datedFile(path);
+}
+
 // Set when a reload is asked for while the first tree loads: that answer
 // may be older than the change.
 let reloadAfterMount = false;
@@ -377,6 +385,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     return allFiles.length;
   };
 
+  datedFile = (path) => order.startsWith("date") && allFiles.some((file) => file.path === path);
   showSort();
   focusField = () => filter.focus();
   select = (path) => {

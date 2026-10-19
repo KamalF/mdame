@@ -198,7 +198,7 @@ Written ourselves instead of a crate:
 - **Config and state paths.** `$XDG_CONFIG_HOME` or `~/.config`, and `$XDG_STATE_HOME` or `~/.local/state`, each joined with `mdame`. About 10 lines; replaces etcetera.
 - **Errors in `main`.** `app::run` returns `Result<(), Box<dyn std::error::Error>>`; `main` prints the error and exits with a failure code. Replaces anyhow.
 
-Dev dependencies: tempfile, [insta](https://crates.io/crates/insta) for snapshot tests of rendered HTML (`cargo-insta` comes from the mise registry), and `tower::ServiceExt::oneshot` for route tests.
+Dev dependencies: tempfile, [insta](https://crates.io/crates/insta) for snapshot tests of rendered HTML (`cargo-insta` comes from the mise registry), `tower::ServiceExt::oneshot` for route tests, and [tokio-tungstenite](https://crates.io/crates/tokio-tungstenite) with `futures-util` (the version axum already uses) as the WebSocket client of the `/ws` tests.
 
 ### Browser
 

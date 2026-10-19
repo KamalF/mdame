@@ -25,7 +25,9 @@ export function retryDelay(failures: number): number {
 
 /**
  * Keeps a connection to `/ws` open. `onReconnect` runs once a connection
- * opens after one was lost or failed: events sent meanwhile are gone.
+ * opens after one was lost or failed: events sent meanwhile are gone. The
+ * promise settles when the first attempt opens or fails: the server only
+ * sends the events that follow its subscription.
  */
 export function connect({
   onEvent,
@@ -33,22 +35,27 @@ export function connect({
 }: {
   onEvent: (event: LiveEvent) => void;
   onReconnect: () => void;
-}) {
+}): Promise<void> {
   let failures = 0;
   let missed = false;
+  let firstAttempt: () => void;
+  const settled = new Promise<void>((resolve) => (firstAttempt = resolve));
   function open() {
     const scheme = location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(`${scheme}//${location.host}/ws`);
     socket.addEventListener("open", () => {
+      firstAttempt();
       failures = 0;
       if (missed) onReconnect();
       missed = false;
     });
     socket.addEventListener("message", (message) => onEvent(JSON.parse(message.data)));
     socket.addEventListener("close", () => {
+      firstAttempt();
       missed = true;
       setTimeout(open, retryDelay(failures++));
     });
   }
   open();
+  return settled;
 }

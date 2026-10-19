@@ -229,7 +229,7 @@ async function refresh() {
   if (current) refreshContent(current);
 }
 
-live.connect({ onEvent, onReconnect: refresh });
+await live.connect({ onEvent, onReconnect: refresh });
 
 const state = await api<State>("GET", "/api/state");
 show(state);

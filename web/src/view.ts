@@ -4,6 +4,7 @@ import { api, type ApiError } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
+import { isWithin } from "./live.ts";
 import { encodePath } from "./sidebar.ts";
 
 /** What `/api/file` answers. */
@@ -155,11 +156,16 @@ export function refreshAllImages(el: HTMLElement) {
   for (const path of paths) if (path !== null) refreshImages(el, path);
 }
 
-/** Reloads the images of `path` shown in `el`, after it changed on disk. */
+/** Reloads the images of `path` shown in `el`, after it changed on disk;
+ * for a folder, the images it holds. */
 export function refreshImages(el: HTMLElement, path: string) {
-  versions.set(path, Date.now());
+  const now = Date.now();
+  versions.set(path, now);
   for (const img of el.querySelectorAll("img")) {
-    if (rawPath(img) === path) useVersion(img);
+    const shown = rawPath(img);
+    if (shown === null || !isWithin(shown, path)) continue;
+    versions.set(shown, now);
+    useVersion(img);
   }
 }
 

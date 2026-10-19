@@ -99,11 +99,15 @@ async function follow(from: string, to: string) {
   refreshContent(moved);
 }
 
+let workspaceBeforeShow = false;
+
 function onEvent(event: live.LiveEvent) {
   const current = sidebar.pathFromUrl(location.pathname);
   switch (event.type) {
     case "workspace":
       if (shownRoot === null) refresh();
+      // The first state may be older than this event.
+      else if (shownRoot === undefined) workspaceBeforeShow = true;
       break;
     case "created":
       refreshTree();
@@ -225,6 +229,7 @@ live.connect({ onEvent, onReconnect: refresh });
 
 const state = await api<State>("GET", "/api/state");
 show(state);
+if (workspaceBeforeShow && shownRoot === null) refresh();
 if (state.needs_setup) {
   askHistory();
 }

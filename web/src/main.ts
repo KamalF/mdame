@@ -109,6 +109,9 @@ function onEvent(event: live.LiveEvent) {
       refreshTree();
       follow(event.from, event.to);
       break;
+    case "resync":
+      refresh();
+      break;
   }
 }
 
@@ -189,10 +192,12 @@ function show(state: State) {
   }
 }
 
+/** Refetches everything on screen, after events may have been missed. */
 async function refresh() {
   show(await api<State>("GET", "/api/state"));
   if (!shownRoot) return;
   refreshTree();
+  view.refreshAllImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
 }

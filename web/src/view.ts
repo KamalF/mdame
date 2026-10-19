@@ -128,6 +128,12 @@ function useVersion(img: HTMLImageElement) {
   img.src = url.pathname + url.search;
 }
 
+/** Reloads every workspace image in `el`, when changes may have been missed. */
+export function refreshAllImages(el: HTMLElement) {
+  const paths = new Set([...el.querySelectorAll("img")].map(rawPath));
+  for (const path of paths) if (path !== null) refreshImages(el, path);
+}
+
 /** Reloads the images of `path` shown in `el`, after it changed on disk. */
 export function refreshImages(el: HTMLElement, path: string) {
   versions.set(path, Date.now());

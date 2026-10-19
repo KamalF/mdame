@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use notify_debouncer_full::notify::{
@@ -26,7 +26,7 @@ pub enum Event {
     Created { path: String },
     Removed { path: String },
     Renamed { from: String, to: String },
-    Workspace { root: PathBuf },
+    Workspace { root: String },
     Resync,
 }
 
@@ -161,6 +161,7 @@ mod tests {
     use notify_debouncer_full::notify::event::{
         AccessKind, CreateKind, DataChange, Flag, RemoveKind,
     };
+    use std::path::PathBuf;
 
     const ROOT: &str = "/ws";
 

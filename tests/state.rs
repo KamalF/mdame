@@ -191,6 +191,7 @@ async fn picker_opens_a_folder() {
     assert_eq!(status, StatusCode::OK);
     let root = dir.path().canonicalize().unwrap();
     assert_eq!(body["workspace"]["root"], root.display().to_string());
+    let root = root.display().to_string();
     assert_eq!(events.try_recv().unwrap(), Event::Workspace { root });
 }
 

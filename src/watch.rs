@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode,
-    event::{CreateKind, EventKind, ModifyKind, RenameMode},
+    event::{CreateKind, EventKind, ModifyKind, RemoveKind, RenameMode},
 };
 use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer_opt};
 use serde::Serialize;
@@ -82,6 +82,7 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
         return vec![Event::Resync];
     }
     let mut events = Vec::new();
+    let mut removed_folders = Vec::new();
     for notify_event in batch {
         if notify_event.need_rescan() {
             return vec![Event::Resync];
@@ -110,12 +111,22 @@ pub fn events(root: &Path, batch: &[notify::Event]) -> Vec<Event> {
             EventKind::Modify(_) => path(0).map(|path| Event::Changed { path }),
             EventKind::Access(_) | EventKind::Any | EventKind::Other => None,
         };
-        if let Some(event) = event {
-            // A new folder in place of an old one is no save: what it holds
-            // may differ.
-            let merge = !matches!(notify_event.kind, EventKind::Create(CreateKind::Folder));
-            push(&mut events, event, merge);
+        let Some(event) = event else { continue };
+        // A folder deleted and created again, or swapped with a file, is no
+        // save: what it holds may differ.
+        if let (EventKind::Remove(RemoveKind::Folder), Event::Removed { path }) =
+            (notify_event.kind, &event)
+        {
+            removed_folders.push(path.clone());
         }
+        let merge = match &event {
+            Event::Created { path } => {
+                !matches!(notify_event.kind, EventKind::Create(CreateKind::Folder))
+                    && !removed_folders.contains(path)
+            }
+            _ => true,
+        };
+        push(&mut events, event, merge);
     }
     events
 }
@@ -298,18 +309,25 @@ mod tests {
     }
 
     #[test]
-    fn folder_deleted_then_created_is_not_a_change() {
-        let batch = [
-            notify_event(EventKind::Remove(RemoveKind::Folder), &["/ws/docs"]),
+    fn folder_replaced_is_not_a_change() {
+        let removed = notify_event(EventKind::Remove(RemoveKind::Folder), &["/ws/docs"]);
+        let replacements = [
             notify_event(EventKind::Create(CreateKind::Folder), &["/ws/docs"]),
+            notify_event(
+                EventKind::Modify(ModifyKind::Name(RenameMode::To)),
+                &["/ws/docs"],
+            ),
+            create("/ws/docs"),
         ];
-        assert_eq!(
-            map(&batch),
-            [
-                Event::Removed { path: path("docs") },
-                Event::Created { path: path("docs") },
-            ]
-        );
+        for replacement in replacements {
+            assert_eq!(
+                map(&[removed.clone(), replacement]),
+                [
+                    Event::Removed { path: path("docs") },
+                    Event::Created { path: path("docs") },
+                ]
+            );
+        }
     }
 
     #[test]

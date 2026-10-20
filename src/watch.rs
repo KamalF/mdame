@@ -11,11 +11,13 @@ use notify_debouncer_full::{Debouncer, RecommendedCache, new_debouncer_opt};
 use serde::Serialize;
 use tokio::sync::{broadcast, mpsc};
 
+use crate::workspace::OWN_DIR;
+
 pub const EVENT_CAPACITY: usize = 256;
 
 /// A batch with more events than this, for example after a `git checkout`,
 /// is sent as one `resync`.
-pub const BURST_THRESHOLD: usize = 100;
+const BURST_THRESHOLD: usize = 100;
 
 const DEBOUNCE: Duration = Duration::from_millis(200);
 
@@ -195,7 +197,7 @@ fn push(events: &mut Vec<Event>, event: Event) {
 /// UTF-8.
 fn relative(root: &Path, path: &Path) -> Option<String> {
     let relative = path.strip_prefix(root).ok()?;
-    if relative.starts_with(".mdame") || below_a_link(root, relative) {
+    if relative.starts_with(OWN_DIR) || below_a_link(root, relative) {
         return None;
     }
     let relative = relative.to_str()?;

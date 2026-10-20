@@ -6,6 +6,9 @@ use cap_std::fs::Dir;
 
 use crate::watch::Watcher;
 
+/// mdame's own folder in the workspace: never shown, never watched.
+pub const OWN_DIR: &str = ".mdame";
+
 pub struct Workspace {
     pub root: PathBuf,
     /// Every file access goes through it, so no path can leave `root`.

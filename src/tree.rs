@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use crate::document::modified_secs;
 use crate::render::Family;
-use crate::workspace::{Workspace, expand_home};
+use crate::workspace::{OWN_DIR, Workspace, expand_home};
 
 const MAX_SUGGESTIONS: usize = 50;
 
@@ -96,7 +96,7 @@ pub fn build(workspace: &Workspace) -> Node {
         // Git reads core.excludesFile only in a repository, too.
         .git_global(in_repo)
         .parents(in_repo)
-        .filter_entry(|entry| !(entry.depth() == 1 && entry.file_name() == ".mdame"))
+        .filter_entry(|entry| !(entry.depth() == 1 && entry.file_name() == OWN_DIR))
         .build();
     let mut top = Folder::default();
     for entry in walker.filter_map(Result::ok) {

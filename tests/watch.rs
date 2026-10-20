@@ -24,7 +24,11 @@ struct Watched {
 
 impl Watched {
     fn new(files: &[(&str, &[u8])]) -> Watched {
-        let dir = tempfile::tempdir().unwrap();
+        Watched::in_dir(tempfile::tempdir().unwrap(), files)
+    }
+
+    /// For a `dir` prepared before the workspace opens.
+    fn in_dir(dir: tempfile::TempDir, files: &[(&str, &[u8])]) -> Watched {
         let state = common::workspace(dir.path(), files);
         let events = state.events.subscribe();
         Watched { dir, state, events }
@@ -70,6 +74,13 @@ fn removed(path: &str) -> Event {
     }
 }
 
+fn renamed(from: &str, to: &str) -> Event {
+    Event::Renamed {
+        from: from.to_owned(),
+        to: to.to_owned(),
+    }
+}
+
 const A: (&str, &[u8]) = ("a.md", b"# A\n");
 
 #[tokio::test]
@@ -107,11 +118,9 @@ async fn emacs_save_is_a_rename_then_a_creation() {
     let file = watched.path("a.md");
     fs::rename(&file, watched.path("a.md~")).unwrap();
     fs::write(&file, "# Saved\n").unwrap();
-    let renamed = Event::Renamed {
-        from: "a.md".to_owned(),
-        to: "a.md~".to_owned(),
-    };
-    watched.assert_next(&[renamed, created("a.md")]).await;
+    watched
+        .assert_next(&[renamed("a.md", "a.md~"), created("a.md")])
+        .await;
 }
 
 #[tokio::test]
@@ -121,12 +130,7 @@ async fn symlinked_folder_out_of_the_workspace_is_not_watched() {
     fs::create_dir_all(&outside).unwrap();
     fs::create_dir_all(dir.path().join("ws")).unwrap();
     std::os::unix::fs::symlink(&outside, dir.path().join("ws/link")).unwrap();
-    let state = common::workspace(dir.path(), &[A]);
-    let mut watched = Watched {
-        events: state.events.subscribe(),
-        dir,
-        state,
-    };
+    let mut watched = Watched::in_dir(dir, &[A]);
     fs::write(outside.join("private.md"), "").unwrap();
     watched.assert_next(&[]).await;
 }
@@ -186,10 +190,6 @@ async fn renames_are_paired() {
     let mut watched = Watched::new(&[A, ("sub/b.md", b"")]);
     fs::rename(watched.path("a.md"), watched.path("c.md")).unwrap();
     fs::rename(watched.path("sub"), watched.path("moved")).unwrap();
-    let renamed = |from: &str, to: &str| Event::Renamed {
-        from: from.to_owned(),
-        to: to.to_owned(),
-    };
     watched
         .assert_next(&[renamed("a.md", "c.md"), renamed("sub", "moved")])
         .await;
@@ -220,12 +220,7 @@ async fn unreadable_folder_does_not_stop_the_watch() {
     let locked = dir.path().join("ws/locked");
     fs::create_dir_all(&locked).unwrap();
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
-    let state = common::workspace(dir.path(), &[A, ("sub/b.md", b"")]);
-    let mut watched = Watched {
-        events: state.events.subscribe(),
-        dir,
-        state,
-    };
+    let mut watched = Watched::in_dir(dir, &[A, ("sub/b.md", b"")]);
     fs::write(watched.path("sub/b.md"), "# B\n").unwrap();
     let result = watched.next().await;
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();

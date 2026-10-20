@@ -130,7 +130,6 @@ Done 20 October 2026, after the testing rules in `docs/SPEC.md`:
 ## Open points
 
 - From the `cargo mutants` baseline:
-  - `tree.rs`: the `.mdame` filter in `filter_entry` never acts: the walker already skips hidden entries. Remove it, or keep it in case hidden files are shown one day.
   - Under `--jobs 4`, the watcher tests can fail from load, so a mutant counts as caught when no check caught it. Two did in the baseline.
 - History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 

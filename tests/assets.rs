@@ -1,9 +1,7 @@
 mod common;
 
 use axum::http::{StatusCode, header};
-use common::{local, send};
-
-const HOST: (&str, &str) = ("host", "127.0.0.1:4891");
+use common::{HOST, local, send};
 
 #[tokio::test]
 async fn page_is_served_with_security_headers() {

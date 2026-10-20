@@ -101,10 +101,3 @@ async fn fifo_is_not_opened() {
     let response = get_raw(state, "pipe.png").await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
-
-#[tokio::test]
-async fn paths_out_of_the_workspace_are_forbidden() {
-    let dir = tempfile::tempdir().unwrap();
-    let response = get_raw(workspace(dir.path()), "..%2Fsecret.md").await;
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
-}

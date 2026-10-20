@@ -3,18 +3,9 @@ mod common;
 use std::fs;
 
 use axum::http::StatusCode;
-use common::{local, send};
+use common::{get_json, local};
 use mdame::app::AppState;
-use serde_json::{Value, json};
-
-async fn get_tree(state: AppState) -> (StatusCode, Value) {
-    let response = send(state, "/api/tree", &[("host", "127.0.0.1:4891")]).await;
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, serde_json::from_slice(&bytes).unwrap())
-}
+use serde_json::json;
 
 #[tokio::test]
 async fn tree_of_the_open_workspace() {
@@ -27,7 +18,7 @@ async fn tree_of_the_open_workspace() {
     };
     state.open_workspace(dir.path()).unwrap();
 
-    let (status, body) = get_tree(state).await;
+    let (status, body) = get_json(state, "/api/tree").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["kind"], "dir");
     let docs = &body["children"][0];
@@ -41,7 +32,7 @@ async fn tree_of_the_open_workspace() {
 
 #[tokio::test]
 async fn no_tree_without_a_workspace() {
-    let (status, body) = get_tree(local()).await;
+    let (status, body) = get_json(local(), "/api/tree").await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(
         body,

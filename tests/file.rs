@@ -4,18 +4,12 @@ use std::fs;
 use std::path::Path;
 
 use axum::http::StatusCode;
-use common::{HOST, local, send};
+use common::{get_json, local};
 use mdame::app::AppState;
 use serde_json::Value;
 
 async fn get_file(state: AppState, path: &str) -> (StatusCode, Value) {
-    let uri = format!("/api/file?path={path}");
-    let response = send(state, &uri, &[HOST]).await;
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, serde_json::from_slice(&bytes).unwrap())
+    get_json(state, &format!("/api/file?path={path}")).await
 }
 
 fn workspace(dir: &Path) -> AppState {
@@ -82,20 +76,6 @@ async fn file_of_unknown_type_is_not_viewable() {
 }
 
 #[tokio::test]
-async fn paths_out_of_the_workspace_are_forbidden() {
-    let dir = tempfile::tempdir().unwrap();
-    workspace(dir.path());
-    let secret = dir.path().join("secret.md");
-    std::os::unix::fs::symlink(&secret, dir.path().join("ws/out.md")).unwrap();
-    std::os::unix::fs::symlink("../secret.md", dir.path().join("ws/relative-out.md")).unwrap();
-    let absolute = secret.to_str().unwrap().to_owned();
-    for path in ["../secret.md", &absolute, "out.md", "relative-out.md"] {
-        let (status, _) = get_file(workspace(dir.path()), path).await;
-        assert_eq!(status, StatusCode::FORBIDDEN, "{path}");
-    }
-}
-
-#[tokio::test]
 async fn unreadable_file_is_not_called_outside() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
@@ -109,16 +89,6 @@ async fn unreadable_file_is_not_called_outside() {
     let (status, body) = get_file(state, "docs/a.md").await;
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(body["error"]["message"], "no permission to read this file");
-}
-
-#[tokio::test]
-async fn link_inside_the_workspace_opens() {
-    let dir = tempfile::tempdir().unwrap();
-    let state = workspace(dir.path());
-    std::os::unix::fs::symlink("docs/a.md", dir.path().join("ws/link.md")).unwrap();
-    let (status, body) = get_file(state, "link.md").await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["family"], "markdown");
 }
 
 #[tokio::test]

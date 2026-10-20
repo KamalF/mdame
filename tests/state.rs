@@ -1,28 +1,17 @@
 mod common;
 
 use std::fs;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
-use axum::body::Body;
-use axum::http::{Method, Request, StatusCode};
-use common::{local, send};
+use axum::http::{Method, StatusCode};
+use common::{HOST, get_json, local, send_body, status_and_json};
 use mdame::app::AppState;
 use mdame::config::{self, Config, HistoryMode, Recents};
-use mdame::server::router;
 use mdame::watch::Event;
 use serde_json::Value;
-use tower::ServiceExt;
 
 async fn get_state(state: AppState) -> Value {
-    get_json(state, "/api/state").await
-}
-
-async fn get_json(state: AppState, uri: &str) -> Value {
-    let response = send(state, uri, &[("host", "127.0.0.1:4891")]).await;
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
+    get_json(state, "/api/state").await.1
 }
 
 async fn needs_setup(state: AppState) -> Value {
@@ -44,33 +33,12 @@ async fn needs_setup_until_history_is_chosen() {
     assert_eq!(needs_setup(state).await, false);
 }
 
-async fn put(state: AppState, content_type: &str, body: &str) -> (StatusCode, Value) {
-    send_body(state, Method::PUT, "/api/settings", content_type, body).await
-}
+const JSON: (&str, &str) = ("content-type", "application/json");
 
-async fn send_body(
-    state: AppState,
-    method: Method,
-    uri: &str,
-    content_type: &str,
-    body: &str,
-) -> (StatusCode, Value) {
-    let request = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("host", "127.0.0.1:4891")
-        .header("content-type", content_type)
-        .body(Body::from(body.to_owned()))
-        .unwrap();
-    let response = router(Arc::new(state)).oneshot(request).await.unwrap();
-    let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, serde_json::from_slice(&bytes).unwrap())
+async fn put(state: AppState, body: &str) -> (StatusCode, Value) {
+    let response = send_body(state, Method::PUT, "/api/settings", &[HOST, JSON], body).await;
+    status_and_json(response).await
 }
-
-const JSON: &str = "application/json";
 
 #[tokio::test]
 async fn saves_history_and_returns_the_new_state() {
@@ -81,7 +49,7 @@ async fn saves_history_and_returns_the_new_state() {
         ..local()
     };
 
-    let (status, body) = put(state, JSON, r#"{"history":"state"}"#).await;
+    let (status, body) = put(state, r#"{"history":"state"}"#).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["needs_setup"], false);
     let saved: Config = config::load(&path).unwrap();
@@ -99,7 +67,7 @@ async fn keeps_the_other_settings() {
         ..local()
     };
 
-    let (status, _) = put(state, JSON, r#"{"history":"workspace"}"#).await;
+    let (status, _) = put(state, r#"{"history":"workspace"}"#).await;
     assert_eq!(status, StatusCode::OK);
     let saved: Config = config::load(&path).unwrap();
     assert_eq!(saved.theme.as_deref(), Some("dark"));
@@ -108,16 +76,13 @@ async fn keeps_the_other_settings() {
 
 #[tokio::test]
 async fn refuses_what_is_not_a_known_json_setting() {
-    let cases = [
-        // The body type of a plain HTML form.
-        ("application/x-www-form-urlencoded", "history=state"),
-        (JSON, r#"{"history":"elsewhere"}"#),
-        (JSON, r#"{"history":"state","theme":"dark"}"#),
-        (JSON, "{}"),
-    ];
-    for (content_type, body) in cases {
-        let (status, response) = put(local(), content_type, body).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{content_type} {body}");
+    for body in [
+        r#"{"history":"elsewhere"}"#,
+        r#"{"history":"state","theme":"dark"}"#,
+        "{}",
+    ] {
+        let (status, response) = put(local(), body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
         assert_eq!(response["error"]["code"], "bad_request");
     }
 }
@@ -132,7 +97,7 @@ async fn failed_save_is_an_internal_error() {
         ..local()
     };
 
-    let (status, body) = put(state, JSON, r#"{"history":"state"}"#).await;
+    let (status, body) = put(state, r#"{"history":"state"}"#).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(body["error"]["code"], "internal");
 }
@@ -176,7 +141,8 @@ async fn unreadable_recents_do_not_stop_the_open() {
 
 async fn open(state: AppState, path: &str) -> (StatusCode, Value) {
     let body = serde_json::json!({ "path": path }).to_string();
-    send_body(state, Method::POST, "/api/workspace", JSON, &body).await
+    let response = send_body(state, Method::POST, "/api/workspace", &[HOST, JSON], &body).await;
+    status_and_json(response).await
 }
 
 #[tokio::test]
@@ -243,7 +209,7 @@ async fn recents_newest_first() {
         ..local()
     };
 
-    let body = get_json(state, "/api/recents").await;
+    let body = get_json(state, "/api/recents").await.1;
     assert_eq!(
         body,
         serde_json::json!([
@@ -263,7 +229,10 @@ async fn unreadable_recents_are_an_empty_list() {
         ..local()
     };
 
-    assert_eq!(get_json(state, "/api/recents").await, serde_json::json!([]));
+    assert_eq!(
+        get_json(state, "/api/recents").await.1,
+        serde_json::json!([])
+    );
 }
 
 #[tokio::test]

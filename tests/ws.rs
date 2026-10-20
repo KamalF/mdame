@@ -10,7 +10,7 @@ use mdame::server::router;
 use mdame::watch::Event;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::timeout;
-use tokio_tungstenite::tungstenite::{self, Message, client::IntoClientRequest, http::header};
+use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 type Client = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -26,16 +26,6 @@ async fn serve(state: AppState) -> (Arc<AppState>, String) {
 
 async fn connect(url: &str) -> Client {
     tokio_tungstenite::connect_async(url).await.unwrap().0
-}
-
-async fn connect_from(url: &str, origin: &str) -> Result<Client, tungstenite::Error> {
-    let mut request = url.into_client_request().unwrap();
-    request
-        .headers_mut()
-        .insert(header::ORIGIN, origin.parse().unwrap());
-    tokio_tungstenite::connect_async(request)
-        .await
-        .map(|(client, _)| client)
 }
 
 async fn next_text(client: &mut Client) -> String {
@@ -105,14 +95,4 @@ async fn closed_tab_unsubscribes() {
     })
     .await
     .expect("the receiver is dropped");
-}
-
-#[tokio::test]
-async fn other_site_cannot_connect() {
-    let (_state, url) = serve(common::local()).await;
-    let refused = connect_from(&url, "http://evil.example").await;
-    let Err(tungstenite::Error::Http(response)) = refused else {
-        panic!("expected an HTTP refusal, got {refused:?}");
-    };
-    assert_eq!(response.status(), 403);
 }

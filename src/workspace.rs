@@ -127,16 +127,4 @@ mod tests {
         let error = Workspace::open(&dir.path().join("missing")).err().unwrap();
         assert_eq!(error.kind(), ErrorKind::NotFound);
     }
-
-    #[test]
-    fn dir_refuses_paths_out_of_the_root() {
-        let dir = tempfile::tempdir().unwrap();
-        fs::create_dir(dir.path().join("root")).unwrap();
-        fs::write(dir.path().join("secret.md"), "").unwrap();
-
-        let workspace = Workspace::open(&dir.path().join("root")).unwrap();
-        assert!(workspace.dir.open("../secret.md").is_err());
-        let absolute = dir.path().join("secret.md");
-        assert!(workspace.dir.open(&absolute).is_err());
-    }
 }

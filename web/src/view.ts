@@ -89,7 +89,8 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   });
   // idiomorph inserts copies of new nodes, without their click listeners.
   for (const block of shownArticle.querySelectorAll(".mdame-code")) {
-    block.querySelector(":scope > button")?.replaceWith(codeCopyButton(block));
+    const button = block.querySelector(":scope > button");
+    if (button && !copyButtons.has(button)) button.replaceWith(codeCopyButton(block));
   }
   return file;
 }
@@ -192,10 +193,15 @@ function addCopyButtons(root: HTMLElement) {
   }
 }
 
+/** The buttons that have their click listener. */
+const copyButtons = new WeakSet<Element>();
+
 /** Reads the code when clicked: a morph can put new code in the block. */
 function codeCopyButton(block: Element) {
   const text = () => block.querySelector("code")?.textContent ?? "";
-  return copyButton({ label: "Copy code", iconName: "copy", text });
+  const button = copyButton({ label: "Copy code", iconName: "copy", text });
+  copyButtons.add(button);
+  return button;
 }
 
 function notFound(el: HTMLElement, path: string, error: ApiError) {

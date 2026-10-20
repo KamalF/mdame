@@ -90,12 +90,13 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 - `resync`, like a reconnection, refetches the state, the tree, the open file and every workspace image on screen.
 - Done when, checked on 19 October 2026: the ported mdlive watcher cases pass (`tests/watch.rs`), and saves from vim and nvim (`-u NONE`, run from a script) update the page with no reload, at the same scroll position.
 
-- Review loop over milestone 5, fixes in their own commits:
+- Review loop over milestone 5: 15 rounds and a simplify pass, fixes in their own commits:
   - The watcher no longer follows symlinked folders, and drops events below a symlink inside the workspace, so outside names never reach the tabs.
   - Reads (inotify `IN_OPEN`) no longer count in the burst rule: a tree walk in a workspace of over 100 folders made an endless `resync` loop.
   - The server sends events unmerged: three rounds found folder swaps that a merge turned into a wrong `changed`. The page tells saves from swaps by asking for the open file again, and follows a rename only when the open file is gone (Emacs and `set backup` saves).
   - The workspace opens in `spawn_blocking`, with the watcher started before the lock; the `workspace` root goes out as text.
   - Page: an image without `src` no longer breaks a file; a file moved onto the open one, a folder brought back, and images in a swapped folder refresh; one tree reload per batch; events during the first tree load are not lost; an open `<details>` stays open; a busy 409 during a refresh is retried; the filter keeps its arrow-key choice and the tree its keyboard focus; a date sort reorders on a change; a removed image leaves the page. An unreadable folder, or one deleted while the watch starts, no longer turns off live updates for the whole workspace.
+  - Simplify pass: one rule in `onEvent` for every path event, with one render per batch; image versions looked up through the folders of their path; copy buttons replaced only when a morph copied them; `OWN_DIR` for `.mdame`.
   - Follow-ups and deferred nits are under Open points.
 
 ### Manual checklist
@@ -113,7 +114,7 @@ Run mdame on a test folder, open a long markdown file, scroll halfway, then:
 
 ## Next
 
-1. Review loop over milestone 5, then merge `m5-live` into `main`.
+1. Run the manual checklist above once by hand (item 1 with your own editor setup), then merge `m5-live` into `main`.
 
 ## Open points
 
@@ -126,6 +127,10 @@ Run mdame on a test folder, open a long markdown file, scroll halfway, then:
   - Two tabs that open different folders at the same moment both start a watcher; the loser's events reach the tabs for about 50 ms.
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
   - The status bar's "Copy content" calls `fetch` directly, outside `api.ts` (from milestone 4).
+  - A folder deleted between notify's inotify add and its stat gives `Io(NotFound)` with no path, which still turns live updates off; skipping it needs a retry.
+  - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
+  - A `busy` error code for the render slots: today any 409 makes a refresh retry, also "no workspace is open" (not reachable during a refresh).
+  - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
 - The watcher watches gitignored folders too (`target/`, `node_modules/`: 2 600 of this repo's 2 900 folders), so a `cargo build` in the workspace sends events and `resync`s for files the tree never shows. Measure in the browser after milestone 5 before filtering.
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.

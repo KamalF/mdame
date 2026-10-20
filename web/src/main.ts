@@ -217,7 +217,7 @@ async function refresh() {
   show(await api<State>("GET", "/api/state"));
   if (!shownRoot) return;
   refreshTree();
-  view.refreshAllImages(content);
+  view.refreshImages(content, "");
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
 }

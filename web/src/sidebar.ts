@@ -131,10 +131,10 @@ export function viewUrl(path: string): string {
   return "/view/" + encodePath(path);
 }
 
-export function pathFromUrl(pathname: string): string | null {
-  if (!pathname.startsWith("/view/")) return null;
+export function pathFromUrl(pathname: string, prefix = "/view/"): string | null {
+  if (!pathname.startsWith(prefix)) return null;
   try {
-    return decodeURIComponent(pathname.slice(6));
+    return decodeURIComponent(pathname.slice(prefix.length));
   } catch {
     return null;
   }

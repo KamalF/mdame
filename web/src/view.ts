@@ -4,8 +4,7 @@ import { api, type ApiError } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
-import { isWithin } from "./live.ts";
-import { encodePath } from "./sidebar.ts";
+import { encodePath, pathFromUrl } from "./sidebar.ts";
 
 /** What `/api/file` answers. */
 export interface FileView {
@@ -130,50 +129,43 @@ async function fetchFile(
   }
 }
 
-/** The time each workspace file last changed, for those that changed since
- * the page loaded. Images carry it in their URL, or the browser would keep
- * showing the copy it has. */
+/** When each workspace path last changed, for those that changed since
+ * the page loaded; "" stands for the whole workspace. An image carries in
+ * its URL the latest time of its path or of a folder holding it, or the
+ * browser would keep showing the copy it has. */
 const versions = new Map<string, number>();
+
+function versionOf(path: string): number | undefined {
+  const parts = path.split("/");
+  const times = [versions.get("")];
+  for (let i = 1; i <= parts.length; i++) times.push(versions.get(parts.slice(0, i).join("/")));
+  const known = times.filter((time) => time !== undefined);
+  return known.length > 0 ? Math.max(...known) : undefined;
+}
 
 /** The workspace path that `img` shows, or null for an image from elsewhere. */
 function rawPath(img: HTMLImageElement): string | null {
   // The sanitizer removes a `src` it refuses, such as `data:`, and "" is no URL.
   if (!img.src) return null;
   const url = new URL(img.src);
-  if (url.origin !== location.origin || !url.pathname.startsWith("/raw/")) return null;
-  try {
-    return decodeURIComponent(url.pathname.slice("/raw/".length));
-  } catch {
-    return null;
-  }
+  return url.origin === location.origin ? pathFromUrl(url.pathname, "/raw/") : null;
 }
 
 function useVersion(img: HTMLImageElement) {
   const path = rawPath(img);
-  const version = path === null ? undefined : versions.get(path);
+  const version = path === null ? undefined : versionOf(path);
   if (version === undefined) return;
   const url = new URL(img.src);
   url.searchParams.set("v", String(version));
-  img.src = url.pathname + url.search;
+  const src = url.pathname + url.search;
+  if (img.getAttribute("src") !== src) img.src = src;
 }
 
-/** Reloads every workspace image in `el`, when changes may have been missed. */
-export function refreshAllImages(el: HTMLElement) {
-  const paths = new Set([...el.querySelectorAll("img")].map(rawPath));
-  for (const path of paths) if (path !== null) refreshImages(el, path);
-}
-
-/** Reloads the images of `path` shown in `el`, after it changed on disk;
- * for a folder, the images it holds. */
+/** Reloads the images in `el` of `path`, or of the folder `path`, after it
+ * changed on disk; "" for all of them. */
 export function refreshImages(el: HTMLElement, path: string) {
-  const now = Date.now();
-  versions.set(path, now);
-  for (const img of el.querySelectorAll("img")) {
-    const shown = rawPath(img);
-    if (shown === null || !isWithin(shown, path)) continue;
-    versions.set(shown, now);
-    useVersion(img);
-  }
+  versions.set(path, Date.now());
+  for (const img of el.querySelectorAll("img")) useVersion(img);
 }
 
 function articleFor(file: FileView): HTMLElement {

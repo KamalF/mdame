@@ -124,9 +124,35 @@ Done 20 October 2026, after the testing rules in `docs/SPEC.md`:
 - `cargo mutants` baseline: 294 mutants, 31 missed. Tests added for the constant-time token compare, the 1 MB and 64 MB limits at their boundary, the port fallback on other errors, the refusal message and a workspace path through a file. The mutants that no test should catch are excluded in `.cargo/mutants.toml`, each with its reason.
 - Under load, a watcher test failed in 1 of 40 runs (an extra `changed` from a late batch), which counts a mutant as caught when no check caught it. `cargo mutants` now runs the tests through nextest, whose `mutants` profile retries the watcher and WebSocket tests twice. The full run with retries, on 20 October 2026, found 5 more survivors that the baseline had counted as caught: tests for an unreadable config file and for a link to a file in the completion, and 3 more exclusions.
 
+## Milestone 6: editor
+
+Decided on 20 October 2026:
+
+- A save writes the file in place (truncate, then write). The inode, the permissions and the hard links stay. The snapshot covers a crash during the write.
+- If the file changes on disk and the editor has no unsaved edits, the editor reloads it silently, with a minimal change so that the cursor and the scroll stay. If the editor has unsaved edits, a notice offers Reload (one transaction, so Ctrl+Z gets the edits back) or Overwrite (the disk version becomes a snapshot first). A deleted file gets the same notice, without Reload. A `changed` event whose version equals the editor's base version is our own save.
+- The editor refuses a file that is not valid UTF-8, and an image.
+- The editor and the save share one size limit: 8 MB.
+- Pruning waits for milestone 7.
+- A revision is the content on disk just before mdame writes over it. Saves from other editors make no snapshot, and Reload keeps the discarded edits only in the undo history.
+
+Rules, as test names, by commit:
+
+1. `history.rs` (done): `workspace_mode_keeps_history_in_dot_mdame`, `creating_dot_mdame_writes_its_gitignore`, `an_existing_dot_mdame_is_left_as_it_is`, `state_mode_keeps_history_under_the_encoded_workspace_path`, `encode_path_replaces_every_non_alphanumeric_with_a_dash`, `snapshot_goes_under_the_file_path_named_by_the_time`, `two_snapshots_in_the_same_millisecond_are_both_kept`.
+2. `GET /api/source`: `source_returns_the_text_and_its_version`, `version_is_the_same_for_the_same_content`, `version_changes_with_the_content`, `source_refuses_a_file_that_is_not_utf8`, `source_refuses_an_image`, `source_refuses_a_file_over_the_edit_limit`; rows in the `tests/routes.rs` matrix.
+3. `PUT /api/file` with JSON `version` and `base_version`, 409: `save_writes_the_content_when_the_version_matches`, `save_with_a_stale_version_is_refused_and_writes_nothing`, `save_snapshots_the_old_content_first`, `save_returns_the_new_version`, `save_without_base_version_creates_a_new_file`, `save_without_base_version_refuses_an_existing_file`, `save_accepts_a_body_over_2_mb`; rows in the routes matrix.
+4. `POST /api/render`: `render_route_gives_the_same_html_as_the_view`.
+5. Editor screen: load, save, unsaved dot, leave-page warning, `e` and `Esc`. `dirty_means_the_text_differs_from_the_saved_text`, `e_opens_the_editor`, `esc_closes_it`.
+6. Split, divider, preview: `a_response_older_than_the_latest_request_is_dropped`.
+7. Scroll sync: `maps_a_line_to_the_last_block_starting_at_or_before_it`, `interpolates_towards_the_next_block`, `before_the_first_block_is_the_top`, `past_the_last_block_is_the_end`, `preview_to_editor_inverts_editor_to_preview` (property test).
+8. Ctrl+B, Ctrl+I, Tab, line numbers: `bold_wraps_the_selection`, `bold_unwraps_an_already_bold_selection`, `bold_on_an_empty_selection_puts_the_cursor_between_markers`, and the same for italic.
+9. Changed-on-disk notice: `changed_whose_version_equals_the_base_is_our_own_save`, `changed_with_unsaved_edits_shows_the_notice`, `changed_without_unsaved_edits_reloads`, `removed_with_unsaved_edits_shows_the_notice_without_reload`.
+10. New file in a folder.
+11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match`; `If-None-Match: *` creates a file.
+12. Manual checklist, `cargo mutants`, review loop.
+
 ## Next
 
-1. Milestone 6 (editor) on `m6-editor`: write its rules as test names first.
+1. Milestone 6, commit 2: `GET /api/source`.
 
 ## Open points
 

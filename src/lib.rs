@@ -2,6 +2,7 @@ pub mod app;
 pub mod config;
 pub mod document;
 pub mod error;
+pub mod history;
 pub mod render;
 pub mod server;
 pub mod tree;

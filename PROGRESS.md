@@ -14,7 +14,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 2 | Workspaces | Done 18 October 2026, merged into `main` the same day | 20, with the review fixes |
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
-| 5 | Live updates | Done 19 October 2026, on `m5-live`; review next | 9 |
+| 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
 | 6 | Editor | — | about 12 |
 | 7 | Revisions | — | about 6 |
 | 8 | Themes and polish | — | about 9 |
@@ -101,7 +101,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 
 ### Manual checklist
 
-Run mdame on a test folder, open a long markdown file, scroll halfway, then:
+Run by hand on 20 October 2026: all 8 checks passed. Run mdame on a test folder, open a long markdown file, scroll halfway, then:
 
 1. Save the file from vim, nvim and another editor: the text updates, the scroll stays, no `~` file shows in the sidebar.
 2. Add, delete and rename files and folders from a terminal: the sidebar follows, keeping open folders, the sort and the filter.
@@ -114,7 +114,7 @@ Run mdame on a test folder, open a long markdown file, scroll halfway, then:
 
 ## Next
 
-1. Run the manual checklist above once by hand (item 1 with your own editor setup), then merge `m5-live` into `main`.
+1. Start milestone 6 (editor) on a new branch, `m6-editor`.
 
 ## Open points
 

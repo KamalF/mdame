@@ -573,15 +573,26 @@ Reuse mdlive's tests, formats and a few small functions; replace everything else
 
 Rust tests carry the weight. The front end gets `bun test` unit tests for its pure modules, plus a short manual checklist per milestone rather than a browser test suite in v1.
 
+Each test states one rule, and its name is that rule. The rules are:
+
+- **One home per rule.** A rule is tested at the lowest layer that sees it with the real parts: real files in a tempdir, the real router. No mocks. Higher layers test only the wiring: that a route calls the logic, and that each kind of error gets its status, once.
+- **Overlap needs a reason.** Two tests of one rule are allowed only if they check different things, and a comment says what. Example: unit tests own the mapping of notify events; watcher tests prove that the OS sends those events.
+- **A rule that holds for every route is one matrix test.** Routes × inputs → status. A new route adds a row, not new tests.
+- **The oracle follows the input space.** Few inputs: a table of examples. Many inputs (paths, URLs, encodings): a property test, with `proptest` or `fast-check`. Large output: an insta snapshot, but never as the only check of a security rule.
+- **Decisions live in pure functions.** The code that touches the DOM, the files or the network stays thin. Integration tests or the manual checklist cover it.
+- **A test stays only if it can fail for a reason that no other test catches.** A bug fix adds a regression test only if no test caught the bug. Libraries are not tested, except for a non-obvious behaviour that mdame relies on.
+- **Mutation testing measures the suite.** At the end of each milestone, `cargo mutants` runs. A surviving mutant is a rule with no test, or dead code.
+- **The suite stays under 10 s.** Only the watcher and WebSocket tests depend on time.
+
 | Layer | How | Covers |
 | --- | --- | --- |
 | Unit | `#[cfg(test)]` modules | tree building, path expansion, path encoding for the state folder, pruning, front matter stripping, port fallback |
-| Rendering | insta snapshots of fixture files in `tests/fixtures/` | every file type, alerts, footnotes and in-page links, heading ids, task lists, sanitizing (a fixture full of hostile HTML), relative URL rewriting |
-| Routes | build the router with a tempdir workspace, call it with `tower::ServiceExt::oneshot` | every route's success and error codes, the security rows, 412 on a stale save and 428 without `If-Match`, `/raw` headers |
+| Rendering | insta snapshots of fixture files in `tests/fixtures/`, plus explicit checks for sanitizing | every file type, alerts, footnotes and in-page links, heading ids, task lists, sanitizing (a fixture full of hostile HTML), relative URL rewriting |
+| Routes | build the router with a tempdir workspace, call it with `tower::ServiceExt::oneshot` | every route's success and error codes, the security rows as matrix tests, 412 on a stale save and 428 without `If-Match`, `/raw` headers |
 | History | tempdir workspace and state folder | two quick saves give two snapshots, pruning, both history locations, `.mdame/.gitignore` |
 | Watcher | real files in a tempdir, wait for events with a timeout | the cases ported from mdlive's `websocket_test.rs`, the burst rule |
 | WebSocket | a test client against a bound server | events arrive with relative paths; `resync` after lag |
-| Front-end unit | `bun test` on modules with no DOM | scroll-sync line-to-block mapping and interpolation, the key-map rules (ignore while typing, modifiers), API error mapping |
+| Front-end unit | `bun test` on modules with no DOM | scroll-sync line-to-block mapping and interpolation, the key-map rules (ignore while typing, modifiers), API error mapping, what the page does for each live event |
 
 Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on the set of events, not their exact order. CI on Linux runs `mise run fmt`, `lint`, `test` and `check-dist`.
 
@@ -641,6 +652,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Tree: nested JSON, viewable files only, `.gitignore` applied without git, folder date from its newest file | 18 October 2026 |
 | Sidebar key `b` instead of `k`: a memory hook (VS Code's Ctrl+B), works on every layout, and leaves `j`/`k` free for scrolling | 18 October 2026 |
 | `mdame <file>` opens the file's folder with that file first, not the file alone | 18 October 2026 |
+| Testing rules: one home per rule, matrix tests for rules that hold for every route, property tests, mutation testing per milestone; no list of invariants beside the test names | 20 October 2026 |
 
 ### Review log, 14 October 2026
 

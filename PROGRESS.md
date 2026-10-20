@@ -114,7 +114,15 @@ Run by hand on 20 October 2026: all 8 checks passed. Run mdame on a test folder,
 
 ## Next
 
-1. Start milestone 6 (editor) on a new branch, `m6-editor`.
+1. Test cleanup before milestone 6, after the testing rules in `docs/SPEC.md`:
+   1. `cargo mutants` baseline.
+   2. The guard as one table test.
+   3. Matrix tests: every path route stays in the workspace; every route that changes state takes JSON only; every route refuses a foreign `Origin`.
+   4. Explicit checks in the hostile-HTML test.
+   5. Property tests for relative URL rewriting and the view URL round trip.
+   6. Remove the tests that repeat another one or test a library; share the `tests/common` helpers.
+   7. The page's reaction to a live event as a pure function, with tests.
+2. Milestone 6 (editor) on `m6-editor`: write its rules as test names first.
 
 ## Open points
 

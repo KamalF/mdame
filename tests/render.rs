@@ -30,18 +30,26 @@ fn alerts() {
 }
 
 #[test]
-fn yaml_front_matter_is_hidden() {
-    insta::assert_snapshot!(markdown("front-matter-yaml.md"));
-}
-
-#[test]
-fn toml_front_matter_is_hidden() {
-    insta::assert_snapshot!(markdown("front-matter-toml.md"));
-}
-
-#[test]
 fn hostile_html_is_inert() {
-    insta::assert_snapshot!(markdown("hostile.md"));
+    let html = markdown("hostile.md");
+    // The snapshot alone could be accepted with a hole in it.
+    let lower = html.to_lowercase();
+    for tag in [
+        "<script", "<iframe", "<object", "<embed", "<style", "<form", "<svg", "<math", "<base",
+        "<meta", "<link",
+    ] {
+        assert!(!lower.contains(tag), "{tag} in {html}");
+    }
+    for attribute in ["style=", "javascript:", "data:"] {
+        assert!(!lower.contains(attribute), "{attribute} in {html}");
+    }
+    let handler = lower.match_indices(" on").any(|(at, _)| {
+        let rest = &lower[at + 3..];
+        let name = rest.trim_start_matches(|c: char| c.is_ascii_alphabetic());
+        name.len() < rest.len() && name.starts_with('=')
+    });
+    assert!(!handler, "event handler in {html}");
+    insta::assert_snapshot!(html);
 }
 
 #[test]

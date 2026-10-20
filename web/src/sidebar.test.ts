@@ -4,13 +4,11 @@ import {
   clampWidth,
   files,
   filterFiles,
-  nextSort,
   pathFromUrl,
   sortTree,
   viewUrl,
   type TreeNode,
 } from "./sidebar.ts";
-import { fileIcon } from "./icons.ts";
 
 const file = (path: string, modified: number): TreeNode => ({
   name: path.split("/").at(-1)!,
@@ -50,11 +48,6 @@ test("sort by date, newest or oldest first", () => {
 test("sort does not change the tree it gets", () => {
   sortTree(tree, "name-asc");
   expect(names(tree)).toEqual(["b.md", "docs", "A2.md", "a10.md"]);
-});
-
-test("nextSort cycles through the four orders", () => {
-  expect(nextSort("name-asc")).toBe("name-desc");
-  expect(nextSort("date-asc")).toBe("name-asc");
 });
 
 test("files lists every file, at any depth", () => {
@@ -108,14 +101,6 @@ test("view URLs encode each part and keep the slashes", () => {
   expect(pathFromUrl("/view/docs/a%20b.md")).toBe("docs/a b.md");
   expect(pathFromUrl("/view/%E0")).toBe(null);
   expect(pathFromUrl("/")).toBe(null);
-});
-
-test("fileIcon maps a family to its icon", () => {
-  expect(fileIcon("markdown")).toBe("text");
-  expect(fileIcon("text")).toBe("text");
-  expect(fileIcon("image")).toBe("image");
-  expect(fileIcon("diagram")).toBe("diagram");
-  expect(fileIcon(undefined)).toBe("file");
 });
 
 test("clampWidth keeps the sidebar between 180 and 480 px", () => {

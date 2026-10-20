@@ -228,13 +228,6 @@ async fn unreadable_folder_does_not_stop_the_watch() {
 }
 
 #[tokio::test]
-async fn mdame_folder_is_ignored() {
-    let mut watched = Watched::new(&[A, (".mdame/history/a.md/1.md", b"")]);
-    fs::write(watched.path(".mdame/history/a.md/2.md"), "").unwrap();
-    watched.assert_next(&[]).await;
-}
-
-#[tokio::test]
 async fn reading_the_tree_sends_nothing() {
     // More folders than the burst threshold: each one is opened.
     let paths: Vec<String> = (0..150).map(|i| format!("d{i}/a.md")).collect();

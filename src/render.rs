@@ -270,12 +270,6 @@ mod tests {
     }
 
     #[test]
-    fn toml_front_matter_becomes_blank_lines() {
-        let text = "+++\ntitle = \"A\"\n+++\n# A\n";
-        assert_eq!(blank_toml_front_matter(text), "\n\n\n# A\n");
-    }
-
-    #[test]
     fn text_without_toml_front_matter_is_kept() {
         for text in ["", "# A\n", "+++\nnot closed\n", "a\n+++\nb\n+++\n"] {
             assert!(
@@ -317,9 +311,10 @@ mod tests {
     }
 
     #[test]
-    fn front_matter_keeps_the_line_numbers() {
+    fn front_matter_is_hidden_and_keeps_the_line_numbers() {
         for fence in ["+++", "---"] {
             let html = markdown("a.md", &format!("{fence}\ntitle: A\n{fence}\n# A\n"));
+            assert!(!html.contains("title"), "{html}");
             assert!(html.contains("data-sourcepos=\"4:1-4:3\""), "{html}");
         }
     }

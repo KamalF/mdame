@@ -125,7 +125,7 @@ function onEvent(event: live.LiveEvent) {
   }
   const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
   if (event.type !== "changed" || sidebar.orderDependsOn(event.path)) refreshTree();
-  for (const path of paths) view.refreshImages(content, path);
+  view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
   if (!current) return;
   const moved = event.type === "renamed" && !live.isWithin(current, event.to);
@@ -217,7 +217,7 @@ async function refresh() {
   show(await api<State>("GET", "/api/state"));
   if (!shownRoot) return;
   refreshTree();
-  view.refreshImages(content, "");
+  view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
 }

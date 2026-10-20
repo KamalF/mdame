@@ -113,19 +113,10 @@ async function fetchFile(el: HTMLElement, path: string, id: number): Promise<Fil
   }
 }
 
-/** When each workspace path last changed, for those that changed since
- * the page loaded; "" stands for the whole workspace. An image carries in
- * its URL the latest time of its path or of a folder holding it, or the
- * browser would keep showing the copy it has. */
-const versions = new Map<string, number>();
-
-function versionOf(path: string): number | undefined {
-  const parts = path.split("/");
-  const times = [versions.get("")];
-  for (let i = 1; i <= parts.length; i++) times.push(versions.get(parts.slice(0, i).join("/")));
-  const known = times.filter((time) => time !== undefined);
-  return known.length > 0 ? Math.max(...known) : undefined;
-}
+/** When the workspace last changed, if it changed since the page loaded.
+ * Workspace images carry it in their URL, or the browser would keep
+ * showing the copy that it has. */
+let version: number | undefined;
 
 /** The workspace path that `img` shows, or null for an image from elsewhere. */
 function rawPath(img: HTMLImageElement): string | null {
@@ -136,19 +127,17 @@ function rawPath(img: HTMLImageElement): string | null {
 }
 
 function useVersion(img: HTMLImageElement) {
-  const path = rawPath(img);
-  const version = path === null ? undefined : versionOf(path);
-  if (version === undefined) return;
+  if (version === undefined || rawPath(img) === null) return;
   const url = new URL(img.src);
   url.searchParams.set("v", String(version));
   const src = url.pathname + url.search;
   if (img.getAttribute("src") !== src) img.src = src;
 }
 
-/** Reloads the images in `el` of `path`, or of the folder `path`, after it
- * changed on disk; "" for all of them. */
-export function refreshImages(el: HTMLElement, path: string) {
-  versions.set(path, Date.now());
+/** Reloads the workspace images in `el` after a change on disk. Any change
+ * reloads all of them: they are local, so a reload costs little. */
+export function refreshImages(el: HTMLElement) {
+  version = Date.now();
   for (const img of el.querySelectorAll("img")) useVersion(img);
 }
 

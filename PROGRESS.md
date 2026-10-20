@@ -123,7 +123,6 @@ Run by hand on 20 October 2026: all 8 checks passed. Run mdame on a test folder,
 - From the review of milestone 5, for later:
   - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target; mdame drops the events, but the watches use up the inotify limit. Report upstream to notify-rs.
   - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
-  - `versions` in `view.ts` keeps one entry per changed path, images or not, for the life of the tab.
   - Two tabs that open different folders at the same moment both start a watcher; the loser's events reach the tabs for about 50 ms.
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
   - The status bar's "Copy content" calls `fetch` directly, outside `api.ts` (from milestone 4).

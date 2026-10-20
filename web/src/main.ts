@@ -63,6 +63,17 @@ function refreshContent(path: string) {
   });
 }
 
+let contentTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** A save often arrives as several events in one batch: they share one
+ * render. */
+function refreshContentSoon(path: string) {
+  clearTimeout(contentTimer);
+  contentTimer = setTimeout(() => {
+    if (path === sidebar.pathFromUrl(location.pathname)) refreshContent(path);
+  }, 50);
+}
+
 let treeTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Each request walks the whole folder: the events of one batch, which
@@ -102,44 +113,26 @@ async function follow(from: string, to: string) {
 let workspaceBeforeShow = false;
 
 function onEvent(event: live.LiveEvent) {
-  const current = sidebar.pathFromUrl(location.pathname);
-  switch (event.type) {
-    case "workspace":
-      if (shownRoot === null) refresh();
-      // The first state may be older than this event.
-      else if (shownRoot === undefined) workspaceBeforeShow = true;
-      break;
-    case "created":
-      refreshTree();
-      // A save through a temporary file and a rename arrives as `created`.
-      view.refreshImages(content, event.path);
-      // A folder moved in can bring the open file back.
-      if (current && live.isWithin(current, event.path)) refreshContent(current);
-      break;
-    case "changed":
-      if (sidebar.orderDependsOn(event.path)) refreshTree();
-      view.refreshImages(content, event.path);
-      if (event.path === current) refreshContent(current);
-      break;
-    case "removed":
-      refreshTree();
-      view.refreshImages(content, event.path);
-      // Asks again rather than showing "Not found": the file may be back.
-      if (current && live.isWithin(current, event.path)) refreshContent(current);
-      break;
-    case "renamed":
-      refreshTree();
-      view.refreshImages(content, event.from);
-      view.refreshImages(content, event.to);
-      // A file moved onto the open one replaces its content; a folder can
-      // bring it back.
-      if (current && live.isWithin(current, event.to)) refreshContent(current);
-      else follow(event.from, event.to);
-      break;
-    case "resync":
-      refresh();
-      break;
+  if (event.type === "workspace") {
+    if (shownRoot === null) refresh();
+    // The first state may be older than this event.
+    else if (shownRoot === undefined) workspaceBeforeShow = true;
+    return;
   }
+  if (event.type === "resync") {
+    refresh();
+    return;
+  }
+  const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
+  if (event.type !== "changed" || sidebar.orderDependsOn(event.path)) refreshTree();
+  for (const path of paths) view.refreshImages(content, path);
+  const current = sidebar.pathFromUrl(location.pathname);
+  if (!current) return;
+  const moved = event.type === "renamed" && !live.isWithin(current, event.to);
+  if (moved && live.isWithin(current, event.from)) follow(event.from, event.to);
+  // Asks again rather than show "Not found": a save, or a folder moved
+  // in, can bring the file back.
+  else if (paths.some((path) => live.isWithin(current, path))) refreshContentSoon(current);
 }
 
 function openFile(path: string, hash = "") {

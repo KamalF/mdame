@@ -138,7 +138,7 @@ Decided on 20 October 2026:
 Rules, as test names, by commit:
 
 1. `history.rs` (done): `workspace_mode_keeps_history_in_dot_mdame`, `creating_dot_mdame_writes_its_gitignore`, `an_existing_dot_mdame_is_left_as_it_is`, `state_mode_keeps_history_under_the_encoded_workspace_path`, `encode_path_replaces_every_non_alphanumeric_with_a_dash`, `snapshot_goes_under_the_file_path_named_by_the_time`, `two_snapshots_in_the_same_millisecond_are_both_kept`.
-2. `GET /api/source`: `source_returns_the_text_and_its_version`, `version_is_the_same_for_the_same_content`, `version_changes_with_the_content`, `source_refuses_a_file_that_is_not_utf8`, `source_refuses_an_image`, `source_refuses_a_file_over_the_edit_limit`; rows in the `tests/routes.rs` matrix.
+2. `GET /api/source` (done): `source_returns_the_text_and_its_version`, `version_follows_the_content`, `source_refuses_what_is_not_utf8_text` (an image too: 404 `not_viewable`), `source_refuses_a_file_over_the_edit_limit`; rows in the `tests/routes.rs` matrix.
 3. `PUT /api/file` with JSON `version` and `base_version`, 409: `save_writes_the_content_when_the_version_matches`, `save_with_a_stale_version_is_refused_and_writes_nothing`, `save_snapshots_the_old_content_first`, `save_returns_the_new_version`, `save_without_base_version_creates_a_new_file`, `save_without_base_version_refuses_an_existing_file`, `save_accepts_a_body_over_2_mb`; rows in the routes matrix.
 4. `POST /api/render`: `render_route_gives_the_same_html_as_the_view`.
 5. Editor screen: load, save, unsaved dot, leave-page warning, `e` and `Esc`. `dirty_means_the_text_differs_from_the_saved_text`, `e_opens_the_editor`, `esc_closes_it`.
@@ -152,7 +152,7 @@ Rules, as test names, by commit:
 
 ## Next
 
-1. Milestone 6, commit 2: `GET /api/source`.
+1. Milestone 6, commit 3: `PUT /api/file` with JSON version fields and 409.
 
 ## Open points
 

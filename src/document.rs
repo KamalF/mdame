@@ -1,3 +1,4 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{self, ErrorKind, Read};
 use std::time::UNIX_EPOCH;
 
@@ -12,6 +13,8 @@ pub const RENDER_LIMIT: u64 = 1024 * 1024;
 
 /// `/raw` reads a file whole, into memory.
 pub const RAW_LIMIT: u64 = 64 * 1024 * 1024;
+
+pub const EDIT_LIMIT: u64 = 8 * 1024 * 1024;
 
 #[derive(Debug, Serialize)]
 pub struct View {
@@ -63,6 +66,44 @@ pub fn raw(dir: &Dir, path: &str) -> io::Result<(Vec<u8>, &'static str)> {
     Ok((read_at_most(file, RAW_LIMIT)?, render::raw_type(path)))
 }
 
+#[derive(Debug, Serialize)]
+pub struct Source {
+    pub content: String,
+    pub version: String,
+    pub modified: u64,
+}
+
+/// The text of the file at `path`, for the editor. An image, or a file
+/// that is not UTF-8, gives `Unsupported`: a lossy load would corrupt the
+/// file on the next save.
+pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
+    let (file, metadata) = open_file(dir, path)?;
+    if Family::of(path) == Some(Family::Image) {
+        return Err(not_text());
+    }
+    if metadata.len() > EDIT_LIMIT {
+        return Err(too_large());
+    }
+    let bytes = read_at_most(file, EDIT_LIMIT)?;
+    let version = version(&bytes);
+    let content = String::from_utf8(bytes).map_err(|_| not_text())?;
+    Ok(Source {
+        content,
+        version,
+        modified: modified_secs(&metadata).unwrap_or(0),
+    })
+}
+
+pub fn version(bytes: &[u8]) -> String {
+    let mut hasher = DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+fn not_text() -> io::Error {
+    io::Error::new(ErrorKind::Unsupported, "not a UTF-8 text file")
+}
+
 /// The type is checked before the open: opening a FIFO blocks until a
 /// writer comes, maybe never.
 fn open_file(dir: &Dir, path: &str) -> io::Result<(File, Metadata)> {
@@ -109,5 +150,12 @@ mod tests {
         assert_eq!(bytes, b"abcd");
         let error = read_at_most(dir.open("a.txt").unwrap(), 3).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::FileTooLarge);
+    }
+
+    #[test]
+    fn version_follows_the_content() {
+        assert_eq!(version(b"# A\n"), version(b"# A\n"));
+        assert_ne!(version(b"# A\n"), version(b"# B\n"));
+        assert_eq!(version(b"").len(), 16);
     }
 }

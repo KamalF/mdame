@@ -9,7 +9,7 @@ use axum::http::{Method, StatusCode};
 use common::{HOST, send_body, status_and_json};
 use mdame::app::AppState;
 
-const ROUTES: [(Method, &str); 13] = [
+const ROUTES: [(Method, &str); 14] = [
     (Method::GET, "/"),
     (Method::GET, "/view/a.md"),
     (Method::GET, "/edit/a.md"),
@@ -22,11 +22,12 @@ const ROUTES: [(Method, &str); 13] = [
     (Method::GET, "/api/recents"),
     (Method::GET, "/api/tree"),
     (Method::GET, "/api/file?path=a.md"),
+    (Method::GET, "/api/source?path=a.md"),
     (Method::GET, "/ws"),
 ];
 
 /// Routes that take a workspace path, with `{}` where the path goes.
-const PATH_ROUTES: [&str; 2] = ["/api/file?path={}", "/raw/{}"];
+const PATH_ROUTES: [&str; 3] = ["/api/file?path={}", "/api/source?path={}", "/raw/{}"];
 
 fn workspace(dir: &Path) -> AppState {
     common::workspace(dir, &[("a.md", b"# A\n")])

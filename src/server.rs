@@ -1,6 +1,6 @@
 use crate::app::{AppState, OpenError, hex};
 use crate::config::{self, HistoryMode, Recent};
-use crate::document::{self, View};
+use crate::document::{self, Source, View};
 use crate::error::{ApiError, io_message};
 use crate::tree::{self, Suggestion};
 use crate::workspace;
@@ -324,6 +324,20 @@ async fn file(
         .map_err(|error| file_error(&query.path, error))
 }
 
+async fn source(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<FileQuery>, QueryRejection>,
+) -> Result<Json<Source>, ApiError> {
+    let Query(query) = query?;
+    let workspace = app.workspace()?;
+    let path = query.path.clone();
+    let source =
+        tokio::task::spawn_blocking(move || document::source(&workspace.dir, &path)).await?;
+    source
+        .map(Json)
+        .map_err(|error| file_error(&query.path, error))
+}
+
 fn file_error(path: &str, error: io::Error) -> ApiError {
     let message = format!("{path}: {}", io_message(&error));
     match error.kind() {
@@ -376,6 +390,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/recents", get(recents))
         .route("/api/tree", get(tree))
         .route("/api/file", get(file))
+        .route("/api/source", get(source))
         .route("/ws", get(ws::handler))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))

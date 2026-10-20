@@ -51,6 +51,8 @@ pub struct AppState {
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
     pub recents_path: PathBuf,
+    /// The history root in `state` mode is below it.
+    pub state_dir: PathBuf,
     pub events: broadcast::Sender<Event>,
 }
 
@@ -115,6 +117,7 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let config = config::load(&config_path)?;
     let recents_path =
         config::recents_file().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
+    let state_dir = config::state_dir().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
     let listener = bind_first_free(args.host, args.port, PORT_ATTEMPTS).await?;
     let token = if args.host.is_loopback() {
         None
@@ -128,6 +131,7 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         config: RwLock::new(config),
         config_path,
         recents_path,
+        state_dir,
         events: broadcast::channel(EVENT_CAPACITY).0,
     };
     if let Some(path) = &args.path {

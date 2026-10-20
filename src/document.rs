@@ -1,10 +1,11 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::{self, ErrorKind, Read};
-use std::time::UNIX_EPOCH;
+use std::io::{self, ErrorKind, Read, Write};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use cap_std::fs::{Dir, File, Metadata};
+use cap_std::fs::{Dir, File, Metadata, OpenOptions};
 use serde::Serialize;
 
+use crate::history;
 use crate::render::{self, Family};
 
 /// Bigger files are not rendered: the page would freeze. The editor can
@@ -98,6 +99,58 @@ pub fn version(bytes: &[u8]) -> String {
     let mut hasher = DefaultHasher::new();
     bytes.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SaveError {
+    #[error("the file changed on disk")]
+    Changed,
+    #[error(transparent)]
+    Io(#[from] io::Error),
+}
+
+#[derive(Debug, Serialize)]
+pub struct Saved {
+    pub version: String,
+    pub modified: u64,
+}
+
+/// Writes `content` to `path` if the file on disk still has `base_version`,
+/// after a snapshot of the old content in `history`. A deleted file has
+/// changed too.
+///
+/// The file is written in place, not renamed over: its permissions and
+/// hard links stay.
+pub fn save(
+    dir: &Dir,
+    history: &Dir,
+    path: &str,
+    content: &str,
+    base_version: &str,
+) -> Result<Saved, SaveError> {
+    if content.len() as u64 > EDIT_LIMIT {
+        return Err(too_large().into());
+    }
+    let (file, _) = match open_file(dir, path) {
+        Err(error) if error.kind() == ErrorKind::NotFound => return Err(SaveError::Changed),
+        opened => opened?,
+    };
+    let old = read_at_most(file, EDIT_LIMIT)?;
+    if version(&old) != base_version {
+        return Err(SaveError::Changed);
+    }
+    history::snapshot(history, path, &old, now_ms())?;
+    let mut file = dir.open_with(path, OpenOptions::new().write(true).truncate(true))?;
+    file.write_all(content.as_bytes())?;
+    Ok(Saved {
+        version: version(content.as_bytes()),
+        modified: modified_secs(&file.metadata()?).unwrap_or(0),
+    })
+}
+
+fn now_ms() -> u64 {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+    now.expect("the clock is after 1970").as_millis() as u64
 }
 
 fn not_text() -> io::Error {

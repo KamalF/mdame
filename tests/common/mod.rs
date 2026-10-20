@@ -51,6 +51,7 @@ pub fn local() -> AppState {
         config: RwLock::new(Config::default()),
         config_path: PathBuf::new(),
         recents_path: PathBuf::new(),
+        state_dir: PathBuf::new(),
         events: broadcast::channel(EVENT_CAPACITY).0,
     }
 }

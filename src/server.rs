@@ -1,14 +1,15 @@
 use crate::app::{AppState, OpenError, hex};
 use crate::config::{self, HistoryMode, Recent};
-use crate::document::{self, Source, View};
+use crate::document::{self, EDIT_LIMIT, SaveError, Saved, Source, View};
 use crate::error::{ApiError, io_message};
+use crate::history;
 use crate::tree::{self, Suggestion};
 use crate::workspace;
 use crate::ws;
 use axum::{
     Json, Router,
     extract::{
-        Path, Query, Request, State,
+        DefaultBodyLimit, Path, Query, Request, State,
         rejection::{JsonRejection, QueryRejection},
     },
     http::{HeaderMap, HeaderValue, StatusCode, header},
@@ -338,6 +339,40 @@ async fn source(
         .map_err(|error| file_error(&query.path, error))
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SaveRequest {
+    content: String,
+    base_version: String,
+}
+
+async fn save(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<FileQuery>, QueryRejection>,
+    body: Result<Json<SaveRequest>, JsonRejection>,
+) -> Result<Json<Saved>, ApiError> {
+    let Query(query) = query?;
+    let Json(request) = body?;
+    let workspace = app.workspace()?;
+    let mode = app.config.read().unwrap().history.unwrap_or_default();
+    let path = query.path.clone();
+    let saved = tokio::task::spawn_blocking(move || {
+        let history = history::root(mode, &workspace, &app.state_dir)?;
+        document::save(
+            &workspace.dir,
+            &history,
+            &path,
+            &request.content,
+            &request.base_version,
+        )
+    })
+    .await?;
+    saved.map(Json).map_err(|error| match error {
+        SaveError::Changed => ApiError::Conflict(format!("{}: {error}", query.path)),
+        SaveError::Io(error) => file_error(&query.path, error),
+    })
+}
+
 fn file_error(path: &str, error: io::Error) -> ApiError {
     let message = format!("{path}: {}", io_message(&error));
     match error.kind() {
@@ -389,7 +424,13 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/complete", get(complete))
         .route("/api/recents", get(recents))
         .route("/api/tree", get(tree))
-        .route("/api/file", get(file))
+        .route(
+            "/api/file",
+            // JSON escapes can make the body much longer than the content.
+            get(file)
+                .put(save)
+                .layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),
+        )
         .route("/api/source", get(source))
         .route("/ws", get(ws::handler))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))

@@ -16,9 +16,10 @@ pub struct Config {
     pub history: Option<HistoryMode>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HistoryMode {
+    #[default]
     Workspace,
     State,
 }

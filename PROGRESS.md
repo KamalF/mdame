@@ -129,7 +129,7 @@ Done 20 October 2026, after the testing rules in `docs/SPEC.md`:
 Decided on 20 October 2026:
 
 - A save writes the file in place (truncate, then write). The inode, the permissions and the hard links stay. The snapshot covers a crash during the write.
-- If the file changes on disk and the editor has no unsaved edits, the editor reloads it silently, with a minimal change so that the cursor and the scroll stay. If the editor has unsaved edits, a notice offers Reload (one transaction, so Ctrl+Z gets the edits back) or Overwrite (the disk version becomes a snapshot first). A deleted file gets the same notice, without Reload. A `changed` event whose version equals the editor's base version is our own save.
+- If the file changes on disk and the editor has no unsaved edits, the editor reloads it silently, with a minimal change so that the cursor and the scroll stay. If the editor has unsaved edits, a notice offers Reload (one transaction, so Ctrl+Z gets the edits back) or Overwrite (the disk version becomes a snapshot first). A deleted file gets the same notice, without Reload; its Overwrite creates the file again. A `changed` event whose version equals the editor's base version is our own save.
 - The editor refuses a file that is not valid UTF-8, and an image.
 - The editor and the save share one size limit: 8 MB.
 - Pruning waits for milestone 7.
@@ -139,20 +139,20 @@ Rules, as test names, by commit:
 
 1. `history.rs` (done): `workspace_mode_keeps_history_in_dot_mdame`, `creating_dot_mdame_writes_its_gitignore`, `an_existing_dot_mdame_is_left_as_it_is`, `state_mode_keeps_history_under_the_encoded_workspace_path`, `encode_path_replaces_every_non_alphanumeric_with_a_dash`, `snapshot_goes_under_the_file_path_named_by_the_time`, `two_snapshots_in_the_same_millisecond_are_both_kept`.
 2. `GET /api/source` (done): `source_returns_the_text_and_its_version`, `version_follows_the_content`, `source_refuses_what_is_not_utf8_text` (an image too: 404 `not_viewable`), `source_refuses_a_file_over_the_edit_limit`; rows in the `tests/routes.rs` matrix.
-3. `PUT /api/file` with JSON `version` and `base_version`, 409: `save_writes_the_content_when_the_version_matches`, `save_with_a_stale_version_is_refused_and_writes_nothing`, `save_snapshots_the_old_content_first`, `save_returns_the_new_version`, `save_without_base_version_creates_a_new_file`, `save_without_base_version_refuses_an_existing_file`, `save_accepts_a_body_over_2_mb`; rows in the routes matrix.
+3. `PUT /api/file` with JSON `content` and `base_version`, 409 (done): `save_writes_the_content_when_the_version_matches` (it also returns the new version), `save_snapshots_the_old_content_first`, `save_with_a_stale_version_is_refused_and_writes_nothing`, `save_of_a_deleted_file_is_refused`, `save_takes_content_up_to_the_edit_limit`; rows in the routes matrix. A save never creates a file: `POST /api/file` does, as the spec says.
 4. `POST /api/render`: `render_route_gives_the_same_html_as_the_view`.
 5. Editor screen: load, save, unsaved dot, leave-page warning, `e` and `Esc`. `dirty_means_the_text_differs_from_the_saved_text`, `e_opens_the_editor`, `esc_closes_it`.
 6. Split, divider, preview: `a_response_older_than_the_latest_request_is_dropped`.
 7. Scroll sync: `maps_a_line_to_the_last_block_starting_at_or_before_it`, `interpolates_towards_the_next_block`, `before_the_first_block_is_the_top`, `past_the_last_block_is_the_end`, `preview_to_editor_inverts_editor_to_preview` (property test).
 8. Ctrl+B, Ctrl+I, Tab, line numbers: `bold_wraps_the_selection`, `bold_unwraps_an_already_bold_selection`, `bold_on_an_empty_selection_puts_the_cursor_between_markers`, and the same for italic.
 9. Changed-on-disk notice: `changed_whose_version_equals_the_base_is_our_own_save`, `changed_with_unsaved_edits_shows_the_notice`, `changed_without_unsaved_edits_reloads`, `removed_with_unsaved_edits_shows_the_notice_without_reload`.
-10. New file in a folder.
-11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match`; `If-None-Match: *` creates a file.
+10. New file in a folder, with `POST /api/file` (create empty, 409 if it exists). Overwrite of a deleted file creates it, then saves.
+11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match`.
 12. Manual checklist, `cargo mutants`, review loop.
 
 ## Next
 
-1. Milestone 6, commit 3: `PUT /api/file` with JSON version fields and 409.
+1. Milestone 6, commit 4: `POST /api/render`.
 
 ## Open points
 

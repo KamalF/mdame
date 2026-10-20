@@ -1,0 +1,9 @@
+# Used by cargo mutants only (see .cargo/mutants.toml). Under the load of
+# a mutants run, a timing test can fail once with no mutant to blame; a
+# retry keeps that failure from counting as a caught mutant. A real catch
+# fails every try.
+[profile.mutants]
+
+[[profile.mutants.overrides]]
+filter = "binary(watch) | binary(ws)"
+retries = 2

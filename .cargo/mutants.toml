@@ -1,3 +1,6 @@
+test_tool = "nextest"
+additional_cargo_test_args = ["--profile", "mutants"]
+
 # Mutants that no test should catch. A run then shows only new gaps.
 exclude_re = [
     # Start-up wiring: the manual checklist covers it.

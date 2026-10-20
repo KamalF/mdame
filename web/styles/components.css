@@ -161,6 +161,7 @@
 .mdame-dialog-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .mdame-dialog button {
@@ -173,6 +174,11 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.mdame-dialog button.is-secondary {
+  background: var(--bg-sunken);
+  color: var(--fg);
 }
 
 .mdame-hidden {
@@ -252,6 +258,29 @@
   background: transparent;
   color: var(--fg-muted);
   cursor: pointer;
+}
+
+.mdame-status-button {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mdame-status-button:hover {
+  border-color: var(--accent);
+}
+
+.mdame-unsaved {
+  color: var(--accent);
+}
+
+.mdame-status-error {
+  color: var(--danger);
 }
 
 .mdame-icon-button:hover {

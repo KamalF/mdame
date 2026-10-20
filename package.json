@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@codemirror/lang-markdown": "6.5.2",
     "@codemirror/language": "6.13.1",
     "@codemirror/language-data": "6.5.2",
     "@leeoniya/ufuzzy": "1.0.19",
     "@lezer/highlight": "1.2.5",
+    "codemirror": "6.0.2",
     "idiomorph": "0.8.0",
     "mermaid": "12.2.0"
   },

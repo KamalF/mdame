@@ -3,7 +3,8 @@ import "../styles/layout.css";
 import "../styles/components.css";
 import { api, errorFrom, exists, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
-import { askHistory } from "./dialogs.ts";
+import { askHistory, confirmDiscard } from "./dialogs.ts";
+import * as editor from "./editor.ts";
 import { icon } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
@@ -33,6 +34,13 @@ function showFileStatus(path: string, file: view.FileView) {
   const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
   fileStatus.replaceChildren(name, modified, copyPath);
   if (file.family !== "image") {
+    const edit = document.createElement("button");
+    edit.className = "mdame-icon-button";
+    edit.setAttribute("aria-label", "Edit");
+    edit.title = "Edit (e)";
+    edit.append(icon("pencil"));
+    edit.addEventListener("click", () => startEditing(path));
+    fileStatus.append(edit);
     const content = async () => {
       const response = await fetch(view.rawUrl(path));
       if (!response.ok) throw errorFrom(response.status, null);
@@ -42,10 +50,85 @@ function showFileStatus(path: string, file: view.FileView) {
   }
 }
 
+function showEditStatus(state: editor.EditorState) {
+  const name = document.createElement("span");
+  name.textContent = state.path;
+  const dot = document.createElement("span");
+  dot.className = "mdame-unsaved";
+  dot.textContent = "●";
+  dot.title = "Unsaved changes";
+  dot.hidden = !state.dirty;
+  const modified = document.createElement("span");
+  modified.textContent = new Date(state.modified * 1000).toLocaleString();
+  const error = document.createElement("span");
+  error.className = "mdame-status-error";
+  error.setAttribute("role", "alert");
+  error.textContent = state.error ?? "";
+  const save = document.createElement("button");
+  save.className = "mdame-status-button";
+  save.title = "Save (Ctrl+S)";
+  save.textContent = "Save";
+  save.addEventListener("click", () => editor.save());
+  fileStatus.replaceChildren(name, dot, modified, error, save);
+}
+
 const content = document.createElement("div");
 content.id = "mdame-content";
 
 let fileCount = 0;
+
+/** The file that the address names, and whether it is open in the editor. */
+function route(): { path: string | null; editing: boolean } {
+  const edited = sidebar.pathFromUrl(location.pathname, "/edit/");
+  if (edited !== null) return { path: edited, editing: true };
+  return { path: sidebar.pathFromUrl(location.pathname), editing: false };
+}
+
+function editUrl(path: string): string {
+  return "/edit/" + sidebar.encodePath(path);
+}
+
+/** Shows what the address names: the editor or the view. */
+function showRoute() {
+  const { path, editing } = route();
+  sidebar.setCurrent(path);
+  if (editing && path) {
+    fileStatus.replaceChildren();
+    view.forget();
+    editor.mount(content, path, showEditStatus);
+  } else {
+    editor.unmount();
+    showContent(path);
+  }
+}
+
+/** Whether the editor's unsaved edits may be lost: none, or the user agrees. */
+async function mayLeaveEditor(): Promise<boolean> {
+  return !editor.isDirty() || (await confirmDiscard());
+}
+
+/** Set when `e` opened the editor over the view of the same file: closing
+ * goes back to that view rather than adding to the history. */
+let editingFromView = false;
+
+function startEditing(path: string) {
+  history.pushState(null, "", editUrl(path));
+  editingFromView = true;
+  showRoute();
+}
+
+async function stopEditing() {
+  const { path, editing } = route();
+  if (!editing || !path || !(await mayLeaveEditor())) return;
+  editor.unmount();
+  if (editingFromView) {
+    editingFromView = false;
+    history.back();
+  } else {
+    history.replaceState(null, "", sidebar.viewUrl(path));
+    showRoute();
+  }
+}
 
 function showContent(path: string | null) {
   fileStatus.replaceChildren();
@@ -85,7 +168,7 @@ function refreshTree() {
       if (count === null) return;
       fileCount = count;
       // The empty-workspace page and "Choose a file" depend on the count.
-      if (!sidebar.pathFromUrl(location.pathname)) showContent(null);
+      if (!route().path) showContent(null);
     });
   }, 50);
 }
@@ -120,11 +203,12 @@ function onEvent(event: live.LiveEvent) {
   else if (reaction.refresh && current) refreshContentSoon(current);
 }
 
-function openFile(path: string, hash = "") {
+async function openFile(path: string, hash = "") {
+  if (!(await mayLeaveEditor())) return;
+  editingFromView = false;
   history.pushState(null, "", sidebar.viewUrl(path) + hash);
-  sidebar.setCurrent(path);
   sidebar.closeSidebarOverlay();
-  showContent(path);
+  showRoute();
 }
 
 // Links to `/view/…` open without a page load, as sidebar rows do.
@@ -144,7 +228,7 @@ async function showWorkspace(state: State) {
   if (start && location.pathname === "/") {
     history.replaceState(null, "", sidebar.viewUrl(start));
   }
-  const current = sidebar.pathFromUrl(location.pathname);
+  const current = route().path;
   const nav = document.createElement("nav");
   nav.id = "mdame-sidebar";
   nav.setAttribute("aria-label", "Files");
@@ -161,18 +245,47 @@ async function showWorkspace(state: State) {
   button.append(icon("panel"));
   status.prepend(button);
   sidebar.setupLayout({ frame, handle, backdrop, button });
-  bindKeys({ b: sidebar.toggleSidebar, "/": sidebar.focusFilter });
+  bindKeys({
+    b: sidebar.toggleSidebar,
+    "/": sidebar.focusFilter,
+    e: () => {
+      const { path, editing } = route();
+      if (path && !editing && view.shownPath() === path) startEditing(path);
+    },
+  });
   const mounted = sidebar.mount(nav, { root, current, onOpen: openFile });
   // Only the empty-workspace page needs the tree: a file shows at once.
-  if (current) showContent(current);
+  if (current) showRoute();
   fileCount = await mounted;
   if (!current) showContent(current);
 }
 
-addEventListener("popstate", () => {
-  const path = sidebar.pathFromUrl(location.pathname);
-  sidebar.setCurrent(path);
-  showContent(path);
+addEventListener("popstate", async () => {
+  const left = editor.openPath();
+  editingFromView = false;
+  const next = route();
+  if (left !== null && !(next.editing && next.path === left)) {
+    // The address has already changed: put the editor's back if the user
+    // keeps editing.
+    if (!(await mayLeaveEditor())) {
+      history.pushState(null, "", editUrl(left));
+      return;
+    }
+  }
+  showRoute();
+});
+
+// Esc reaches the page from inside CodeMirror too: bindKeys ignores it there.
+addEventListener("keydown", (event: KeyboardEvent) => {
+  if (event.key !== "Escape" || event.defaultPrevented) return;
+  if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+  // Esc in a dialog closes the dialog.
+  if ((event.target as Element).closest?.("dialog")) return;
+  if (!route().editing) return;
+  // Otherwise the browser applies this Esc to the dialog that it opens,
+  // which closes at once.
+  event.preventDefault();
+  stopEditing();
 });
 
 /** The root on screen: null on the picker, undefined before the first show. */

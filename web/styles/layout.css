@@ -37,6 +37,15 @@
   overflow-y: auto;
 }
 
+.mdame-editor,
+.mdame-editor .cm-editor {
+  height: 100%;
+}
+
+.mdame-editor .cm-scroller {
+  font-family: var(--font-mono);
+}
+
 .mdame-frame.sidebar-hidden #mdame-sidebar,
 .mdame-frame.sidebar-hidden .mdame-resize,
 .mdame-backdrop {

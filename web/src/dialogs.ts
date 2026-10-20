@@ -83,3 +83,42 @@ export function askHistory() {
   dialog.showModal();
   button.focus();
 }
+
+/** Asks before unsaved edits are lost. Resolves true to discard them. */
+export function confirmDiscard(): Promise<boolean> {
+  const dialog = document.createElement("dialog");
+  dialog.className = "mdame-dialog";
+  dialog.setAttribute("aria-labelledby", "mdame-discard-title");
+
+  const form = document.createElement("form");
+  form.method = "dialog";
+  const title = document.createElement("h2");
+  title.id = "mdame-discard-title";
+  title.textContent = "Discard unsaved changes?";
+  const intro = document.createElement("p");
+  intro.textContent = "The changes since the last save will be lost.";
+
+  const actions = document.createElement("div");
+  actions.className = "mdame-dialog-actions";
+  const keep = document.createElement("button");
+  keep.value = "keep";
+  keep.className = "is-secondary";
+  keep.textContent = "Keep editing";
+  const discard = document.createElement("button");
+  discard.value = "discard";
+  discard.textContent = "Discard";
+  actions.append(keep, discard);
+
+  form.append(title, intro, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  keep.focus();
+  // Esc closes with an empty returnValue: it keeps the edits.
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      resolve(dialog.returnValue === "discard");
+    });
+  });
+}

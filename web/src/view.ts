@@ -197,10 +197,16 @@ function notFound(el: HTMLElement, path: string, error: ApiError) {
   el.replaceChildren(page);
 }
 
-/** The page with no file chosen; `empty` when the workspace shows none. */
-export function showNothing(el: HTMLElement, empty: boolean) {
+/** Forgets the file on screen, as another screen replaces it: the next
+ * `showFile` renders it anew. */
+export function forget() {
   request++;
   shown = undefined;
+}
+
+/** The page with no file chosen; `empty` when the workspace shows none. */
+export function showNothing(el: HTMLElement, empty: boolean) {
+  forget();
   message(
     el,
     empty

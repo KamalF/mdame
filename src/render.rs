@@ -310,6 +310,27 @@ mod tests {
         }
     }
 
+    proptest::proptest! {
+        #[test]
+        fn relative_urls_stay_under_raw(
+            path in "([a-z %#?]{1,3}/){0,3}[a-z]{1,3}\\.md",
+            parts in proptest::collection::vec(
+                // URL parsers read `%2e` as a dot.
+                proptest::sample::select(&["..", ".", "%2e%2e", "%2E.", ".%2e", "a", "b c", "%25"][..]),
+                1..6,
+            ),
+        ) {
+            let url = parts.join("/");
+            let resolved = raw(&path, &url).unwrap();
+            let rest = resolved.strip_prefix("/raw/");
+            proptest::prop_assert!(rest.is_some(), "{resolved}");
+            for segment in rest.unwrap().split('/') {
+                let dots = segment.to_lowercase().replace("%2e", ".");
+                proptest::prop_assert!(dots != "." && dots != "..", "{resolved}");
+            }
+        }
+    }
+
     #[test]
     fn front_matter_is_hidden_and_keeps_the_line_numbers() {
         for fence in ["+++", "---"] {

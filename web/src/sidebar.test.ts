@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import fc from "fast-check";
+import { workspacePath } from "./arbitrary.ts";
 import {
   ancestors,
   clampWidth,
@@ -98,7 +100,7 @@ test("filter finds names saved with combining accents (NFD)", () => {
 
 test("view URLs encode each part and keep the slashes", () => {
   expect(viewUrl("docs/a b.md")).toBe("/view/docs/a%20b.md");
-  expect(pathFromUrl("/view/docs/a%20b.md")).toBe("docs/a b.md");
+  fc.assert(fc.property(workspacePath, (path) => pathFromUrl(viewUrl(path)) === path));
   expect(pathFromUrl("/view/%E0")).toBe(null);
   expect(pathFromUrl("/")).toBe(null);
 });

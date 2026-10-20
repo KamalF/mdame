@@ -121,7 +121,7 @@ Run by hand on 20 October 2026: all 8 checks passed. Run mdame on a test folder,
 - History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 
 - From the review of milestone 5, for later:
-  - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target; mdame drops the events, but the watches use up the inotify limit. Report upstream to notify-rs.
+  - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs.
   - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
   - Two tabs that open different folders at the same moment both start a watcher; the loser's events reach the tabs for about 50 ms.
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.

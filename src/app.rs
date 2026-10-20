@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::Parser;
 use tokio::net::TcpListener;
-use tokio::sync::{Semaphore, broadcast};
+use tokio::sync::broadcast;
 
 use crate::config::{self, Config, Recents};
 use crate::error::{ApiError, io_message};
@@ -15,8 +15,6 @@ use crate::watch::{self, EVENT_CAPACITY, Event};
 use crate::workspace::Workspace;
 
 const PORT_ATTEMPTS: usize = 10;
-
-pub const RENDER_SLOTS: usize = 2;
 
 #[derive(Parser)]
 #[command(version)]
@@ -53,9 +51,6 @@ pub struct AppState {
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
     pub recents_path: PathBuf,
-    /// Render slots: a crafted file can take minutes to render, and a page
-    /// can ask for many such renders at once.
-    pub renders: Arc<Semaphore>,
     pub events: broadcast::Sender<Event>,
 }
 
@@ -133,7 +128,6 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         config: RwLock::new(config),
         config_path,
         recents_path,
-        renders: Arc::new(Semaphore::new(RENDER_SLOTS)),
         events: broadcast::channel(EVENT_CAPACITY).0,
     };
     if let Some(path) = &args.path {

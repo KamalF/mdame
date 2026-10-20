@@ -317,19 +317,9 @@ async fn file(
 ) -> Result<Json<View>, ApiError> {
     let Query(query) = query?;
     let workspace = app.workspace()?;
-    let Ok(slot) = app.renders.clone().try_acquire_owned() else {
-        return Err(ApiError::Conflict(
-            "other files are still rendering, try again in a moment".to_owned(),
-        ));
-    };
-    // Reading and rendering a large file takes a while. The render goes on
-    // even when the browser stops waiting, so the task holds the slot.
+    // Reading and rendering a large file takes a while.
     let path = query.path.clone();
-    let view = tokio::task::spawn_blocking(move || {
-        let _slot = slot;
-        document::view(&workspace.dir, &path)
-    })
-    .await?;
+    let view = tokio::task::spawn_blocking(move || document::view(&workspace.dir, &path)).await?;
     view.map(Json)
         .map_err(|error| file_error(&query.path, error))
 }

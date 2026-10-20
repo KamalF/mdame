@@ -129,7 +129,6 @@ Run by hand on 20 October 2026: all 8 checks passed. Run mdame on a test folder,
   - The status bar's "Copy content" calls `fetch` directly, outside `api.ts` (from milestone 4).
   - A folder deleted between notify's inotify add and its stat gives `Io(NotFound)` with no path, which still turns live updates off; skipping it needs a retry.
   - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
-  - A `busy` error code for the render slots: today any 409 makes a refresh retry, also "no workspace is open" (not reachable during a refresh).
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
 - The watcher watches gitignored folders too (`target/`, `node_modules/`: 2 600 of this repo's 2 900 folders), so a `cargo build` in the workspace sends events and `resync`s for files the tree never shows. Measure in the browser after milestone 5 before filtering.
 - `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.

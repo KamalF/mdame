@@ -2,13 +2,11 @@ mod common;
 
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
 
 use axum::http::StatusCode;
 use common::{HOST, local, send};
 use mdame::app::AppState;
 use serde_json::Value;
-use tokio::sync::Semaphore;
 
 async fn get_file(state: AppState, path: &str) -> (StatusCode, Value) {
     let uri = format!("/api/file?path={path}");
@@ -121,32 +119,6 @@ async fn link_inside_the_workspace_opens() {
     let (status, body) = get_file(state, "link.md").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["family"], "markdown");
-}
-
-#[tokio::test]
-async fn no_render_without_a_free_slot() {
-    let dir = tempfile::tempdir().unwrap();
-    let state = AppState {
-        renders: Arc::new(Semaphore::new(0)),
-        ..workspace(dir.path())
-    };
-    let (status, body) = get_file(state, "docs/a.md").await;
-    assert_eq!(status, StatusCode::CONFLICT);
-    assert_eq!(body["error"]["code"], "conflict");
-}
-
-#[tokio::test]
-async fn a_render_frees_its_slot() {
-    let dir = tempfile::tempdir().unwrap();
-    let renders = Arc::new(Semaphore::new(1));
-    for _ in 0..2 {
-        let state = AppState {
-            renders: renders.clone(),
-            ..workspace(dir.path())
-        };
-        let (status, _) = get_file(state, "docs/a.md").await;
-        assert_eq!(status, StatusCode::OK);
-    }
 }
 
 #[tokio::test]

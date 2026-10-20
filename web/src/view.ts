@@ -23,7 +23,6 @@ function message(el: HTMLElement, text: string) {
 }
 
 let request = 0;
-const BUSY_RETRY_MS = 300;
 /** The file on screen, as `{path, file}`. */
 let shown: { path: string; file: FileView } | undefined;
 
@@ -37,13 +36,8 @@ export function viewHref(href: string): string {
 }
 
 /** Shows the rendered file in `el`, and returns its `/api/file` answer, or
- * null when it failed or a later request replaced this one. With
- * `waitWhenBusy`, a busy server is asked again rather than reported. */
-export async function showFile(
-  el: HTMLElement,
-  path: string,
-  waitWhenBusy = false,
-): Promise<FileView | null> {
+ * null when it failed or a later request replaced this one. */
+export async function showFile(el: HTMLElement, path: string): Promise<FileView | null> {
   // Moving between `#…` of the file on screen only scrolls, and its
   // diagrams may still move the target.
   if (shown?.path === path) {
@@ -52,7 +46,7 @@ export async function showFile(
   }
   const id = ++request;
   shown = undefined;
-  const file = await fetchFile(el, path, id, waitWhenBusy);
+  const file = await fetchFile(el, path, id);
   if (!file) return null;
   shown = { path, file };
   const article = articleFor(file);
@@ -71,9 +65,9 @@ export async function showFile(
  * that failed to show, such as a deleted one now back, is shown anew.
  */
 export async function refreshFile(el: HTMLElement, path: string): Promise<FileView | null> {
-  if (shown?.path !== path) return showFile(el, path, true);
+  if (shown?.path !== path) return showFile(el, path);
   const id = ++request;
-  const file = await fetchFile(el, path, id, true);
+  const file = await fetchFile(el, path, id);
   if (!file) return null;
   const article = articleFor(file);
   // Coloured and drawn before the morph, so plain code never flashes.
@@ -106,24 +100,13 @@ export function renameShown(path: string) {
 }
 
 /** The file, or null when it failed or request `id` is no longer the latest. */
-async function fetchFile(
-  el: HTMLElement,
-  path: string,
-  id: number,
-  waitWhenBusy: boolean,
-): Promise<FileView | null> {
+async function fetchFile(el: HTMLElement, path: string, id: number): Promise<FileView | null> {
   try {
     const file = await api<FileView>("GET", `/api/file?path=${encodeURIComponent(path)}`);
     return id === request ? file : null;
   } catch (error) {
     // A click on another file meanwhile wins over this answer.
     if (id !== request) return null;
-    // Every tab refreshes at once on a change, and the server renders two
-    // files at a time: a refresh waits rather than replace the document.
-    if (waitWhenBusy && (error as ApiError).code === "conflict") {
-      await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_MS));
-      return fetchFile(el, path, id, true);
-    }
     shown = undefined;
     notFound(el, path, error as ApiError);
     return null;

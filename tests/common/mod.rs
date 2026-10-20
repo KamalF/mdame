@@ -5,13 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use axum::{body::Body, http::Request, response::Response};
-use mdame::{
-    app::{AppState, RENDER_SLOTS},
-    config::Config,
-    server::router,
-    watch::EVENT_CAPACITY,
-};
-use tokio::sync::{Semaphore, broadcast};
+use mdame::{app::AppState, config::Config, server::router, watch::EVENT_CAPACITY};
+use tokio::sync::broadcast;
 use tower::ServiceExt;
 
 pub async fn send(state: AppState, uri: &str, headers: &[(&str, &str)]) -> Response {
@@ -31,7 +26,6 @@ pub fn local() -> AppState {
         config: RwLock::new(Config::default()),
         config_path: PathBuf::new(),
         recents_path: PathBuf::new(),
-        renders: Arc::new(Semaphore::new(RENDER_SLOTS)),
         events: broadcast::channel(EVENT_CAPACITY).0,
     }
 }

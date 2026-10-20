@@ -387,10 +387,8 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
     highlight = results.findIndex((result) => result.file.path === chosen);
     render();
     if (focused !== undefined) {
-      const line = [...list.querySelectorAll<HTMLElement>(".mdame-tree-line")].find(
-        (line) => line.dataset.path === focused,
-      );
-      line?.querySelector<HTMLElement>(".mdame-tree-row")?.focus();
+      const row = `.mdame-tree-line[data-path="${CSS.escape(focused)}"] > .mdame-tree-row`;
+      list.querySelector<HTMLElement>(row)?.focus();
     }
     return allFiles.length;
   };

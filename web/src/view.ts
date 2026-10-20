@@ -110,7 +110,7 @@ async function fetchFile(
   el: HTMLElement,
   path: string,
   id: number,
-  waitWhenBusy = false,
+  waitWhenBusy: boolean,
 ): Promise<FileView | null> {
   try {
     const file = await api<FileView>("GET", `/api/file?path=${encodeURIComponent(path)}`);

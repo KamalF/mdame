@@ -37,7 +37,6 @@ export function connect({
   onReconnect: () => void;
 }): Promise<void> {
   let failures = 0;
-  let missed = false;
   let firstAttempt: () => void;
   const settled = new Promise<void>((resolve) => (firstAttempt = resolve));
   function open() {
@@ -45,14 +44,12 @@ export function connect({
     const socket = new WebSocket(`${scheme}//${location.host}/ws`);
     socket.addEventListener("open", () => {
       firstAttempt();
+      if (failures > 0) onReconnect();
       failures = 0;
-      if (missed) onReconnect();
-      missed = false;
     });
     socket.addEventListener("message", (message) => onEvent(JSON.parse(message.data)));
     socket.addEventListener("close", () => {
       firstAttempt();
-      missed = true;
       setTimeout(open, retryDelay(failures++));
     });
   }

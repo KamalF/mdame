@@ -15,6 +15,38 @@ export function movedPath(open: string, from: string, to: string): string | null
   return isWithin(open, from) ? to + open.slice(from.length) : null;
 }
 
+/** What the page does for a live event. */
+export type Reaction =
+  | { kind: "ignore" }
+  | { kind: "reload" }
+  | { kind: "update"; tree: boolean; refresh: boolean; followTo: string | null };
+
+/**
+ * `open` is the file on screen, `onPicker` whether the picker is on screen,
+ * and `dated(path)` whether a change to `path` can move it in the tree's
+ * sort.
+ */
+export function react(
+  event: LiveEvent,
+  open: string | null,
+  onPicker: boolean,
+  dated: (path: string) => boolean,
+): Reaction {
+  if (event.type === "workspace") return onPicker ? { kind: "reload" } : { kind: "ignore" };
+  if (event.type === "resync") return { kind: "reload" };
+  const tree = event.type !== "changed" || dated(event.path);
+  const update = { kind: "update", tree, refresh: false, followTo: null } as const;
+  if (!open) return update;
+  if (event.type === "renamed" && !isWithin(open, event.to)) {
+    const followTo = movedPath(open, event.from, event.to);
+    if (followTo) return { ...update, followTo };
+  }
+  const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
+  // Asks again rather than show "Not found": a save, or a folder moved
+  // in, can bring the file back.
+  return { ...update, refresh: paths.some((path) => isWithin(open, path)) };
+}
+
 const FIRST_RETRY_MS = 500;
 const MAX_RETRY_MS = 10_000;
 

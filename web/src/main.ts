@@ -91,10 +91,9 @@ function refreshTree() {
 }
 
 /** Keeps showing the open file, or a file in a folder, after a rename. */
-async function follow(from: string, to: string) {
+async function follow(moved: string) {
   const current = sidebar.pathFromUrl(location.pathname);
-  const moved = current && live.movedPath(current, from, to);
-  if (!moved) return;
+  if (!current) return;
   // An editor that saves by renaming the file to a backup writes it again
   // at once, possibly in the next batch: the page stays on the file.
   const stayed = await exists(view.rawUrl(current));
@@ -111,24 +110,14 @@ async function follow(from: string, to: string) {
 }
 
 function onEvent(event: live.LiveEvent) {
-  if (event.type === "workspace") {
-    if (shownRoot === null) refresh();
-    return;
-  }
-  if (event.type === "resync") {
-    refresh();
-    return;
-  }
-  const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
-  if (event.type !== "changed" || sidebar.orderDependsOn(event.path)) refreshTree();
-  view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
-  if (!current) return;
-  const moved = event.type === "renamed" && !live.isWithin(current, event.to);
-  if (moved && live.isWithin(current, event.from)) follow(event.from, event.to);
-  // Asks again rather than show "Not found": a save, or a folder moved
-  // in, can bring the file back.
-  else if (paths.some((path) => live.isWithin(current, path))) refreshContentSoon(current);
+  const reaction = live.react(event, current, shownRoot === null, sidebar.orderDependsOn);
+  if (reaction.kind === "reload") refresh();
+  if (reaction.kind !== "update") return;
+  if (reaction.tree) refreshTree();
+  view.refreshImages(content);
+  if (reaction.followTo) follow(reaction.followTo);
+  else if (reaction.refresh && current) refreshContentSoon(current);
 }
 
 function openFile(path: string, hash = "") {

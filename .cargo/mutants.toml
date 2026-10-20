@@ -14,6 +14,9 @@ exclude_re = [
     "document.rs.*replace == with != in view",
     # Without this shortcut, the read stops at the limit with the same result.
     "size > RENDER_LIMIT with false in view",
-    # Needs the inotify watch limit reached.
+    # Needs the inotify watch limit reached, or a folder deleted during the walk.
     "can_skip\\(&error\\) with true in watch_readable",
+    "can_skip\\(&error\\) with (true|false) in watch_around",
+    # Sends every class through the filter: the same names come out.
+    "value.contains\\(\"mdame-\"\\) with true in no_app_names",
 ]

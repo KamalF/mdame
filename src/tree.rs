@@ -245,10 +245,12 @@ mod tests {
     }
 
     #[test]
-    fn link_to_a_folder_completes_as_a_folder() {
+    fn links_complete_as_their_target() {
         let home = home();
         std::os::unix::fs::symlink(home.path().join("notes"), home.path().join("link")).unwrap();
-        assert_eq!(paths("~/li", home.path()), ["~/link/"]);
+        std::os::unix::fs::symlink(home.path().join("todo.md"), home.path().join("lint.md"))
+            .unwrap();
+        assert_eq!(paths("~/li", home.path()), ["~/link/", "~/lint.md"]);
     }
 
     #[test]

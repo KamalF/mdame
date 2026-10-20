@@ -157,6 +157,12 @@ mod tests {
     }
 
     #[test]
+    fn unreadable_file_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(load::<Config>(dir.path()).is_err());
+    }
+
+    #[test]
     fn reads_config_and_recents() {
         let dir = tempfile::tempdir().unwrap();
         let config_path = dir.path().join("config.toml");

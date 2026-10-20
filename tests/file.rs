@@ -36,9 +36,14 @@ async fn markdown_file_is_rendered() {
 #[tokio::test]
 async fn file_over_1_mb_is_not_rendered() {
     let dir = tempfile::tempdir().unwrap();
-    let state = workspace(dir.path());
+    workspace(dir.path());
+    fs::write(dir.path().join("ws/limit.txt"), "a".repeat(1024 * 1024)).unwrap();
     fs::write(dir.path().join("ws/big.txt"), "a".repeat(1024 * 1024 + 1)).unwrap();
-    let (status, body) = get_file(state, "big.txt").await;
+
+    let (status, body) = get_file(workspace(dir.path()), "limit.txt").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["too_large"], false);
+    let (status, body) = get_file(workspace(dir.path()), "big.txt").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["too_large"], true);
     assert!(body["html"].as_str().unwrap().contains("over 1 MB"));

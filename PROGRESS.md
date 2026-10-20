@@ -112,20 +112,26 @@ Run by hand on 20 October 2026: all 8 checks passed. Run mdame on a test folder,
 7. Open two tabs on the picker, open a workspace in one: the other follows.
 8. Restart mdame: the page reconnects; on another workspace, it reloads.
 
+## Test cleanup before milestone 6
+
+Done 20 October 2026, after the testing rules in `docs/SPEC.md`:
+
+- The guard as one table test.
+- `tests/routes.rs`: every route refuses a foreign `Origin`, every route that changes state takes JSON only, every path route stays in the workspace. The per-route copies are gone; `tests/common` holds the shared helpers.
+- One home per rule: front matter, `.mdame` filtering, lookup-table tests. The hostile-HTML test checks for dangerous tags, attributes and URLs, beside its snapshot.
+- Property tests (`proptest`, `fast-check`) for relative URL rewriting and the view URL round trip.
+- `live.react`: the page's reaction to a live event, as a pure function with tests.
+- `cargo mutants` baseline: 294 mutants, 31 missed. Tests added for the constant-time token compare, the 1 MB and 64 MB limits at their boundary, the port fallback on other errors, the refusal message and a workspace path through a file. The mutants that no test should catch are excluded in `.cargo/mutants.toml`, each with its reason.
+
 ## Next
 
-1. Test cleanup before milestone 6, after the testing rules in `docs/SPEC.md`:
-   1. `cargo mutants` baseline.
-   2. The guard as one table test.
-   3. Matrix tests: every path route stays in the workspace; every route that changes state takes JSON only; every route refuses a foreign `Origin`.
-   4. Explicit checks in the hostile-HTML test.
-   5. Property tests for relative URL rewriting and the view URL round trip.
-   6. Remove the tests that repeat another one or test a library; share the `tests/common` helpers.
-   7. The page's reaction to a live event as a pure function, with tests.
-2. Milestone 6 (editor) on `m6-editor`: write its rules as test names first.
+1. Milestone 6 (editor) on `m6-editor`: write its rules as test names first.
 
 ## Open points
 
+- From the `cargo mutants` baseline:
+  - `tree.rs`: the `.mdame` filter in `filter_entry` never acts: the walker already skips hidden entries. Remove it, or keep it in case hidden files are shown one day.
+  - Under `--jobs 4`, the watcher tests can fail from load, so a mutant counts as caught when no check caught it. Two did in the baseline.
 - History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 
 - From the review of milestone 5, for later:

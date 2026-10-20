@@ -175,11 +175,14 @@ async fn second_open_is_a_conflict() {
 }
 
 #[tokio::test]
-async fn missing_or_relative_path_is_refused() {
+async fn missing_relative_or_impossible_path_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let missing = dir.path().join("missing");
+    fs::write(dir.path().join("a.md"), "").unwrap();
+    let through_file = dir.path().join("a.md/notes");
     let cases = [
         (missing.to_str().unwrap(), StatusCode::NOT_FOUND),
+        (through_file.to_str().unwrap(), StatusCode::BAD_REQUEST),
         ("notes", StatusCode::BAD_REQUEST),
     ];
     for (path, expected) in cases {

@@ -23,7 +23,7 @@ fn network(bound: &str) -> AppState {
 #[tokio::test]
 async fn request_passes_only_with_own_host_own_origin_and_the_token() {
     #[rustfmt::skip]
-    let cases: [(_, _, _, &[(&str, &str)], _); 19] = [
+    let cases: [(_, _, _, &[(&str, &str)], _); 21] = [
         ("loopback, no origin", LOOPBACK, "/api/state", &[("host", "127.0.0.1:4891")], OK),
         ("own origin, 127.0.0.1", LOOPBACK, "/api/state", &[("host", "127.0.0.1:4891"), ("origin", "http://127.0.0.1:4891")], OK),
         ("own origin, localhost", LOOPBACK, "/api/state", &[("host", "localhost:4891"), ("origin", "http://localhost:4891")], OK),
@@ -40,6 +40,9 @@ async fn request_passes_only_with_own_host_own_origin_and_the_token() {
         ("network, cookie token", ALL, "/api/state", &[("host", "192.168.1.5:4891"), ("cookie", "theme=dark; mdame_token_4891=secret")], OK),
         ("network, no token", ALL, "/api/state", &[("host", "192.168.1.5:4891")], FORBIDDEN),
         ("network, wrong query token", ALL, "/api/state?t=guess", &[("host", "192.168.1.5:4891")], FORBIDDEN),
+        ("network, token cut short", ALL, "/api/state?t=secre", &[("host", "192.168.1.5:4891")], FORBIDDEN),
+        // Two bytes changed by the same bit: an XOR of the differences cancels out.
+        ("network, token with two bytes changed alike", ALL, "/api/state?t=rdcret", &[("host", "192.168.1.5:4891")], FORBIDDEN),
         ("network, wrong cookie token", ALL, "/api/state", &[("host", "192.168.1.5:4891"), ("cookie", "mdame_token_4891=guess")], FORBIDDEN),
         ("network, host with another port", ALL, "/api/state?t=secret", &[("host", "192.168.1.5:3000")], FORBIDDEN),
         ("network, token with a foreign origin", ALL, "/api/state?t=secret", &[("host", "192.168.1.5:4891"), ("origin", "https://evil.example")], FORBIDDEN),

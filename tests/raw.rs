@@ -78,11 +78,17 @@ async fn missing_files_and_folders_are_not_found() {
 #[tokio::test]
 async fn file_over_64_mb_is_refused() {
     let dir = tempfile::tempdir().unwrap();
-    let state = workspace(dir.path());
-    // Sparse: it takes no disk space.
-    let file = fs::File::create(dir.path().join("ws/huge.bin")).unwrap();
-    file.set_len(1 << 40).unwrap();
-    let response = get_raw(state, "huge.bin").await;
+    workspace(dir.path());
+    let limit = 64 * 1024 * 1024;
+    // Sparse: they take no disk space.
+    for (name, size) in [("limit.bin", limit), ("huge.bin", limit + 1)] {
+        let file = fs::File::create(dir.path().join("ws").join(name)).unwrap();
+        file.set_len(size).unwrap();
+    }
+
+    let response = get_raw(workspace(dir.path()), "limit.bin").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = get_raw(workspace(dir.path()), "huge.bin").await;
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 

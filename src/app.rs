@@ -247,6 +247,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn other_bind_error_stops_the_fallback() {
+        // TEST-NET-1: no machine has this address.
+        let foreign = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1));
+        let error = bind_first_free(foreign, 4891, 10).await.unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::AddrNotAvailable);
+    }
+
+    #[tokio::test]
     async fn all_ports_busy_is_an_error() {
         let (_held, busy) = busy_port().await;
         let error = bind_first_free(LOCALHOST, busy, 1).await.unwrap_err();

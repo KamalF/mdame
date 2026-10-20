@@ -93,3 +93,21 @@ pub fn modified_secs(metadata: &Metadata) -> Option<u64> {
     let modified = metadata.modified().ok()?.into_std();
     Some(modified.duration_since(UNIX_EPOCH).ok()?.as_secs())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cap_std::ambient_authority;
+
+    #[test]
+    fn read_at_most_refuses_a_file_over_the_limit() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "abcd").unwrap();
+        let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+
+        let bytes = read_at_most(dir.open("a.txt").unwrap(), 4).unwrap();
+        assert_eq!(bytes, b"abcd");
+        let error = read_at_most(dir.open("a.txt").unwrap(), 3).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::FileTooLarge);
+    }
+}

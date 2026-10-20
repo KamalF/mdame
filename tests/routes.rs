@@ -6,7 +6,7 @@ use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
-use common::{HOST, send, send_body};
+use common::{HOST, send_body, status_and_json};
 use mdame::app::AppState;
 
 const ROUTES: [(Method, &str); 13] = [
@@ -77,8 +77,15 @@ async fn path_routes_stay_in_the_workspace() {
     for route in PATH_ROUTES {
         for (path, expected) in &cases {
             let uri = route.replace("{}", &path.replace('/', "%2F"));
-            let status = send(workspace(dir.path()), &uri, &[HOST]).await.status();
-            assert_eq!(status, *expected, "{uri}");
+            let response = send_body(workspace(dir.path()), Method::GET, &uri, &[HOST], "").await;
+            assert_eq!(response.status(), *expected, "{uri}");
+            if *expected == StatusCode::FORBIDDEN {
+                let (_, body) = status_and_json(response).await;
+                assert_eq!(
+                    body["error"]["message"], "path outside the workspace",
+                    "{uri}"
+                );
+            }
         }
     }
 }

@@ -341,6 +341,29 @@ async fn source(
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct RenderRequest {
+    path: String,
+    content: String,
+}
+
+#[derive(Serialize)]
+struct Rendered {
+    html: String,
+}
+
+async fn render(
+    body: Result<Json<RenderRequest>, JsonRejection>,
+) -> Result<Json<Rendered>, ApiError> {
+    let Json(request) = body?;
+    let path = request.path.clone();
+    let html =
+        tokio::task::spawn_blocking(move || document::preview(&path, &request.content)).await?;
+    html.map(|html| Json(Rendered { html }))
+        .map_err(|error| file_error(&request.path, error))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SaveRequest {
     content: String,
     base_version: String,
@@ -432,6 +455,10 @@ pub fn router(app_state: Arc<AppState>) -> Router {
                 .layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),
         )
         .route("/api/source", get(source))
+        .route(
+            "/api/render",
+            post(render).layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),
+        )
         .route("/ws", get(ws::handler))
         .layer(middleware::from_fn_with_state(app_state.clone(), guard))
         .layer(middleware::from_fn(security_headers))

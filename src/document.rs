@@ -30,8 +30,7 @@ pub struct View {
 /// that exists with no family gives `Unsupported`.
 pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
     let (file, metadata) = open_file(dir, path)?;
-    let family = Family::of(path)
-        .ok_or_else(|| io::Error::new(ErrorKind::Unsupported, "not a viewable file"))?;
+    let family = Family::of(path).ok_or_else(not_viewable)?;
     let size = metadata.len();
     let html = match family {
         Family::Image => Some(render::file(family, path, "")),
@@ -55,6 +54,22 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
         size,
         too_large,
     })
+}
+
+/// The editor's preview: `text` as the view would show it at `path`.
+pub fn preview(path: &str, text: &str) -> io::Result<String> {
+    let family = Family::of(path).ok_or_else(not_viewable)?;
+    if text.len() as u64 > RENDER_LIMIT {
+        return Ok(
+            "<p class=\"mdame-notice\">This file is over 1 MB, too large to preview.</p>"
+                .to_owned(),
+        );
+    }
+    Ok(render::file(family, path, text))
+}
+
+fn not_viewable() -> io::Error {
+    io::Error::new(ErrorKind::Unsupported, "not a viewable file")
 }
 
 /// The bytes of the file at `path` and the type to serve them with. Over

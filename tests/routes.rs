@@ -11,7 +11,7 @@ use mdame::app::AppState;
 use mdame::document::version;
 use serde_json::json;
 
-const ROUTES: [(Method, &str); 15] = [
+const ROUTES: [(Method, &str); 16] = [
     (Method::GET, "/"),
     (Method::GET, "/view/a.md"),
     (Method::GET, "/edit/a.md"),
@@ -26,6 +26,7 @@ const ROUTES: [(Method, &str); 15] = [
     (Method::GET, "/api/file?path=a.md"),
     (Method::PUT, "/api/file?path=a.md"),
     (Method::GET, "/api/source?path=a.md"),
+    (Method::POST, "/api/render"),
     (Method::GET, "/ws"),
 ];
 

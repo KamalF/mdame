@@ -140,7 +140,7 @@ Rules, as test names, by commit:
 1. `history.rs` (done): `workspace_mode_keeps_history_in_dot_mdame`, `creating_dot_mdame_writes_its_gitignore`, `an_existing_dot_mdame_is_left_as_it_is`, `state_mode_keeps_history_under_the_encoded_workspace_path`, `encode_path_replaces_every_non_alphanumeric_with_a_dash`, `snapshot_goes_under_the_file_path_named_by_the_time`, `two_snapshots_in_the_same_millisecond_are_both_kept`.
 2. `GET /api/source` (done): `source_returns_the_text_and_its_version`, `version_follows_the_content`, `source_refuses_what_is_not_utf8_text` (an image too: 404 `not_viewable`), `source_refuses_a_file_over_the_edit_limit`; rows in the `tests/routes.rs` matrix.
 3. `PUT /api/file` with JSON `content` and `base_version`, 409 (done): `save_writes_the_content_when_the_version_matches` (it also returns the new version), `save_snapshots_the_old_content_first`, `save_with_a_stale_version_is_refused_and_writes_nothing`, `save_of_a_deleted_file_is_refused`, `save_takes_content_up_to_the_edit_limit`; rows in the routes matrix. A save never creates a file: `POST /api/file` does, as the spec says.
-4. `POST /api/render`: `render_route_gives_the_same_html_as_the_view`.
+4. `POST /api/render` (done): `preview_gives_the_same_html_as_the_view`, `preview_over_1_mb_shows_a_notice`; rows in the routes matrix.
 5. Editor screen: load, save, unsaved dot, leave-page warning, `e` and `Esc`. `dirty_means_the_text_differs_from_the_saved_text`, `e_opens_the_editor`, `esc_closes_it`.
 6. Split, divider, preview: `a_response_older_than_the_latest_request_is_dropped`.
 7. Scroll sync: `maps_a_line_to_the_last_block_starting_at_or_before_it`, `interpolates_towards_the_next_block`, `before_the_first_block_is_the_top`, `past_the_last_block_is_the_end`, `preview_to_editor_inverts_editor_to_preview` (property test).
@@ -152,7 +152,7 @@ Rules, as test names, by commit:
 
 ## Next
 
-1. Milestone 6, commit 4: `POST /api/render`.
+1. Milestone 6, commit 5: the editor screen.
 
 ## Open points
 

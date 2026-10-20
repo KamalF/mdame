@@ -6,7 +6,8 @@ use cap_std::fs::Dir;
 
 use crate::watch::Watcher;
 
-/// mdame's own folder in the workspace: never shown, never watched.
+/// mdame's own folder in the workspace: never shown, and its events are
+/// ignored.
 pub const OWN_DIR: &str = ".mdame";
 
 pub struct Workspace {

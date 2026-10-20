@@ -326,7 +326,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 
 | Event | Fields | Browser reaction |
 | --- | --- | --- |
-| `changed` | `path` | If it is the open file: refetch and morph; in the editor, show the "changed on disk" notice |
+| `changed` | `path` | If it is the open file or a folder holding it: refetch and morph; in the editor, show the "changed on disk" notice |
 | `created` | `path` | Refetch the tree; if it is the open file or a folder holding it, refetch the file too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, refetch the file, which shows not-found unless it is already back |
 | `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again); if `to` is the open file or a folder holding it, refetch the file |

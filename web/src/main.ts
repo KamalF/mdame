@@ -110,13 +110,9 @@ async function follow(from: string, to: string) {
   refreshContent(moved);
 }
 
-let workspaceBeforeShow = false;
-
 function onEvent(event: live.LiveEvent) {
   if (event.type === "workspace") {
     if (shownRoot === null) refresh();
-    // The first state may be older than this event.
-    else if (shownRoot === undefined) workspaceBeforeShow = true;
     return;
   }
   if (event.type === "resync") {
@@ -226,7 +222,6 @@ await live.connect({ onEvent, onReconnect: refresh });
 
 const state = await api<State>("GET", "/api/state");
 show(state);
-if (workspaceBeforeShow && shownRoot === null) refresh();
 if (state.needs_setup) {
   askHistory();
 }

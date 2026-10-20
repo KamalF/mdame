@@ -1,0 +1,16 @@
+# Mutants that no test should catch. A run then shows only new gaps.
+exclude_re = [
+    # Start-up wiring: the manual checklist covers it.
+    "replace main -> ExitCode",
+    "replace run -> Result",
+    "replace (config_file|state_dir|recents_file) ->",
+    # Lookup tables: a test would only repeat them.
+    "delete match arm .* in (Family::of|image_type|content_type)",
+    # A file that grows between its size check and its read: a race.
+    "document.rs.*ErrorKind::FileTooLarge with (true|false) in view",
+    "document.rs.*replace == with != in view",
+    # Without this shortcut, the read stops at the limit with the same result.
+    "size > RENDER_LIMIT with false in view",
+    # Needs the inotify watch limit reached.
+    "can_skip\\(&error\\) with true in watch_readable",
+]

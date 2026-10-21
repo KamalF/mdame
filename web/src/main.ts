@@ -64,12 +64,20 @@ function showEditStatus(state: editor.EditorState) {
   error.className = "mdame-status-error";
   error.setAttribute("role", "alert");
   error.textContent = state.error ?? "";
+  const preview = document.createElement("button");
+  preview.className = "mdame-icon-button";
+  const label = state.preview ? "Hide preview" : "Show preview";
+  preview.setAttribute("aria-label", label);
+  preview.title = label;
+  preview.setAttribute("aria-pressed", String(state.preview));
+  preview.append(icon("columns"));
+  preview.addEventListener("click", () => editor.togglePreview());
   const save = document.createElement("button");
   save.className = "mdame-status-button";
   save.title = "Save (Ctrl+S)";
   save.textContent = "Save";
   save.addEventListener("click", () => editor.save());
-  fileStatus.replaceChildren(name, dot, modified, error, save);
+  fileStatus.replaceChildren(name, dot, modified, error, preview, save);
 }
 
 const content = document.createElement("div");

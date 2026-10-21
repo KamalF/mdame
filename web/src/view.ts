@@ -49,7 +49,7 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   const file = await fetchFile(el, path, id);
   if (!file) return null;
   shown = { path, file };
-  const article = articleFor(file);
+  const article = articleFor(file.html);
   el.replaceChildren(article);
   el.scrollTop = 0;
   scrollToHash();
@@ -69,24 +69,35 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   const id = ++request;
   const file = await fetchFile(el, path, id);
   if (!file) return null;
-  const article = articleFor(file);
-  // Coloured and drawn before the morph, so plain code never flashes.
-  await Promise.all([highlightAll(article), renderDiagrams(article)]);
+  const article = await prepare(file.html);
   if (id !== request) return null;
   shown = { path, file };
+  morphInto(el.querySelector<HTMLElement>(":scope > article")!, article);
+  return file;
+}
+
+/** The article for `html`, coloured and with its diagrams drawn, ready for
+ * `morphInto` without a flash of plain code. */
+export async function prepare(html: string): Promise<HTMLElement> {
+  const article = articleFor(html);
+  await Promise.all([highlightAll(article), renderDiagrams(article)]);
   // An image may have changed during the wait above.
   for (const img of article.querySelectorAll("img")) useVersion(img);
-  const shownArticle = el.querySelector<HTMLElement>(":scope > article")!;
-  Idiomorph.morph(shownArticle, article, {
+  return article;
+}
+
+/** Replaces only what differs between `shown` and `next`: the scroll
+ * position, a text selection and open `<details>` stay. */
+export function morphInto(shown: HTMLElement, next: HTMLElement) {
+  Idiomorph.morph(shown, next, {
     // The server's HTML never has it: a `<details>` the reader opened stays open.
     callbacks: { beforeAttributeUpdated: (name, _, type) => !(name === "open" && type === "remove") },
   });
   // idiomorph inserts copies of new nodes, without their click listeners.
-  for (const block of shownArticle.querySelectorAll(".mdame-code")) {
+  for (const block of shown.querySelectorAll(".mdame-code")) {
     const button = block.querySelector(":scope > button");
     if (button && !copyButtons.has(button)) button.replaceWith(codeCopyButton(block));
   }
-  return file;
 }
 
 /** The path of the file on screen, if one is. */
@@ -141,11 +152,11 @@ export function refreshImages(el: HTMLElement) {
   for (const img of el.querySelectorAll("img")) useVersion(img);
 }
 
-function articleFor(file: FileView): HTMLElement {
+function articleFor(html: string): HTMLElement {
   const article = document.createElement("article");
   article.className = "mdame-document";
   // Sanitized by the server.
-  article.innerHTML = file.html;
+  article.innerHTML = html;
   for (const link of article.querySelectorAll('a[href^="/raw/"]')) {
     link.setAttribute("href", viewHref(link.getAttribute("href")!));
   }

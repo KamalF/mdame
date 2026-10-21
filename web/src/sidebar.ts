@@ -3,6 +3,7 @@ import { api } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { fileIcon, icon } from "./icons.ts";
 import { isPlainClick } from "./keys.ts";
+import { load, store } from "./storage.ts";
 
 /** A node of `/api/tree`. `modified` is in Unix seconds; for a folder, its newest file. */
 export interface TreeNode {
@@ -138,23 +139,6 @@ export function pathFromUrl(pathname: string, prefix = "/view/"): string | null 
   } catch {
     return null;
   }
-}
-
-// Storage can be missing or full (private windows, blocked site data); the
-// sidebar then works without memory.
-function load<T>(key: string, fallback: T): T {
-  try {
-    const value = localStorage.getItem(key);
-    return value === null ? fallback : JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
-
-function store(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
 }
 
 let select: (path: string | null) => void = () => {};

@@ -4,6 +4,9 @@ import { languages } from "@codemirror/language-data";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { api, type ApiError } from "./api.ts";
+import * as preview from "./preview.ts";
+import { setupSplit } from "./split.ts";
+import { load, store } from "./storage.ts";
 
 /** What `/api/source` answers. */
 interface Source {
@@ -18,11 +21,14 @@ export interface EditorState {
   modified: number;
   dirty: boolean;
   error: string | null;
+  preview: boolean;
 }
 
 interface Open {
   path: string;
   view: EditorView;
+  split: HTMLElement;
+  previewPane: HTMLElement;
   /** The version on disk that the text started from: a save sends it. */
   base: string;
   saved: EditorView["state"]["doc"];
@@ -43,7 +49,12 @@ function report() {
     // Undoing back to the saved text clears the dot.
     dirty: !open.view.state.doc.eq(open.saved),
     error: open.error,
+    preview: previewShown(),
   });
+}
+
+function previewShown(): boolean {
+  return load("mdame:preview", true);
 }
 
 /** Opens `path` in `el`. Returns false if it failed, with the reason in
@@ -75,16 +86,32 @@ export async function mount(
       markdown({ codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),
       EditorView.lineWrapping,
-      EditorView.updateListener.of((update) => update.docChanged && report()),
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) return;
+        report();
+        preview.update(path, () => update.state.doc.toString());
+      }),
     ],
   });
   const host = document.createElement("div");
   host.className = "mdame-editor";
   host.append(view.dom);
-  el.replaceChildren(host);
+  const divider = document.createElement("div");
+  divider.className = "mdame-divider";
+  const previewPane = document.createElement("div");
+  previewPane.className = "mdame-preview";
+  const split = document.createElement("div");
+  split.className = "mdame-split";
+  split.classList.toggle("preview-hidden", !previewShown());
+  split.append(host, divider, previewPane);
+  setupSplit(split, divider);
+  el.replaceChildren(split);
+  if (previewShown()) preview.show(previewPane, path, source.content);
   open = {
     path,
     view,
+    split,
+    previewPane,
     base: source.version,
     saved: view.state.doc,
     modified: source.modified,
@@ -96,8 +123,19 @@ export async function mount(
   return true;
 }
 
+export function togglePreview() {
+  if (!open) return;
+  const shown = !previewShown();
+  store("mdame:preview", shown);
+  open.split.classList.toggle("preview-hidden", !shown);
+  if (shown) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
+  else preview.stop();
+  report();
+}
+
 export function unmount() {
   request++;
+  preview.stop();
   open?.view.destroy();
   open = null;
 }

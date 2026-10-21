@@ -22,6 +22,12 @@ const render = latestOnly(async (path: string, content: string): Promise<HTMLEle
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 let target: HTMLElement | null = null;
+let rendered = () => {};
+
+/** Calls `listener` after each render: the preview's height may have changed. */
+export function onRender(listener: () => void) {
+  rendered = listener;
+}
 
 /** Renders `content` into `el` now, as the view would show it at `path`. */
 export async function show(el: HTMLElement, path: string, content: string) {
@@ -32,6 +38,7 @@ export async function show(el: HTMLElement, path: string, content: string) {
   const shown = el.querySelector<HTMLElement>(":scope > article");
   if (shown) morphInto(shown, article);
   else el.replaceChildren(article);
+  rendered();
 }
 
 /** Renders `content` once typing pauses. */

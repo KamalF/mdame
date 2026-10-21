@@ -5,6 +5,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { api, type ApiError } from "./api.ts";
 import * as preview from "./preview.ts";
+import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
 
@@ -106,6 +107,7 @@ export async function mount(
   split.append(host, divider, previewPane);
   setupSplit(split, divider);
   el.replaceChildren(split);
+  preview.onRender(linkScroll(view, previewPane));
   if (previewShown()) preview.show(previewPane, path, source.content);
   open = {
     path,
@@ -121,6 +123,64 @@ export async function mount(
   report();
   view.focus();
   return true;
+}
+
+/**
+ * Keeps the two panes on the same part of the document: scrolling one
+ * scrolls the other. Returns the function that aligns the preview with
+ * the editor, for after a render.
+ */
+function linkScroll(view: EditorView, pane: HTMLElement): () => void {
+  const scroller = view.scrollDOM;
+  // The position that this code set last on each pane: its own scroll
+  // event must not move the other pane back.
+  const set = new Map<HTMLElement, number>();
+
+  function table(): Anchor[] {
+    const origin = pane.getBoundingClientRect().top - pane.scrollTop;
+    const blocks = [...pane.querySelectorAll("[data-sourcepos]")].map((el) => ({
+      line: parseInt(el.getAttribute("data-sourcepos")!),
+      top: el.getBoundingClientRect().top - origin,
+    }));
+    return anchorTable(blocks, view.state.doc.lines, pane.scrollHeight);
+  }
+
+  /** The source line at the top of the editor, fractional. */
+  function editorLine(): number {
+    const height = scroller.getBoundingClientRect().top - view.documentTop;
+    const block = view.lineBlockAtHeight(height);
+    const fraction = Math.min(1, Math.max(0, (height - block.top) / block.height));
+    return view.state.doc.lineAt(block.from).number + fraction;
+  }
+
+  function scrollEditorTo(line: number) {
+    const doc = view.state.doc;
+    const number = Math.min(doc.lines, Math.max(1, Math.floor(line)));
+    const block = view.lineBlockAt(doc.line(number).from);
+    // Where the document starts, in the scroller's own coordinates.
+    const start = view.documentTop - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    setScroll(scroller, start + block.top + (line - number) * block.height);
+  }
+
+  function setScroll(el: HTMLElement, top: number) {
+    el.scrollTop = top;
+    set.set(el, el.scrollTop);
+  }
+
+  function follow(source: HTMLElement, sync: () => void) {
+    let frame = 0;
+    source.addEventListener("scroll", () => {
+      if (Math.abs(source.scrollTop - (set.get(source) ?? -1)) < 1) return;
+      set.delete(source);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(sync);
+    });
+  }
+
+  const alignPreview = () => setScroll(pane, lineToTop(table(), editorLine()));
+  follow(scroller, alignPreview);
+  follow(pane, () => scrollEditorTo(topToLine(table(), pane.scrollTop)));
+  return alignPreview;
 }
 
 export function togglePreview() {

@@ -7,7 +7,7 @@ use axum::http::{Method, StatusCode};
 use axum::response::Response;
 use common::{HOST, etag, etag_of, send_body, status_and_json};
 use mdame::app::AppState;
-use mdame::document::{EDIT_LIMIT, version};
+use mdame::document::version;
 use serde_json::json;
 
 const JSON: (&str, &str) = ("content-type", "application/json");
@@ -71,6 +71,43 @@ async fn save_snapshots_the_old_content_first() {
     .await;
 
     assert_eq!(snapshots(dir.path(), "a.md"), ["old\n"]);
+}
+
+#[tokio::test]
+async fn the_snapshot_is_named_by_the_time_of_the_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let before = now_ms();
+    put(
+        workspace(dir.path()),
+        "a.md",
+        Some(&etag(b"old\n")),
+        "new\n",
+    )
+    .await;
+    let after = now_ms();
+
+    let folder = dir.path().join("ws/.mdame/history/a.md");
+    let name = fs::read_dir(folder)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .file_name();
+    let ms: u128 = name
+        .to_str()
+        .unwrap()
+        .strip_suffix(".md")
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        (before..=after).contains(&ms),
+        "{ms} not in {before}..={after}"
+    );
+}
+
+fn now_ms() -> u128 {
+    std::time::UNIX_EPOCH.elapsed().unwrap().as_millis()
 }
 
 #[tokio::test]
@@ -142,7 +179,8 @@ async fn save_of_a_deleted_file_is_refused() {
 #[tokio::test]
 async fn save_takes_content_up_to_the_edit_limit() {
     let dir = tempfile::tempdir().unwrap();
-    let limit = EDIT_LIMIT as usize;
+    // The spec's limit, not the constant: a test must fail if the constant moves.
+    let limit = 8 * 1024 * 1024;
     let content = "a".repeat(limit);
     let response = put(
         workspace(dir.path()),

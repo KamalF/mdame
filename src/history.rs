@@ -161,4 +161,16 @@ mod tests {
         assert_eq!(fs::read(tmp.path().join("a.md/1000.md")).unwrap(), b"one");
         assert_eq!(fs::read(tmp.path().join("a.md/1001.md")).unwrap(), b"two");
     }
+
+    #[test]
+    fn a_snapshot_that_cannot_be_written_gives_the_error() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("a.md")).unwrap();
+        fs::set_permissions(tmp.path().join("a.md"), fs::Permissions::from_mode(0o555)).unwrap();
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+
+        let error = snapshot(&history, "a.md", b"old", 1000).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+    }
 }

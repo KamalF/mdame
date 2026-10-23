@@ -4,7 +4,6 @@ use std::fs;
 
 use axum::http::StatusCode;
 use common::{HOST, etag, etag_of, get_json, send, status_and_json};
-use mdame::document::EDIT_LIMIT;
 
 #[tokio::test]
 async fn source_returns_the_text_and_its_version() {
@@ -35,7 +34,8 @@ async fn source_refuses_what_is_not_utf8_text() {
 async fn source_refuses_a_file_over_the_edit_limit() {
     let dir = tempfile::tempdir().unwrap();
     let state = common::workspace(dir.path(), &[]);
-    let limit = EDIT_LIMIT as usize;
+    // The spec's limit, not the constant: a test must fail if the constant moves.
+    let limit = 8 * 1024 * 1024;
     fs::write(dir.path().join("ws/limit.md"), "a".repeat(limit)).unwrap();
     fs::write(dir.path().join("ws/big.md"), "a".repeat(limit + 1)).unwrap();
 

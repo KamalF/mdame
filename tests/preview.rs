@@ -5,7 +5,6 @@ use std::path::Path;
 use axum::http::{Method, StatusCode};
 use common::{HOST, get_json, send_body, status_and_json};
 use mdame::app::AppState;
-use mdame::document::RENDER_LIMIT;
 use serde_json::{Value, json};
 
 const MARKDOWN: &str = "# Title\n\n![logo](img/logo.png)\n\n<script>x</script>\n";
@@ -34,9 +33,23 @@ async fn preview_gives_the_same_html_as_the_view() {
 #[tokio::test]
 async fn preview_over_1_mb_shows_a_notice() {
     let dir = tempfile::tempdir().unwrap();
-    let content = "a".repeat(RENDER_LIMIT as usize + 1);
-    let (status, preview) = preview(workspace(dir.path()), "a.md", &content).await;
+    let limit = 1024 * 1024;
+    for (length, notice) in [(limit, false), (limit + 1, true)] {
+        let content = "a".repeat(length);
+        let (status, preview) = preview(workspace(dir.path()), "a.md", &content).await;
+
+        assert_eq!(status, StatusCode::OK, "{length}");
+        let html = preview["html"].as_str().unwrap();
+        assert_eq!(html.contains("over 1 MB"), notice, "{length}");
+    }
+}
+
+#[tokio::test]
+async fn preview_takes_escaped_text_up_to_the_edit_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    // Each newline takes two bytes in JSON: the body is twice the text.
+    let content = "\n".repeat(8 * 1024 * 1024);
+    let (status, _) = preview(workspace(dir.path()), "a.md", &content).await;
 
     assert_eq!(status, StatusCode::OK);
-    assert!(preview["html"].as_str().unwrap().contains("over 1 MB"));
 }

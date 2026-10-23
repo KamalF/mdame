@@ -54,6 +54,9 @@ pub fn snapshot(history: &Dir, path: &str, content: &[u8], now_ms: u64) -> io::R
         match history.open_with(format!("{path}/{name}"), &options) {
             Ok(mut file) => {
                 file.write_all(content)?;
+                // On disk before the save truncates the file: a power cut
+                // must not lose both texts.
+                file.sync_all()?;
                 return Ok(name);
             }
             Err(error) if error.kind() == ErrorKind::AlreadyExists => ms += 1,

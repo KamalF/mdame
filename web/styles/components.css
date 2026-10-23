@@ -283,6 +283,15 @@
   color: var(--danger);
 }
 
+.mdame-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--selection);
+  color: var(--fg);
+}
+
 .mdame-icon-button:hover {
   background: var(--selection);
   color: var(--fg);

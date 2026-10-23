@@ -145,7 +145,7 @@ Rules, as test names, by commit:
 6. Split, divider, preview (done): the preview renders through `POST /api/render` 150 ms after typing stops, morphed in as a view refresh; the divider and the preview toggle are remembered in `localStorage`. `latestOnly` (`latest.ts`): `an answer older than the latest call is dropped`. `load` and `store` moved from `sidebar.ts` to `storage.ts`.
 7. Scroll sync (done): `scrollsync.ts`, with no DOM: `maps a line to the last block starting at or before it`, `interpolates towards the next block`, `before the first block is the top`, `past the last block is the end`, `a block that would move back is skipped`, `preview to editor inverts editor to preview` (property test, between the first and the last anchor). The wiring in `editor.ts` keeps the preview aligned after each render.
 8. Ctrl+B, Ctrl+I, Tab, line numbers (done): `format.ts`: `bold wraps the selection`, `bold unwraps an already bold selection` (markers just outside the selection or at its ends, with `*` or `_`), `bold on an empty selection puts the cursor between markers`, the same three for italic, `bold and italic stack`, `tab inserts two spaces at the cursor`, `tab indents the selected lines`. Shift+Tab removes one indent level. `basicSetup` already shows the line numbers.
-9. Changed-on-disk notice: `changed_whose_version_equals_the_base_is_our_own_save`, `changed_with_unsaved_edits_shows_the_notice`, `changed_without_unsaved_edits_reloads`, `removed_with_unsaved_edits_shows_the_notice_without_reload`.
+9. Changed-on-disk notice (done): `disk.ts`: `a change whose version equals the base is our own save`, `a change with unsaved edits shows the notice`, `a change without unsaved edits reloads`, `a removal shows the notice with nothing to reload`, `a reload keeps the cursor between two changes`, `a reload gives the text on disk` (property test). `live.ts`: `concerns names the open file, a folder holding it, and either end of a rename`. The notice is a CodeMirror panel above the text. A deleted file gets the notice even without unsaved edits. A save refused with 409 shows the notice. Saves and disk checks run one at a time. The reload diff comes from `@codemirror/merge`, a milestone 7 dependency added early.
 10. New file in a folder, with `POST /api/file` (create empty, 409 if it exists). Overwrite of a deleted file creates it, then saves.
 11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match`.
 12. Manual checklist, `cargo mutants`, review loop.
@@ -153,9 +153,11 @@ Rules, as test names, by commit:
 
 ## Next
 
-1. Milestone 6, commit 9: the changed-on-disk notice.
+1. Milestone 6, commit 10: new file in a folder, and Overwrite of a deleted file.
 
 ## Open points
+
+- The editor does not follow a rename of its file, as the view does: it shows the deleted notice.
 
 - Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
 

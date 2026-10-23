@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { type LiveEvent, isWithin, movedPath, react, retryDelay } from "./live.ts";
+import { concerns, type LiveEvent, isWithin, movedPath, react, retryDelay } from "./live.ts";
 
 test("retryDelay doubles from 500 ms and stops at 10 s", () => {
   expect([0, 1, 2, 3, 4, 5, 6].map(retryDelay)).toEqual([
@@ -49,5 +49,19 @@ test("react refreshes or follows the open file", () => {
   ];
   for (const [event, expected] of cases) {
     expect(react(event, "docs/a.md", false, () => false)).toMatchObject(expected);
+  }
+});
+
+test("concerns names the open file, a folder holding it, and either end of a rename", () => {
+  const cases: [LiveEvent, boolean][] = [
+    [{ type: "changed", path: "docs/a.md" }, true],
+    [{ type: "removed", path: "docs" }, true],
+    [{ type: "renamed", from: "docs/a.md", to: "b.md" }, true],
+    [{ type: "renamed", from: "docs/a.md.tmp", to: "docs/a.md" }, true],
+    [{ type: "changed", path: "docs/b.md" }, false],
+    [{ type: "resync" }, false],
+  ];
+  for (const [event, expected] of cases) {
+    expect(concerns(event, "docs/a.md")).toBe(expected);
   }
 });

@@ -1,12 +1,13 @@
-import { indentLess } from "@codemirror/commands";
+import { indentLess, isolateHistory } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
-import { Prec } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { Compartment, Prec } from "@codemirror/state";
+import { keymap, type Panel, showPanel } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { api, type ApiError } from "./api.ts";
+import { reactToDisk, reloadChanges } from "./disk.ts";
 import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
@@ -39,10 +40,14 @@ interface Open {
   saved: EditorView["state"]["doc"];
   modified: number;
   saving: boolean;
+  /** Saves and disk checks, which run one at a time. */
+  queue: Promise<void>;
+  checkQueued: boolean;
   error: string | null;
 }
 
 let open: Open | null = null;
+const notice = new Compartment();
 let request = 0;
 let onState: (state: EditorState) => void = () => {};
 
@@ -62,6 +67,10 @@ function previewShown(): boolean {
   return load("mdame:preview", true);
 }
 
+function sourceUrl(path: string): string {
+  return `/api/source?path=${encodeURIComponent(path)}`;
+}
+
 /** Opens `path` in `el`. Returns false if it failed, with the reason in
  * `el`, or if a later call replaced this one. */
 export async function mount(
@@ -74,7 +83,7 @@ export async function mount(
   onState = listener;
   let source: Source;
   try {
-    source = await api<Source>("GET", `/api/source?path=${encodeURIComponent(path)}`);
+    source = await api<Source>("GET", sourceUrl(path));
   } catch (error) {
     if (id !== request) return false;
     const line = document.createElement("p");
@@ -96,6 +105,7 @@ export async function mount(
         ]),
       ),
       basicSetup,
+      notice.of([]),
       markdown({ codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),
       EditorView.lineWrapping,
@@ -130,6 +140,8 @@ export async function mount(
     saved: view.state.doc,
     modified: source.modified,
     saving: false,
+    queue: Promise.resolve(),
+    checkQueued: false,
     error: null,
   };
   report();
@@ -221,28 +233,130 @@ export function isDirty(): boolean {
   return open !== null && !open.view.state.doc.eq(open.saved);
 }
 
-export async function save() {
-  if (!open || open.saving) return;
+/**
+ * Runs `task` after the save or disk check in progress: a check that reads
+ * the file while a save writes it could reload the text from before the
+ * save.
+ */
+function enqueue(current: Open, task: () => Promise<void>) {
+  // A task that throws must not block the ones after it.
+  current.queue = current.queue.then(task).catch(reportError);
+}
+
+export function save() {
   const current = open;
-  const doc = current.view.state.doc;
+  if (!current || current.saving) return;
   current.saving = true;
-  try {
-    const saved = await api<{ version: string; modified: number }>(
-      "PUT",
-      `/api/file?path=${encodeURIComponent(current.path)}`,
-      { content: doc.toString(), base_version: current.base },
+  enqueue(current, async () => {
+    const doc = current.view.state.doc;
+    try {
+      const saved = await api<{ version: string; modified: number }>(
+        "PUT",
+        `/api/file?path=${encodeURIComponent(current.path)}`,
+        { content: doc.toString(), base_version: current.base },
+      );
+      // The text typed during the save is still unsaved.
+      current.base = saved.version;
+      current.saved = doc;
+      current.modified = saved.modified;
+      current.error = null;
+      if (open === current) setNotice(current, null);
+    } catch (error) {
+      const { code, message } = error as ApiError;
+      // The file changed or went away on disk: the notice tells which.
+      if (code === "conflict" || code === "not_found") check(current);
+      else current.error = message;
+    } finally {
+      current.saving = false;
+    }
+    if (open === current) report();
+  });
+}
+
+/** Compares the file on disk with the editor's text, after an event about it. */
+export function checkDisk() {
+  if (open) check(open);
+}
+
+function check(current: Open) {
+  if (current.checkQueued) return;
+  current.checkQueued = true;
+  enqueue(current, async () => {
+    current.checkQueued = false;
+    let disk: Source | null = null;
+    try {
+      disk = await api<Source>("GET", sourceUrl(current.path));
+    } catch (error) {
+      if ((error as ApiError).code !== "not_found") {
+        current.error = (error as ApiError).message;
+        if (open === current) report();
+        return;
+      }
+    }
+    if (open !== current) return;
+    const reaction = reactToDisk(disk, current.base, isDirty());
+    if (reaction.kind === "reload") reload(current, reaction.disk);
+    setNotice(current, reaction.kind === "notice" ? noticePanel(current, reaction.disk) : null);
+  });
+}
+
+/** Ctrl+Z undoes the reload alone, which brings back the unsaved edits. */
+function reload(current: Open, disk: Source) {
+  const { view } = current;
+  view.dispatch({
+    changes: reloadChanges(view.state.doc.toString(), disk.content),
+    annotations: isolateHistory.of("full"),
+  });
+  current.base = disk.version;
+  current.saved = view.state.doc;
+  current.modified = disk.modified;
+  report();
+}
+
+function setNotice(current: Open, panel: Panel | null) {
+  current.view.dispatch({
+    effects: notice.reconfigure(panel ? showPanel.of(() => panel) : []),
+  });
+}
+
+/** `disk` is null when the file is gone: there is nothing to reload. */
+function noticePanel(current: Open, disk: Source | null): Panel {
+  const dom = document.createElement("div");
+  dom.className = "mdame-notice";
+  dom.setAttribute("role", "alert");
+  const text = document.createElement("span");
+  text.textContent = disk ? "This file changed on disk." : "This file was deleted on disk.";
+  dom.append(text);
+  if (disk) {
+    const reloadButton = noticeButton(
+      "Reload",
+      "Replace your edits with the file on disk. Ctrl+Z brings them back.",
     );
-    // The text typed during the save is still unsaved.
-    current.base = saved.version;
-    current.saved = doc;
-    current.modified = saved.modified;
-    current.error = null;
-  } catch (error) {
-    current.error = (error as ApiError).message;
-  } finally {
-    current.saving = false;
+    reloadButton.addEventListener("click", () => {
+      reload(current, disk);
+      setNotice(current, null);
+      current.view.focus();
+    });
+    const overwrite = noticeButton(
+      "Overwrite",
+      "Save your text over the file on disk. Its current text is kept as a revision.",
+    );
+    overwrite.addEventListener("click", () => {
+      current.base = disk.version;
+      save();
+      current.view.focus();
+    });
+    dom.append(reloadButton, overwrite);
   }
-  if (open === current) report();
+  return { dom, top: true };
+}
+
+function noticeButton(label: string, title: string): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "mdame-status-button";
+  button.textContent = label;
+  button.title = title;
+  return button;
 }
 
 addEventListener("beforeunload", (event) => {

@@ -165,6 +165,14 @@ function refreshContentSoon(path: string) {
   }, 50);
 }
 
+let diskTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** The events of one save share one check. */
+function checkDiskSoon() {
+  clearTimeout(diskTimer);
+  diskTimer = setTimeout(editor.checkDisk, 50);
+}
+
 let treeTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Each request walks the whole folder: the events of one batch, which
@@ -207,6 +215,8 @@ function onEvent(event: live.LiveEvent) {
   if (reaction.kind !== "update") return;
   if (reaction.tree) refreshTree();
   view.refreshImages(content);
+  const edited = editor.openPath();
+  if (edited !== null && live.concerns(event, edited)) checkDiskSoon();
   if (reaction.followTo) follow(reaction.followTo);
   else if (reaction.refresh && current) refreshContentSoon(current);
 }
@@ -326,6 +336,7 @@ async function refresh() {
   view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
+  editor.checkDisk();
 }
 
 await live.connect({ onEvent, onReconnect: refresh });

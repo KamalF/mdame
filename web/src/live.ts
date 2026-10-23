@@ -41,10 +41,16 @@ export function react(
     const followTo = movedPath(open, event.from, event.to);
     if (followTo) return { ...update, followTo };
   }
-  const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
   // Asks again rather than show "Not found": a save, or a folder moved
   // in, can bring the file back.
-  return { ...update, refresh: paths.some((path) => isWithin(open, path)) };
+  return { ...update, refresh: concerns(event, open) };
+}
+
+/** Whether `event` names `open` or a folder holding it. */
+export function concerns(event: LiveEvent, open: string): boolean {
+  if (event.type === "workspace" || event.type === "resync") return false;
+  const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
+  return paths.some((path) => isWithin(open, path));
 }
 
 const FIRST_RETRY_MS = 500;

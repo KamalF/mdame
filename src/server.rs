@@ -396,6 +396,41 @@ async fn save(
     })
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CreateRequest {
+    path: String,
+}
+
+async fn create(
+    State(app): State<Arc<AppState>>,
+    body: Result<Json<CreateRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<Saved>), ApiError> {
+    let Json(request) = body?;
+    let workspace = app.workspace()?;
+    let path = request.path.clone();
+    let created =
+        tokio::task::spawn_blocking(move || document::create(&workspace.dir, &path)).await?;
+    created
+        .map(|saved| (StatusCode::CREATED, Json(saved)))
+        .map_err(|error| match error.kind() {
+            io::ErrorKind::AlreadyExists => {
+                ApiError::Conflict(format!("{}: the file exists", request.path))
+            }
+            io::ErrorKind::Unsupported => {
+                ApiError::BadRequest(format!("{}: {}", request.path, io_message(&error)))
+            }
+            // The OS does not say which part of the path is missing.
+            io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => {
+                match request.path.rsplit_once('/') {
+                    Some((folder, _)) => ApiError::NotFound(format!("{folder}: no such folder")),
+                    None => file_error(&request.path, error),
+                }
+            }
+            _ => file_error(&request.path, error),
+        })
+}
+
 fn file_error(path: &str, error: io::Error) -> ApiError {
     let message = format!("{path}: {}", io_message(&error));
     match error.kind() {
@@ -452,6 +487,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
             // JSON escapes can make the body much longer than the content.
             get(file)
                 .put(save)
+                .post(create)
                 .layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),
         )
         .route("/api/source", get(source))

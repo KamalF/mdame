@@ -146,14 +146,14 @@ Rules, as test names, by commit:
 7. Scroll sync (done): `scrollsync.ts`, with no DOM: `maps a line to the last block starting at or before it`, `interpolates towards the next block`, `before the first block is the top`, `past the last block is the end`, `a block that would move back is skipped`, `preview to editor inverts editor to preview` (property test, between the first and the last anchor). The wiring in `editor.ts` keeps the preview aligned after each render.
 8. Ctrl+B, Ctrl+I, Tab, line numbers (done): `format.ts`: `bold wraps the selection`, `bold unwraps an already bold selection` (markers just outside the selection or at its ends, with `*` or `_`), `bold on an empty selection puts the cursor between markers`, the same three for italic, `bold and italic stack`, `tab inserts two spaces at the cursor`, `tab indents the selected lines`. Shift+Tab removes one indent level. `basicSetup` already shows the line numbers.
 9. Changed-on-disk notice (done): `disk.ts`: `a change whose version equals the base is our own save`, `a change with unsaved edits shows the notice`, `a change without unsaved edits reloads`, `a removal shows the notice with nothing to reload`, `a reload keeps the cursor between two changes`, `a reload gives the text on disk` (property test). `live.ts`: `concerns names the open file, a folder holding it, and either end of a rename`. The notice is a CodeMirror panel above the text. A deleted file gets the notice even without unsaved edits. A save refused with 409 shows the notice. Saves and disk checks run one at a time. The reload diff comes from `@codemirror/merge`, a milestone 7 dependency added early.
-10. New file in a folder, with `POST /api/file` (create empty, 409 if it exists). Overwrite of a deleted file creates it, then saves.
+10. New file in a folder (done): `POST /api/file` with `{path}`: `create_makes_an_empty_file`, `create_of_an_existing_file_is_refused`, `create_refuses_a_type_that_the_editor_cannot_open`, `create_in_a_missing_folder_names_the_folder`, `create_stays_in_the_workspace`; `save_of_an_empty_file_makes_no_snapshot`; a row in the routes matrix. `dialogs.ts`: `a name with no extension gets .md`, `a name with an extension stays as typed, without the spaces around it`, `an empty name gives null`. A hover button on folder rows and a button in the sidebar header open the new-file dialog. The deleted-file notice offers Recreate: it creates the file, then saves.
 11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match`.
 12. Manual checklist, `cargo mutants`, review loop.
     - For the checklist: scroll a long file to its middle in the editor, then run "replace all" (Ctrl+F) with a longer text, so that content above the visible part grows. Both panes must stay on the same section. Checked on 21 October 2026 with Chrome's scroll anchoring off: the preview moved from 7687 to 10477 px and stayed on Section 30; left in place, it would have shown Section 22.
 
 ## Next
 
-1. Milestone 6, commit 10: new file in a folder, and Overwrite of a deleted file.
+1. Milestone 6, commit 11: `ETag`, `If-Match`, 412, and 428 without `If-Match`.
 
 ## Open points
 

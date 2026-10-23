@@ -57,6 +57,17 @@ async fn save_snapshots_the_old_content_first() {
 }
 
 #[tokio::test]
+async fn save_of_an_empty_file_makes_no_snapshot() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = common::workspace(dir.path(), &[("a.md", b"")]);
+    let body = json!({ "content": "new\n", "base_version": version(b"") });
+    let (status, _) = put(state, "a.md", body).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(snapshots(dir.path(), "a.md").is_empty());
+}
+
+#[tokio::test]
 async fn save_with_a_stale_version_is_refused_and_writes_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let body = json!({ "content": "new\n", "base_version": version(b"older\n") });

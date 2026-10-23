@@ -173,9 +173,14 @@ interface MountOptions {
   root: string;
   current: string | null;
   onOpen: (path: string) => void;
+  /** Gets the folder, "" for the workspace folder. */
+  onNewFile: (folder: string) => void;
 }
 
-export async function mount(el: HTMLElement, { root, current, onOpen }: MountOptions) {
+export async function mount(
+  el: HTMLElement,
+  { root, current, onOpen, onNewFile }: MountOptions,
+) {
   latest = current;
   const openKey = `mdame:open:${root}`;
   const open = new Set([...load(openKey, []), ...ancestors(current ?? "")]);
@@ -194,7 +199,7 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   sortButton.className = "mdame-icon-button";
   const header = document.createElement("div");
   header.className = "mdame-sidebar-header";
-  header.append(filterField, sortButton);
+  header.append(filterField, newFileButton(""), sortButton);
   const list = document.createElement("ul");
   list.className = "mdame-tree";
   el.replaceChildren(header, list);
@@ -306,7 +311,9 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
       const item = document.createElement("li");
       const row = node.kind === "dir" ? folderRow(node) : fileRow(node);
       row.style.paddingLeft = `${8 + depth * 16}px`;
-      item.append(line(row, node.path));
+      const newFile = node.kind === "dir" ? newFileButton(node.path) : undefined;
+      newFile?.classList.add("mdame-new-file");
+      item.append(line(row, node.path, newFile));
       if (node.kind === "dir" && open.has(node.path)) {
         const children = document.createElement("ul");
         children.append(...items(node.children!, depth + 1));
@@ -314,6 +321,17 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
       }
       return item;
     });
+  }
+
+  function newFileButton(folder: string) {
+    const button = document.createElement("button");
+    button.className = "mdame-icon-button";
+    const label = folder ? `New file in ${folder}` : "New file";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.append(icon("file-plus"));
+    button.addEventListener("click", () => onNewFile(folder));
+    return button;
   }
 
   function folderRow(node: TreeNode) {
@@ -382,15 +400,17 @@ export async function mount(el: HTMLElement, { root, current, onOpen }: MountOpt
   return allFiles.length;
 }
 
-/** A row with its hover action. HTML allows no button inside a link, so
- * the button sits next to the row. */
-function line(row: HTMLElement, path: string) {
+/** A row with its hover actions. HTML allows no button inside a link, so
+ * the buttons sit next to the row. */
+function line(row: HTMLElement, path: string, newFile?: HTMLButtonElement) {
   const wrapper = document.createElement("div");
   wrapper.className = "mdame-tree-line";
   wrapper.dataset.path = path;
   const copy = copyButton({ label: `Copy path ${path}`, iconName: "link", text: () => path });
   copy.classList.add("mdame-copy");
-  wrapper.append(row, copy);
+  wrapper.append(row);
+  if (newFile) wrapper.append(newFile);
+  wrapper.append(copy);
   return wrapper;
 }
 

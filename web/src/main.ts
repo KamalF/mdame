@@ -3,7 +3,7 @@ import "../styles/layout.css";
 import "../styles/components.css";
 import { api, errorFrom, exists, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
-import { askHistory, confirmDiscard } from "./dialogs.ts";
+import { askHistory, askNewFile, confirmDiscard } from "./dialogs.ts";
 import * as editor from "./editor.ts";
 import { icon } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
@@ -229,6 +229,17 @@ async function openFile(path: string, hash = "") {
   showRoute();
 }
 
+/** Asks for the path of a new file, creates it and opens it in the editor. */
+async function newFile(folder: string) {
+  if (!(await mayLeaveEditor())) return;
+  const path = await askNewFile(folder);
+  if (path === null) return;
+  editingFromView = false;
+  history.pushState(null, "", editUrl(path));
+  sidebar.closeSidebarOverlay();
+  showRoute();
+}
+
 // Links to `/view/…` open without a page load, as sidebar rows do.
 content.addEventListener("click", (event) => {
   if (!isPlainClick(event)) return;
@@ -271,7 +282,7 @@ async function showWorkspace(state: State) {
       if (path && !editing && view.shownPath() === path) startEditing(path);
     },
   });
-  const mounted = sidebar.mount(nav, { root, current, onOpen: openFile });
+  const mounted = sidebar.mount(nav, { root, current, onOpen: openFile, onNewFile: newFile });
   // Only the empty-workspace page needs the tree: a file shows at once.
   if (current) showRoute();
   fileCount = await mounted;

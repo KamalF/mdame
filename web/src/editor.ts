@@ -319,7 +319,8 @@ function setNotice(current: Open, panel: Panel | null) {
   });
 }
 
-/** `disk` is null when the file is gone: there is nothing to reload. */
+/** `disk` is null when the file is gone: Recreate takes the place of Reload
+ * and Overwrite. */
 function noticePanel(current: Open, disk: Source | null): Panel {
   const dom = document.createElement("div");
   dom.className = "mdame-notice";
@@ -347,8 +348,30 @@ function noticePanel(current: Open, disk: Source | null): Panel {
       current.view.focus();
     });
     dom.append(reloadButton, overwrite);
+  } else {
+    const recreateButton = noticeButton("Recreate", "Create the file again with your text.");
+    recreateButton.addEventListener("click", () => {
+      recreate(current);
+      current.view.focus();
+    });
+    dom.append(recreateButton);
   }
   return { dom, top: true };
+}
+
+/** Creates the deleted file again, empty, then saves the text into it. */
+function recreate(current: Open) {
+  enqueue(current, async () => {
+    try {
+      const created = await api<{ version: string }>("POST", "/api/file", {
+        path: current.path,
+      });
+      current.base = created.version;
+    } catch (error) {
+      current.error = (error as ApiError).message;
+    }
+  });
+  save();
 }
 
 function noticeButton(label: string, title: string): HTMLButtonElement {

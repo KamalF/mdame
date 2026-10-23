@@ -154,11 +154,31 @@ pub fn save(
     if version(&old) != base_version {
         return Err(SaveError::Changed);
     }
-    history::snapshot(history, path, &old, now_ms())?;
+    // Writing over an empty file loses nothing.
+    if !old.is_empty() {
+        history::snapshot(history, path, &old, now_ms())?;
+    }
     let mut file = dir.open_with(path, OpenOptions::new().write(true).truncate(true))?;
     file.write_all(content.as_bytes())?;
     Ok(Saved {
         version: version(content.as_bytes()),
+        modified: modified_secs(&file.metadata()?).unwrap_or(0),
+    })
+}
+
+/// Creates an empty file at `path`. An existing file gives `AlreadyExists`.
+/// A type that the editor cannot open, or that the tree hides, gives
+/// `Unsupported`.
+pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
+    if matches!(Family::of(path), None | Some(Family::Image)) {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "not a type of text file that mdame shows",
+        ));
+    }
+    let file = dir.open_with(path, OpenOptions::new().write(true).create_new(true))?;
+    Ok(Saved {
+        version: version(b""),
         modified: modified_secs(&file.metadata()?).unwrap_or(0),
     })
 }

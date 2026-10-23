@@ -305,7 +305,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together; 413 over 8 MB, and 404 `not_viewable` for an image or a file that is not UTF-8 | `{content, modified}` with `ETag: "<content hash>"` |
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first | `{modified}` and the new `ETag`; 412 if the content changed on disk since, 428 without `If-Match` |
-| `POST /api/file` | Create `{path}`, empty; fails if it exists | 201 |
+| `POST /api/file` | Create `{path}`, empty; 409 if it exists, 400 for a type that the editor cannot open or that the tree hides, 404 naming the folder when its folder is missing. Folders are never created | 201, `{modified}` and the `ETag` of the empty content |
 | `POST /api/render` | Editor preview `{path, content}` | `{html}` |
 | `GET /api/history?path=` | Snapshots, newest first: `id`, time, size | JSON |
 | `GET /api/history/view?path=&id=` | A snapshot's raw text, for the merge view | `{content}` |
@@ -420,7 +420,7 @@ Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missi
 
 mdame keeps its own files and imports nothing from mdlive, so it starts with no revisions or recents. The layouts follow mdlive v2.3.13, checked against `handlers/api.rs` and `config.rs`, except where noted.
 
-**Revision snapshots.** Before a save overwrites a file, its previous content is copied to `<history root>/<relative path>/<unix milliseconds>.<original extension>`. Example: saving `api/rate-limiting.md` writes `api/rate-limiting.md/1771271566123.md` under the history root. The snapshot is opened with `OpenOptions::create_new`, so it never overwrites one that exists; on `AlreadyExists`, add 1 ms and retry. After writing, keep the newest 20 per file (`snapshots_per_file`) and delete the rest, ignoring files already gone. A test checks that two quick saves give two snapshots.
+**Revision snapshots.** Before a save overwrites a file, its previous content is copied to `<history root>/<relative path>/<unix milliseconds>.<original extension>`. Example: saving `api/rate-limiting.md` writes `api/rate-limiting.md/1771271566123.md` under the history root. The snapshot is opened with `OpenOptions::create_new`, so it never overwrites one that exists; on `AlreadyExists`, add 1 ms and retry. After writing, keep the newest 20 per file (`snapshots_per_file`) and delete the rest, ignoring files already gone. A test checks that two quick saves give two snapshots. An empty file gets no snapshot: writing over it loses nothing.
 
 **History location.** The global `history` setting in `config.toml` picks the history root:
 

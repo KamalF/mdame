@@ -145,6 +145,19 @@
   font-weight: 600;
 }
 
+.mdame-dialog input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  margin: 0 0 8px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
 .mdame-dialog-note {
   color: var(--fg-muted);
   font-size: 12px;
@@ -351,7 +364,8 @@
   position: relative;
 }
 
-.mdame-copy {
+.mdame-copy,
+.mdame-new-file {
   position: absolute;
   top: 1px;
   right: 2px;
@@ -360,15 +374,24 @@
   visibility: hidden;
 }
 
-.mdame-tree-line:hover .mdame-copy,
-.mdame-tree-line:focus-within .mdame-copy {
+.mdame-new-file {
+  right: 28px;
+}
+
+.mdame-tree-line:hover :is(.mdame-copy, .mdame-new-file),
+.mdame-tree-line:focus-within :is(.mdame-copy, .mdame-new-file) {
   visibility: visible;
 }
 
-/* The name ends with its ellipsis before the copy button. */
+/* The name ends with its ellipsis before the buttons. */
 .mdame-tree-line:hover .mdame-tree-row,
 .mdame-tree-line:focus-within .mdame-tree-row {
   padding-right: 30px;
+}
+
+.mdame-tree-line:has(> .mdame-new-file):hover .mdame-tree-row,
+.mdame-tree-line:has(> .mdame-new-file):focus-within .mdame-tree-row {
+  padding-right: 56px;
 }
 
 .mdame-tree-line:hover .mdame-tree-folder,

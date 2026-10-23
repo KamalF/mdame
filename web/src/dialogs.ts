@@ -122,3 +122,91 @@ export function confirmDiscard(): Promise<boolean> {
     });
   });
 }
+
+/**
+ * The path of a new file from what the user typed: a name with no
+ * extension gets `.md`. Null when the name is empty.
+ */
+export function newFilePath(input: string): string | null {
+  const path = input.trim();
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  if (!name) return null;
+  // A leading dot starts a hidden name, not an extension.
+  return name.lastIndexOf(".") > 0 ? path : `${path}.md`;
+}
+
+/**
+ * Asks for the path of a new file, starting in `folder`, and creates it.
+ * Resolves to its path, or null if the user cancels.
+ */
+export function askNewFile(folder: string): Promise<string | null> {
+  const dialog = document.createElement("dialog");
+  dialog.className = "mdame-dialog";
+  dialog.setAttribute("aria-labelledby", "mdame-new-title");
+
+  const form = document.createElement("form");
+  form.method = "dialog";
+  const title = document.createElement("h2");
+  title.id = "mdame-new-title";
+  title.textContent = "New file";
+  const field = document.createElement("input");
+  field.type = "text";
+  field.setAttribute("aria-labelledby", "mdame-new-title");
+  field.autocomplete = "off";
+  field.spellcheck = false;
+  field.value = folder ? `${folder}/` : "";
+  const note = document.createElement("p");
+  note.className = "mdame-dialog-note";
+  note.textContent = "The path starts at the workspace folder. A name with no extension gets .md.";
+
+  const error = document.createElement("p");
+  error.className = "mdame-dialog-error";
+  error.setAttribute("role", "alert");
+
+  const actions = document.createElement("div");
+  actions.className = "mdame-dialog-actions";
+  // Not a submit button: Enter in the field must create, not cancel.
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "is-secondary";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => dialog.close());
+  const create = document.createElement("button");
+  create.value = "create";
+  create.textContent = "Create";
+  actions.append(cancel, create);
+
+  form.append(title, field, note, error, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  field.focus();
+
+  return new Promise((resolve) => {
+    const retry = (message: string) => {
+      error.textContent = message;
+      dialog.showModal();
+    };
+    dialog.addEventListener("close", async () => {
+      if (dialog.returnValue !== "create") {
+        dialog.remove();
+        resolve(null);
+        return;
+      }
+      // Esc keeps the last returnValue: without this, it would create.
+      dialog.returnValue = "";
+      const path = newFilePath(field.value);
+      if (path === null) {
+        retry("Type a name for the file.");
+        return;
+      }
+      try {
+        await api("POST", "/api/file", { path });
+        dialog.remove();
+        resolve(path);
+      } catch (failure) {
+        retry((failure as Error).message);
+      }
+    });
+  });
+}

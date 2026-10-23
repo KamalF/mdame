@@ -1,5 +1,6 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{self, ErrorKind, Read, Write};
+use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use cap_std::fs::{Dir, File, Metadata, OpenOptions};
@@ -134,6 +135,10 @@ pub struct Saved {
     pub modified: u64,
 }
 
+/// Two saves of one file from the same version would both pass the check,
+/// and their writes could mix: saves run one at a time.
+static SAVES: Mutex<()> = Mutex::new(());
+
 /// Writes `content` to `path` if the file on disk still has `base_version`,
 /// after a snapshot of the old content in `history`. A deleted file has
 /// changed too.
@@ -150,6 +155,7 @@ pub fn save(
     if content.len() as u64 > EDIT_LIMIT {
         return Err(too_large().into());
     }
+    let _one_at_a_time = SAVES.lock().unwrap_or_else(PoisonError::into_inner);
     let (file, _) = match open_file(dir, path) {
         Err(error) if error.kind() == ErrorKind::NotFound => return Err(SaveError::Changed),
         opened => opened?,
@@ -242,6 +248,33 @@ mod tests {
         assert_eq!(bytes, b"abcd");
         let error = read_at_most(dir.open("a.txt").unwrap(), 3).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::FileTooLarge);
+    }
+
+    #[test]
+    fn two_saves_from_one_version_let_one_through() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(tmp.path().join("history")).unwrap();
+        let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        let history = dir.open_dir("history").unwrap();
+        let contents = ["a".repeat(1 << 20), "b".repeat(1 << 20)];
+        // Without the lock, both saves pass the check in most rounds.
+        for _ in 0..20 {
+            dir.write("a.md", "old\n").unwrap();
+            let barrier = std::sync::Barrier::new(2);
+            let saved = std::thread::scope(|scope| {
+                let saves = contents.clone().map(|content| {
+                    let (dir, history, barrier) = (&dir, &history, &barrier);
+                    scope.spawn(move || {
+                        barrier.wait();
+                        save(dir, history, "a.md", &content, &version(b"old\n"))
+                    })
+                });
+                saves.map(|save| save.join().unwrap().is_ok())
+            });
+
+            assert_eq!(saved.iter().filter(|ok| **ok).count(), 1);
+            assert!(contents.contains(&dir.read_to_string("a.md").unwrap()));
+        }
     }
 
     #[test]

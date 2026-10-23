@@ -1,6 +1,6 @@
 use crate::app::{AppState, OpenError, hex};
 use crate::config::{self, HistoryMode, Recent};
-use crate::document::{self, EDIT_LIMIT, SaveError, Saved, Source, View};
+use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history;
 use crate::tree::{self, Suggestion};
@@ -328,15 +328,18 @@ async fn file(
 async fn source(
     State(app): State<Arc<AppState>>,
     query: Result<Query<FileQuery>, QueryRejection>,
-) -> Result<Json<Source>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let Query(query) = query?;
     let workspace = app.workspace()?;
     let path = query.path.clone();
     let source =
         tokio::task::spawn_blocking(move || document::source(&workspace.dir, &path)).await?;
-    source
-        .map(Json)
-        .map_err(|error| file_error(&query.path, error))
+    let source = source.map_err(|error| file_error(&query.path, error))?;
+    Ok(([(header::ETAG, etag(&source.version))], Json(source)))
+}
+
+fn etag(version: &str) -> String {
+    format!("\"{version}\"")
 }
 
 #[derive(Deserialize)]
@@ -366,16 +369,17 @@ async fn render(
 #[serde(deny_unknown_fields)]
 struct SaveRequest {
     content: String,
-    base_version: String,
 }
 
 async fn save(
     State(app): State<Arc<AppState>>,
     query: Result<Query<FileQuery>, QueryRejection>,
+    headers: HeaderMap,
     body: Result<Json<SaveRequest>, JsonRejection>,
-) -> Result<Json<Saved>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let Query(query) = query?;
     let Json(request) = body?;
+    let base_version = if_match(&headers)?;
     let workspace = app.workspace()?;
     let mode = app.config.read().unwrap().history.unwrap_or_default();
     let path = query.path.clone();
@@ -386,14 +390,29 @@ async fn save(
             &history,
             &path,
             &request.content,
-            &request.base_version,
+            &base_version,
         )
     })
     .await?;
-    saved.map(Json).map_err(|error| match error {
-        SaveError::Changed => ApiError::Conflict(format!("{}: {error}", query.path)),
+    let saved = saved.map_err(|error| match error {
+        SaveError::Changed => ApiError::PreconditionFailed(format!("{}: {error}", query.path)),
         SaveError::Io(error) => file_error(&query.path, error),
-    })
+    })?;
+    Ok(([(header::ETAG, etag(&saved.version))], Json(saved)))
+}
+
+/// The version that a save's `If-Match` names. Any other form than one
+/// strong `ETag`, such as `*` or a list, names no version, so the save is
+/// refused as stale.
+fn if_match(headers: &HeaderMap) -> Result<String, ApiError> {
+    let value = headers.get(header::IF_MATCH).ok_or_else(|| {
+        ApiError::PreconditionRequired("a save needs an If-Match header".to_owned())
+    })?;
+    let version = value
+        .to_str()
+        .ok()
+        .and_then(|tag| tag.strip_prefix('"')?.strip_suffix('"'));
+    Ok(version.unwrap_or_default().to_owned())
 }
 
 #[derive(Deserialize)]
@@ -405,30 +424,33 @@ struct CreateRequest {
 async fn create(
     State(app): State<Arc<AppState>>,
     body: Result<Json<CreateRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<Saved>), ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
     let workspace = app.workspace()?;
     let path = request.path.clone();
     let created =
         tokio::task::spawn_blocking(move || document::create(&workspace.dir, &path)).await?;
-    created
-        .map(|saved| (StatusCode::CREATED, Json(saved)))
-        .map_err(|error| match error.kind() {
-            io::ErrorKind::AlreadyExists => {
-                ApiError::Conflict(format!("{}: the file exists", request.path))
+    let created = created.map_err(|error| match error.kind() {
+        io::ErrorKind::AlreadyExists => {
+            ApiError::Conflict(format!("{}: the file exists", request.path))
+        }
+        io::ErrorKind::Unsupported => {
+            ApiError::BadRequest(format!("{}: {}", request.path, io_message(&error)))
+        }
+        // The OS does not say which part of the path is missing.
+        io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => {
+            match request.path.rsplit_once('/') {
+                Some((folder, _)) => ApiError::NotFound(format!("{folder}: no such folder")),
+                None => file_error(&request.path, error),
             }
-            io::ErrorKind::Unsupported => {
-                ApiError::BadRequest(format!("{}: {}", request.path, io_message(&error)))
-            }
-            // The OS does not say which part of the path is missing.
-            io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => {
-                match request.path.rsplit_once('/') {
-                    Some((folder, _)) => ApiError::NotFound(format!("{folder}: no such folder")),
-                    None => file_error(&request.path, error),
-                }
-            }
-            _ => file_error(&request.path, error),
-        })
+        }
+        _ => file_error(&request.path, error),
+    })?;
+    Ok((
+        StatusCode::CREATED,
+        [(header::ETAG, etag(&created.version))],
+        Json(created),
+    ))
 }
 
 fn file_error(path: &str, error: io::Error) -> ApiError {

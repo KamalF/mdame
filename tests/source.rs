@@ -3,18 +3,19 @@ mod common;
 use std::fs;
 
 use axum::http::StatusCode;
-use common::get_json;
-use mdame::document::{EDIT_LIMIT, version};
+use common::{HOST, etag, etag_of, get_json, send, status_and_json};
+use mdame::document::EDIT_LIMIT;
 
 #[tokio::test]
 async fn source_returns_the_text_and_its_version() {
     let dir = tempfile::tempdir().unwrap();
     let state = common::workspace(dir.path(), &[("docs/a.md", b"# A\n")]);
 
-    let (status, body) = get_json(state, "/api/source?path=docs/a.md").await;
+    let response = send(state, "/api/source?path=docs/a.md", &[HOST]).await;
+    assert_eq!(etag_of(&response), etag(b"# A\n"));
+    let (status, body) = status_and_json(response).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["content"], "# A\n");
-    assert_eq!(body["version"], version(b"# A\n"));
     assert!(body["modified"].as_u64().unwrap() > 0);
 }
 

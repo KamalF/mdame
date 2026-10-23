@@ -6,9 +6,8 @@ use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
-use common::{HOST, send_body, status_and_json};
+use common::{HOST, etag, send_body, status_and_json};
 use mdame::app::AppState;
-use mdame::document::version;
 use serde_json::json;
 
 const ROUTES: [(Method, &str); 17] = [
@@ -86,11 +85,16 @@ async fn path_routes_stay_in_the_workspace() {
         ("link.md", StatusCode::OK),
     ];
     // A save that would succeed: the content of `a.md`, from its version.
-    let save = json!({ "content": "# A\n", "base_version": version(b"# A\n") }).to_string();
+    let save = json!({ "content": "# A\n" }).to_string();
+    let if_match = etag(b"# A\n");
     for (method, route) in PATH_ROUTES {
         for (path, expected) in &cases {
             let uri = route.replace("{}", &path.replace('/', "%2F"));
-            let headers = [HOST, ("content-type", "application/json")];
+            let headers = [
+                HOST,
+                ("content-type", "application/json"),
+                ("if-match", &if_match),
+            ];
             let response =
                 send_body(workspace(dir.path()), method.clone(), &uri, &headers, &save).await;
             assert_eq!(response.status(), *expected, "{uri}");

@@ -35,17 +35,27 @@ export function errorFrom(status: number, body: ErrorBody | null): ApiError {
 }
 
 export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const options: RequestInit = { method };
+  const response = await send(method, path, body);
+  return response.json().catch(() => null);
+}
+
+/** Like `api`, but gives the response, for its headers. */
+export async function send(
+  method: string,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  const options: RequestInit = { method, headers };
   if (body !== undefined) {
-    options.headers = { "content-type": "application/json" };
+    options.headers = { ...headers, "content-type": "application/json" };
     options.body = JSON.stringify(body);
   }
   const response = await fetch(path, options);
-  const json = await response.json().catch(() => null);
   if (!response.ok) {
-    throw errorFrom(response.status, json);
+    throw errorFrom(response.status, await response.json().catch(() => null));
   }
-  return json;
+  return response;
 }
 
 /** Whether the file behind `url` exists: a file too large or unreadable

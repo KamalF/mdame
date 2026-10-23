@@ -58,6 +58,15 @@ pub fn local() -> AppState {
 
 pub const HOST: (&str, &str) = ("host", "127.0.0.1:4891");
 
+/// The `ETag` that mdame gives a file holding `content`.
+pub fn etag(content: &[u8]) -> String {
+    format!("\"{}\"", mdame::document::version(content))
+}
+
+pub fn etag_of(response: &Response) -> &str {
+    response.headers()["etag"].to_str().unwrap()
+}
+
 /// A workspace in `dir/ws` holding `files`, with `secret.md` next to it,
 /// outside the workspace.
 pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {

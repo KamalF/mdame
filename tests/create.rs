@@ -4,17 +4,20 @@ use std::fs;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
-use common::{HOST, send_body, status_and_json};
+use axum::response::Response;
+use common::{HOST, etag, etag_of, send_body, status_and_json};
 use mdame::app::AppState;
-use mdame::document::version;
 use serde_json::{Value, json};
 
 const JSON: (&str, &str) = ("content-type", "application/json");
 
-async fn create(state: AppState, path: &str) -> (StatusCode, Value) {
+async fn post(state: AppState, path: &str) -> Response {
     let body = json!({ "path": path }).to_string();
-    let response = send_body(state, Method::POST, "/api/file", &[HOST, JSON], &body).await;
-    status_and_json(response).await
+    send_body(state, Method::POST, "/api/file", &[HOST, JSON], &body).await
+}
+
+async fn create(state: AppState, path: &str) -> (StatusCode, Value) {
+    status_and_json(post(state, path).await).await
 }
 
 fn workspace(dir: &Path) -> AppState {
@@ -24,11 +27,12 @@ fn workspace(dir: &Path) -> AppState {
 #[tokio::test]
 async fn create_makes_an_empty_file() {
     let dir = tempfile::tempdir().unwrap();
-    let (status, created) = create(workspace(dir.path()), "b.md").await;
+    let response = post(workspace(dir.path()), "b.md").await;
 
+    assert_eq!(etag_of(&response), etag(b""));
+    let (status, created) = status_and_json(response).await;
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(fs::read(dir.path().join("ws/b.md")).unwrap(), b"");
-    assert_eq!(created["version"], version(b""));
     assert!(created["modified"].as_u64().unwrap() > 0);
 }
 

@@ -6,7 +6,7 @@ import { Compartment, Prec } from "@codemirror/state";
 import { keymap, type Panel, showPanel } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
-import { api, type ApiError } from "./api.ts";
+import { type ApiError, send } from "./api.ts";
 import { reactToDisk, reloadChanges } from "./disk.ts";
 import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
@@ -14,7 +14,7 @@ import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts"
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
 
-/** What `/api/source` answers. */
+/** What `/api/source` answers, with its `ETag` as the version. */
 interface Source {
   content: string;
   version: string;
@@ -35,7 +35,8 @@ interface Open {
   view: EditorView;
   split: HTMLElement;
   previewPane: HTMLElement;
-  /** The version on disk that the text started from: a save sends it. */
+  /** The version on disk that the text started from: a save sends it in
+   * `If-Match`. */
   base: string;
   saved: EditorView["state"]["doc"];
   modified: number;
@@ -67,8 +68,14 @@ function previewShown(): boolean {
   return load("mdame:preview", true);
 }
 
-function sourceUrl(path: string): string {
-  return `/api/source?path=${encodeURIComponent(path)}`;
+async function fetchSource(path: string): Promise<Source> {
+  const response = await send("GET", `/api/source?path=${encodeURIComponent(path)}`);
+  return { ...(await response.json()), version: etagOf(response) };
+}
+
+/** Quotes included: a save sends it back as it is. */
+function etagOf(response: Response): string {
+  return response.headers.get("ETag")!;
 }
 
 /** Opens `path` in `el`. Returns false if it failed, with the reason in
@@ -83,7 +90,7 @@ export async function mount(
   onState = listener;
   let source: Source;
   try {
-    source = await api<Source>("GET", sourceUrl(path));
+    source = await fetchSource(path);
   } catch (error) {
     if (id !== request) return false;
     const line = document.createElement("p");
@@ -250,13 +257,15 @@ export function save() {
   enqueue(current, async () => {
     const doc = current.view.state.doc;
     try {
-      const saved = await api<{ version: string; modified: number }>(
+      const response = await send(
         "PUT",
         `/api/file?path=${encodeURIComponent(current.path)}`,
-        { content: doc.toString(), base_version: current.base },
+        { content: doc.toString() },
+        { "If-Match": current.base },
       );
+      const saved: { modified: number } = await response.json();
       // The text typed during the save is still unsaved.
-      current.base = saved.version;
+      current.base = etagOf(response);
       current.saved = doc;
       current.modified = saved.modified;
       current.error = null;
@@ -264,7 +273,7 @@ export function save() {
     } catch (error) {
       const { code, message } = error as ApiError;
       // The file changed or went away on disk: the notice tells which.
-      if (code === "conflict" || code === "not_found") check(current);
+      if (code === "precondition_failed" || code === "not_found") check(current);
       else current.error = message;
     } finally {
       current.saving = false;
@@ -285,7 +294,7 @@ function check(current: Open) {
     current.checkQueued = false;
     let disk: Source | null = null;
     try {
-      disk = await api<Source>("GET", sourceUrl(current.path));
+      disk = await fetchSource(current.path);
     } catch (error) {
       if ((error as ApiError).code !== "not_found") {
         current.error = (error as ApiError).message;
@@ -363,10 +372,8 @@ function noticePanel(current: Open, disk: Source | null): Panel {
 function recreate(current: Open) {
   enqueue(current, async () => {
     try {
-      const created = await api<{ version: string }>("POST", "/api/file", {
-        path: current.path,
-      });
-      current.base = created.version;
+      const created = await send("POST", "/api/file", { path: current.path });
+      current.base = etagOf(created);
     } catch (error) {
       current.error = (error as ApiError).message;
     }

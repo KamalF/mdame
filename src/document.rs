@@ -85,6 +85,8 @@ pub fn raw(dir: &Dir, path: &str) -> io::Result<(Vec<u8>, &'static str)> {
 #[derive(Debug, Serialize)]
 pub struct Source {
     pub content: String,
+    /// Sent in the `ETag` header.
+    #[serde(skip)]
     pub version: String,
     pub modified: u64,
 }
@@ -126,6 +128,8 @@ pub enum SaveError {
 
 #[derive(Debug, Serialize)]
 pub struct Saved {
+    /// Sent in the `ETag` header.
+    #[serde(skip)]
     pub version: String,
     pub modified: u64,
 }

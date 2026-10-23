@@ -21,6 +21,11 @@ pub enum ApiError {
     NotViewable(String),
     #[error("{0}")]
     Conflict(String),
+    /// A save whose `If-Match` names a version that is no longer on disk.
+    #[error("{0}")]
+    PreconditionFailed(String),
+    #[error("{0}")]
+    PreconditionRequired(String),
     #[error("{0}")]
     TooLarge(String),
     #[error("{0}")]
@@ -66,6 +71,12 @@ impl IntoResponse for ApiError {
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
             ApiError::NotViewable(_) => (StatusCode::NOT_FOUND, "not_viewable"),
             ApiError::Conflict(_) => (StatusCode::CONFLICT, "conflict"),
+            ApiError::PreconditionFailed(_) => {
+                (StatusCode::PRECONDITION_FAILED, "precondition_failed")
+            }
+            ApiError::PreconditionRequired(_) => {
+                (StatusCode::PRECONDITION_REQUIRED, "precondition_required")
+            }
             ApiError::TooLarge(_) => (StatusCode::PAYLOAD_TOO_LARGE, "too_large"),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
         };

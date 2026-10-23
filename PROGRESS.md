@@ -144,17 +144,20 @@ Rules, as test names, by commit:
 5. Editor screen (done): `/edit/<path>`, `e` and the Edit button open it, `Esc` closes it, Cmd/Ctrl+S and the Save button save, an unsaved dot, a dialog before in-app navigation loses edits, and the browser's leave-page warning. No unit test: all of it is DOM wiring or CodeMirror's own `doc.eq`; the manual checklist covers it. A save error shows in the status bar until the notice of commit 9.
 6. Split, divider, preview (done): the preview renders through `POST /api/render` 150 ms after typing stops, morphed in as a view refresh; the divider and the preview toggle are remembered in `localStorage`. `latestOnly` (`latest.ts`): `an answer older than the latest call is dropped`. `load` and `store` moved from `sidebar.ts` to `storage.ts`.
 7. Scroll sync (done): `scrollsync.ts`, with no DOM: `maps a line to the last block starting at or before it`, `interpolates towards the next block`, `before the first block is the top`, `past the last block is the end`, `a block that would move back is skipped`, `preview to editor inverts editor to preview` (property test, between the first and the last anchor). The wiring in `editor.ts` keeps the preview aligned after each render.
-8. Ctrl+B, Ctrl+I, Tab, line numbers: `bold_wraps_the_selection`, `bold_unwraps_an_already_bold_selection`, `bold_on_an_empty_selection_puts_the_cursor_between_markers`, and the same for italic.
+8. Ctrl+B, Ctrl+I, Tab, line numbers (done): `format.ts`: `bold wraps the selection`, `bold unwraps an already bold selection` (markers just outside the selection or at its ends, with `*` or `_`), `bold on an empty selection puts the cursor between markers`, the same three for italic, `bold and italic stack`, `tab inserts two spaces at the cursor`, `tab indents the selected lines`. Shift+Tab removes one indent level. `basicSetup` already shows the line numbers.
 9. Changed-on-disk notice: `changed_whose_version_equals_the_base_is_our_own_save`, `changed_with_unsaved_edits_shows_the_notice`, `changed_without_unsaved_edits_reloads`, `removed_with_unsaved_edits_shows_the_notice_without_reload`.
 10. New file in a folder, with `POST /api/file` (create empty, 409 if it exists). Overwrite of a deleted file creates it, then saves.
 11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match`.
 12. Manual checklist, `cargo mutants`, review loop.
+    - For the checklist: scroll a long file to its middle in the editor, then run "replace all" (Ctrl+F) with a longer text, so that content above the visible part grows. Both panes must stay on the same section. Checked on 21 October 2026 with Chrome's scroll anchoring off: the preview moved from 7687 to 10477 px and stayed on Section 30; left in place, it would have shown Section 22.
 
 ## Next
 
-1. Milestone 6, commit 8: Ctrl+B, Ctrl+I, Tab.
+1. Milestone 6, commit 9: the changed-on-disk notice.
 
 ## Open points
+
+- Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
 
 - History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
 

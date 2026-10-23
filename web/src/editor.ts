@@ -1,9 +1,13 @@
+import { indentLess } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
+import { Prec } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { api, type ApiError } from "./api.ts";
+import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
 import { setupSplit } from "./split.ts";
@@ -83,6 +87,14 @@ export async function mount(
   const view = new EditorView({
     doc: source.content,
     extensions: [
+      // High precedence: basicSetup binds Mod-i to "select the enclosing syntax".
+      Prec.high(
+        keymap.of([
+          { key: "Mod-b", run: toggleMarker("**") },
+          { key: "Mod-i", run: toggleMarker("*") },
+          { key: "Tab", run: tab, shift: indentLess },
+        ]),
+      ),
       basicSetup,
       markdown({ codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),

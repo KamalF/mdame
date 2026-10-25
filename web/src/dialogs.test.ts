@@ -4,6 +4,7 @@ import { newFilePath } from "./dialogs.ts";
 test("a name with no extension gets .md", () => {
   expect(newFilePath("notes")).toBe("notes.md");
   expect(newFilePath("docs/notes")).toBe("docs/notes.md");
+  expect(newFilePath("docs//notes")).toBe("docs/notes.md");
   expect(newFilePath("v1.2/notes")).toBe("v1.2/notes.md");
   expect(newFilePath(".hidden")).toBe(".hidden.md");
 });

@@ -128,7 +128,9 @@ export function confirmDiscard(): Promise<boolean> {
  * extension gets `.md`. Null when the name is empty.
  */
 export function newFilePath(input: string): string | null {
-  const path = input.trim();
+  // The server creates docs/a.md for docs//a.md, and live events name
+  // docs/a.md: the editor must hold the same path.
+  const path = input.trim().replace(/\/{2,}/g, "/");
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (!name) return null;
   // A leading dot starts a hidden name, not an extension.

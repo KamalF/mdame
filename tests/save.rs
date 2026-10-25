@@ -1,6 +1,7 @@
 mod common;
 
-use std::fs;
+use std::fs::{self, Permissions};
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
@@ -115,7 +116,23 @@ async fn save_of_an_empty_file_makes_no_snapshot() {
     let response = put(state, "a.md", Some(&etag(b"")), "new\n").await;
 
     assert_eq!(response.status(), StatusCode::OK);
-    assert!(snapshots(dir.path(), "a.md").is_empty());
+    assert!(!dir.path().join("ws/.mdame").exists());
+}
+
+#[tokio::test]
+async fn save_writes_the_file_in_place() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = common::workspace(dir.path(), &[("a.md", b"a longer text\n")]);
+    let file = dir.path().join("ws/a.md");
+    fs::set_permissions(&file, Permissions::from_mode(0o600)).unwrap();
+    fs::hard_link(&file, dir.path().join("link.md")).unwrap();
+    let response = put(state, "a.md", Some(&etag(b"a longer text\n")), "short\n").await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let link = fs::read_to_string(dir.path().join("link.md")).unwrap();
+    assert_eq!(link, "short\n");
+    let mode = fs::metadata(&file).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o600);
 }
 
 #[tokio::test]
@@ -133,7 +150,7 @@ async fn save_with_a_stale_version_is_refused_and_writes_nothing() {
     assert_eq!(status, StatusCode::PRECONDITION_FAILED);
     assert_eq!(error["error"]["message"], "a.md: the file changed on disk");
     assert_eq!(read(dir.path(), "a.md"), "old\n");
-    assert!(snapshots(dir.path(), "a.md").is_empty());
+    assert!(!dir.path().join("ws/.mdame").exists());
 }
 
 #[tokio::test]
@@ -160,6 +177,43 @@ async fn if_match_must_be_one_strong_etag() {
 
         assert_eq!(response.status(), StatusCode::PRECONDITION_FAILED, "{form}");
         assert_eq!(read(dir.path(), "a.md"), "old\n", "{form}");
+    }
+}
+
+#[tokio::test]
+async fn save_of_a_file_that_mdame_may_not_write_leaves_no_snapshot() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = workspace(dir.path());
+    fs::set_permissions(dir.path().join("ws/a.md"), Permissions::from_mode(0o444)).unwrap();
+    let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(read(dir.path(), "a.md"), "old\n");
+    assert!(snapshots(dir.path(), "a.md").is_empty());
+}
+
+#[tokio::test]
+async fn save_without_a_writable_history_folder_writes_nothing() {
+    // A read-only history folder, and one that cannot be created.
+    let setups: [fn(&Path); 2] = [
+        |ws| {
+            let history = ws.join(".mdame/history");
+            fs::create_dir_all(&history).unwrap();
+            fs::set_permissions(&history, Permissions::from_mode(0o555)).unwrap();
+        },
+        |ws| fs::write(ws.join(".mdame"), "").unwrap(),
+    ];
+    for (n, setup) in setups.into_iter().enumerate() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = workspace(dir.path());
+        setup(&dir.path().join("ws"));
+        let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+
+        let (status, error) = status_and_json(response).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "setup {n}");
+        let message = error["error"]["message"].as_str().unwrap();
+        assert!(message.contains("history folder"), "{message}");
+        assert_eq!(read(dir.path(), "a.md"), "old\n", "setup {n}");
     }
 }
 

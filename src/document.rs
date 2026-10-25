@@ -1,11 +1,12 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::{self, ErrorKind, Read, Write};
+use std::io::{self, ErrorKind, Read, Seek, Write};
 use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use cap_std::fs::{Dir, File, Metadata, OpenOptions};
 use serde::Serialize;
 
+use crate::error::io_message;
 use crate::history;
 use crate::render::{self, Family};
 
@@ -30,13 +31,13 @@ pub struct View {
 /// The rendered file at `path`, relative to the workspace root. A file
 /// that exists with no family gives `Unsupported`.
 pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
-    let (file, metadata) = open_file(dir, path)?;
+    let (file, metadata) = open_file(dir, path, OpenOptions::new().read(true))?;
     let family = Family::of(path).ok_or_else(not_viewable)?;
     let size = metadata.len();
     let html = match family {
         Family::Image => Some(render::file(family, path, "")),
         _ if size > RENDER_LIMIT => None,
-        _ => match read_at_most(file, RENDER_LIMIT) {
+        _ => match read_at_most(&file, RENDER_LIMIT) {
             Ok(bytes) => Some(render::file(family, path, &String::from_utf8_lossy(&bytes))),
             Err(error) if error.kind() == ErrorKind::FileTooLarge => None,
             Err(error) => return Err(error),
@@ -76,11 +77,11 @@ fn not_viewable() -> io::Error {
 /// The bytes of the file at `path` and the type to serve them with. Over
 /// `RAW_LIMIT` gives `FileTooLarge`.
 pub fn raw(dir: &Dir, path: &str) -> io::Result<(Vec<u8>, &'static str)> {
-    let (file, metadata) = open_file(dir, path)?;
+    let (file, metadata) = open_file(dir, path, OpenOptions::new().read(true))?;
     if metadata.len() > RAW_LIMIT {
         return Err(too_large());
     }
-    Ok((read_at_most(file, RAW_LIMIT)?, render::raw_type(path)))
+    Ok((read_at_most(&file, RAW_LIMIT)?, render::raw_type(path)))
 }
 
 #[derive(Debug, Serialize)]
@@ -96,14 +97,14 @@ pub struct Source {
 /// that is not UTF-8, gives `Unsupported`: a lossy load would corrupt the
 /// file on the next save.
 pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
-    let (file, metadata) = open_file(dir, path)?;
+    let (file, metadata) = open_file(dir, path, OpenOptions::new().read(true))?;
     if Family::of(path) == Some(Family::Image) {
         return Err(not_text());
     }
     if metadata.len() > EDIT_LIMIT {
         return Err(too_large());
     }
-    let bytes = read_at_most(file, EDIT_LIMIT)?;
+    let bytes = read_at_most(&file, EDIT_LIMIT)?;
     let version = version(&bytes);
     let content = String::from_utf8(bytes).map_err(|_| not_text())?;
     Ok(Source {
@@ -123,6 +124,9 @@ pub fn version(bytes: &[u8]) -> String {
 pub enum SaveError {
     #[error("the file changed on disk")]
     Changed,
+    /// Nothing was written: the file keeps its content.
+    #[error("cannot keep the old version in the history folder: {}", io_message(.0))]
+    Snapshot(io::Error),
     #[error(transparent)]
     Io(#[from] io::Error),
 }
@@ -140,14 +144,15 @@ pub struct Saved {
 static SAVES: Mutex<()> = Mutex::new(());
 
 /// Writes `content` to `path` if the file on disk still has `base_version`,
-/// after a snapshot of the old content in `history`. A deleted file has
-/// changed too.
+/// after a snapshot of the old content in the folder that `history` opens.
+/// A deleted file has changed too.
 ///
 /// The file is written in place, not renamed over: its permissions and
 /// hard links stay.
 pub fn save(
     dir: &Dir,
-    history: &Dir,
+    // Opening it can create it: a save that makes no snapshot must not.
+    history: impl FnOnce() -> io::Result<Dir>,
     path: &str,
     content: &str,
     base_version: &str,
@@ -156,24 +161,27 @@ pub fn save(
         return Err(too_large().into());
     }
     let _one_at_a_time = SAVES.lock().unwrap_or_else(PoisonError::into_inner);
-    let (file, _) = match open_file(dir, path) {
+    // One handle for the check and the write: a file that mdame may not
+    // write fails before the snapshot, and the write goes to the file whose
+    // version was checked.
+    let (mut file, _) = match open_file(dir, path, OpenOptions::new().read(true).write(true)) {
         Err(error) if error.kind() == ErrorKind::NotFound => return Err(SaveError::Changed),
         opened => opened?,
     };
-    let old = read_at_most(file, EDIT_LIMIT)?;
+    let old = read_at_most(&file, EDIT_LIMIT)?;
     if version(&old) != base_version {
         return Err(SaveError::Changed);
     }
     // Writing over an empty file loses nothing.
     if !old.is_empty() {
-        history::snapshot(history, path, &old, now_ms())?;
+        history()
+            .and_then(|history| history::snapshot(&history, path, &old, now_ms()))
+            .map_err(SaveError::Snapshot)?;
     }
-    let mut file = dir.open_with(path, OpenOptions::new().write(true).truncate(true))?;
+    file.set_len(0)?;
+    file.rewind()?;
     file.write_all(content.as_bytes())?;
-    Ok(Saved {
-        version: version(content.as_bytes()),
-        modified: modified_secs(&file.metadata()?).unwrap_or(0),
-    })
+    Ok(saved(version(content.as_bytes()), &file)?)
 }
 
 /// Creates an empty file at `path`. An existing file gives `AlreadyExists`.
@@ -187,10 +195,12 @@ pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
         ));
     }
     let file = dir.open_with(path, OpenOptions::new().write(true).create_new(true))?;
-    Ok(Saved {
-        version: version(b""),
-        modified: modified_secs(&file.metadata()?).unwrap_or(0),
-    })
+    saved(version(b""), &file)
+}
+
+fn saved(version: String, file: &File) -> io::Result<Saved> {
+    let modified = modified_secs(&file.metadata()?).unwrap_or(0);
+    Ok(Saved { version, modified })
 }
 
 fn now_ms() -> u64 {
@@ -204,17 +214,17 @@ fn not_text() -> io::Error {
 
 /// The type is checked before the open: opening a FIFO blocks until a
 /// writer comes, maybe never.
-fn open_file(dir: &Dir, path: &str) -> io::Result<(File, Metadata)> {
+fn open_file(dir: &Dir, path: &str, options: &OpenOptions) -> io::Result<(File, Metadata)> {
     let metadata = dir.metadata(path)?;
     if !metadata.is_file() {
         return Err(io::Error::new(ErrorKind::NotFound, "not a file"));
     }
-    Ok((dir.open(path)?, metadata))
+    Ok((dir.open_with(path, options)?, metadata))
 }
 
 /// The file can grow after its size was checked: read one byte more than
 /// `limit` at most, and refuse it then.
-fn read_at_most(file: File, limit: u64) -> io::Result<Vec<u8>> {
+fn read_at_most(file: &File, limit: u64) -> io::Result<Vec<u8>> {
     let mut bytes = Vec::new();
     file.take(limit + 1).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > limit {
@@ -244,9 +254,9 @@ mod tests {
         std::fs::write(tmp.path().join("a.txt"), "abcd").unwrap();
         let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
 
-        let bytes = read_at_most(dir.open("a.txt").unwrap(), 4).unwrap();
+        let bytes = read_at_most(&dir.open("a.txt").unwrap(), 4).unwrap();
         assert_eq!(bytes, b"abcd");
-        let error = read_at_most(dir.open("a.txt").unwrap(), 3).unwrap_err();
+        let error = read_at_most(&dir.open("a.txt").unwrap(), 3).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::FileTooLarge);
     }
 
@@ -266,7 +276,13 @@ mod tests {
                     let (dir, history, barrier) = (&dir, &history, &barrier);
                     scope.spawn(move || {
                         barrier.wait();
-                        save(dir, history, "a.md", &content, &version(b"old\n"))
+                        save(
+                            dir,
+                            || history.try_clone(),
+                            "a.md",
+                            &content,
+                            &version(b"old\n"),
+                        )
                     })
                 });
                 saves.map(|save| save.join().unwrap().is_ok())

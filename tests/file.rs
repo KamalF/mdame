@@ -93,7 +93,7 @@ async fn unreadable_file_is_not_called_outside() {
     }
     let (status, body) = get_file(state, "docs/a.md").await;
     assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(body["error"]["message"], "no permission to read this file");
+    assert_eq!(body["error"]["message"], "no permission to open this file");
 }
 
 #[tokio::test]

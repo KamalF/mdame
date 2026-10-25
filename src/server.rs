@@ -384,10 +384,9 @@ async fn save(
     let mode = app.config.read().unwrap().history.unwrap_or_default();
     let path = query.path.clone();
     let saved = tokio::task::spawn_blocking(move || {
-        let history = history::root(mode, &workspace, &app.state_dir)?;
         document::save(
             &workspace.dir,
-            &history,
+            || history::root(mode, &workspace, &app.state_dir),
             &path,
             &request.content,
             &base_version,
@@ -396,6 +395,7 @@ async fn save(
     .await?;
     let saved = saved.map_err(|error| match error {
         SaveError::Changed => ApiError::PreconditionFailed(format!("{}: {error}", query.path)),
+        SaveError::Snapshot(_) => ApiError::Internal(format!("{}: {error}", query.path)),
         SaveError::Io(error) => file_error(&query.path, error),
     })?;
     Ok(([(header::ETAG, etag(&saved.version))], Json(saved)))
@@ -464,7 +464,7 @@ fn file_error(path: &str, error: io::Error) -> ApiError {
         io::ErrorKind::PermissionDenied if error.raw_os_error().is_none() => {
             ApiError::Forbidden("path outside the workspace")
         }
-        io::ErrorKind::PermissionDenied => ApiError::Forbidden("no permission to read this file"),
+        io::ErrorKind::PermissionDenied => ApiError::Forbidden("no permission to open this file"),
         _ => ApiError::Internal(message),
     }
 }

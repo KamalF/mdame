@@ -53,10 +53,14 @@ pub fn snapshot(history: &Dir, path: &str, content: &[u8], now_ms: u64) -> io::R
         options.write(true).create_new(true);
         match history.open_with(format!("{path}/{name}"), &options) {
             Ok(mut file) => {
-                file.write_all(content)?;
                 // On disk before the save truncates the file: a power cut
                 // must not lose both texts.
-                file.sync_all()?;
+                let written = file.write_all(content).and_then(|()| file.sync_all());
+                if let Err(error) = written {
+                    // A partial snapshot would show as a revision.
+                    let _ = history.remove_file(format!("{path}/{name}"));
+                    return Err(error);
+                }
                 return Ok(name);
             }
             Err(error) if error.kind() == ErrorKind::AlreadyExists => ms += 1,

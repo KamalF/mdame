@@ -1,5 +1,5 @@
 import { indentLess, isolateHistory } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { Compartment, Prec, Text } from "@codemirror/state";
@@ -52,6 +52,25 @@ interface Open {
   queue: Queue;
   error: string | null;
 }
+
+/** CodeMirror's base theme is light: these follow the page's palette, dark too. */
+const palette = EditorView.theme({
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--fg)" },
+  ".cm-selectionBackground": { background: "var(--selection)" },
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+    background: "var(--selection)",
+  },
+  // Translucent: the selection layer is drawn below the lines.
+  ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--fg) 4%, transparent)" },
+  ".cm-gutters": {
+    backgroundColor: "var(--bg-sunken)",
+    color: "var(--fg-muted)",
+    borderRight: "1px solid var(--border)",
+  },
+  ".cm-activeLineGutter": { backgroundColor: "var(--bg-raised)" },
+  // The completion list: its text has the page's colour.
+  ".cm-tooltip": { backgroundColor: "var(--bg-raised)", border: "1px solid var(--border)" },
+});
 
 let open: Open | null = null;
 const notice = new Compartment();
@@ -113,8 +132,10 @@ export async function mount(
         ]),
       ),
       basicSetup,
+      palette,
       notice.of([]),
-      markdown({ codeLanguages: languages }),
+      // GitHub-flavoured, as the view renders it.
+      markdown({ base: markdownLanguage, codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {

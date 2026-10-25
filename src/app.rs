@@ -214,9 +214,10 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState {
         addr,
         workspace: RwLock::new(None),
+        // Every field named: a lost token line must not compile.
         access: Mutex::new(Access {
             token: Some(token.clone()),
-            ..Access::default()
+            open_codes: Vec::new(),
         }),
         token_file,
         config: RwLock::new(config),
@@ -239,14 +240,13 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let state = Arc::new(app_state);
 
     print_urls(addr, &printed, &token);
-    // Without a display, as over SSH, no browser comes: the opened code
-    // would only wait on a command line that other accounts can read.
-    let display =
-        std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some();
-    if cfg!(target_os = "linux") && !display {
+    let linux = cfg!(target_os = "linux");
+    if has_display(linux, |name| std::env::var_os(name).is_some()) {
+        if let Err(error) = open::that_detached(code_url(addr, &opened)) {
+            tracing::warn!("could not open the browser: {error}");
+        }
+    } else {
         tracing::info!("no display: open the URL above in a browser");
-    } else if let Err(error) = open::that_detached(code_url(addr, &opened)) {
-        tracing::warn!("could not open the browser: {error}");
     }
     axum::serve(listener, server::router(state)).await?;
     Ok(())
@@ -264,6 +264,13 @@ async fn bind_first_free(ip: IpAddr, first: u16, attempts: usize) -> io::Result<
         ErrorKind::AddrInUse,
         format!("no free port in the {attempts} ports from {first}"),
     ))
+}
+
+/// Without a display, as over SSH, no browser comes: the opened code would
+/// only wait on a command line that other accounts can read. Only Linux
+/// tells it by these variables.
+fn has_display(linux: bool, is_set: impl Fn(&str) -> bool) -> bool {
+    !linux || is_set("DISPLAY") || is_set("WAYLAND_DISPLAY")
 }
 
 /// The URL with an open code, for the browser on this machine.
@@ -506,6 +513,20 @@ mod tests {
             let bound: SocketAddr = bound.parse().unwrap();
             let url = other_devices_url(bound, "token");
             assert_eq!(url.as_deref(), expected, "{bound}");
+        }
+    }
+
+    #[test]
+    fn a_browser_opens_only_with_a_display_on_linux() {
+        let cases = [
+            (true, &[][..], false),
+            (true, &["DISPLAY"][..], true),
+            (true, &["WAYLAND_DISPLAY"][..], true),
+            (false, &[][..], true),
+        ];
+        for (linux, set, expected) in cases {
+            let display = has_display(linux, |name| set.contains(&name));
+            assert_eq!(display, expected, "linux {linux}, {set:?}");
         }
     }
 

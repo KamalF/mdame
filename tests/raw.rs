@@ -42,6 +42,7 @@ async fn image_keeps_its_type_and_is_sandboxed() {
     assert_eq!(headers[header::CONTENT_TYPE], "image/png");
     assert_eq!(headers[header::CONTENT_SECURITY_POLICY], SANDBOX);
     assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
+    assert_eq!(headers[header::CACHE_CONTROL], "no-store");
     assert_eq!(body(response).await, [0x89, b'P', b'N', b'G']);
 }
 

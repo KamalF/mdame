@@ -11,7 +11,7 @@ async fn page_is_served_with_security_headers() {
     assert_eq!(headers[header::CONTENT_TYPE], "text/html; charset=utf-8");
     assert_eq!(
         headers[header::CONTENT_SECURITY_POLICY],
-        "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+        "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'"
     );
     assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
     assert_eq!(headers[header::REFERRER_POLICY], "no-referrer");
@@ -77,4 +77,25 @@ async fn refusals_carry_security_headers_too() {
         response.headers()[header::X_CONTENT_TYPE_OPTIONS],
         "nosniff"
     );
+}
+
+/// A file may be private, and the browser's cache outlives the tab.
+#[tokio::test]
+async fn only_api_and_raw_answers_stay_out_of_the_cache() {
+    let cases = [
+        ("/api/state", true),
+        ("/raw/notes.md", true),
+        ("/", false),
+        ("/view/notes.md", false),
+        ("/assets/main.js", false),
+    ];
+    for (uri, private) in cases {
+        let response = send(local(), uri, &[HOST]).await;
+        let cache = response.headers().get(header::CACHE_CONTROL);
+        assert_eq!(
+            cache.is_some_and(|value| value == "no-store"),
+            private,
+            "{uri}"
+        );
+    }
 }

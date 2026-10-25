@@ -319,11 +319,17 @@ fn same_secret(a: &str, b: &str) -> bool {
             == 0
 }
 
-const PAGE_CSP: &str = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
+const PAGE_CSP: &str = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'";
 
 async fn security_headers(req: Request, next: Next) -> Response {
+    // A file may be private, and the browser's cache outlives the tab.
+    let path = req.uri().path();
+    let private = path.starts_with("/api/") || path.starts_with("/raw/");
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
+    if private {
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    }
     // `/raw` sets its own, stricter policy.
     headers
         .entry(header::CONTENT_SECURITY_POLICY)

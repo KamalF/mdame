@@ -14,7 +14,7 @@ use crate::config::{self, Config, Recents};
 use crate::error::{ApiError, io_message};
 use crate::server;
 use crate::watch::{self, EVENT_CAPACITY, Event};
-use crate::workspace::Workspace;
+use crate::workspace::{Workspace, is_hidden};
 
 const PORT_ATTEMPTS: usize = 10;
 
@@ -41,6 +41,9 @@ pub struct Args {
     /// Folder or file to open; without it, mdame starts at the picker
     pub path: Option<PathBuf>,
 }
+
+/// Whether a hidden folder may become the workspace.
+struct AllowHidden(bool);
 
 /// Stands for the token in a URL that mdame opens or prints, once and for
 /// a short time: other accounts can read a browser's command line with
@@ -78,6 +81,8 @@ pub struct Access {
 pub enum OpenError {
     #[error("a workspace is already open")]
     AlreadyOpen,
+    #[error("open a folder that is not hidden, or start mdame on it")]
+    Hidden,
     #[error("{}", io_message(.0))]
     Io(#[from] io::Error),
 }
@@ -109,15 +114,29 @@ impl AppState {
         access.token.as_deref() == token
     }
 
+    pub fn open_workspace(&self, path: &Path) -> Result<(), OpenError> {
+        self.open(path, AllowHidden(true))
+    }
+
+    /// From the picker. The editor refuses hidden folders inside a
+    /// workspace, so a hidden folder, such as ~/.claude, must not become one.
+    /// The real root counts: a link may lead into one.
+    pub fn open_picked(&self, path: &Path) -> Result<(), OpenError> {
+        self.open(path, AllowHidden(false))
+    }
+
     /// The watcher starts before the lock is taken: its first walk reads the
     /// whole folder, and every request waits for the lock. The store checks
     /// again, so two tabs that open a workspace at the same time cannot both
     /// succeed.
-    pub fn open_workspace(&self, path: &Path) -> Result<(), OpenError> {
+    fn open(&self, path: &Path, AllowHidden(allow): AllowHidden) -> Result<(), OpenError> {
         if self.workspace.read().unwrap().is_some() {
             return Err(OpenError::AlreadyOpen);
         }
         let mut workspace = Workspace::open(path)?;
+        if !allow && is_hidden(&workspace.root) {
+            return Err(OpenError::Hidden);
+        }
         match watch::start(&workspace.root, self.events.clone()) {
             Ok(watcher) => workspace.watcher = Some(watcher),
             Err(error) => tracing::warn!("live updates are off: {error}"),

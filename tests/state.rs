@@ -149,9 +149,29 @@ async fn open(state: AppState, path: &str) -> (StatusCode, Value) {
     status_and_json(response).await
 }
 
+/// tempdir() names its folder `.tmp…`, which the picker refuses as hidden.
+fn visible_folder() -> tempfile::TempDir {
+    tempfile::Builder::new().prefix("mdame-").tempdir().unwrap()
+}
+
+#[tokio::test]
+async fn picker_refuses_a_hidden_folder() {
+    let dir = visible_folder();
+    let hidden = dir.path().join(".claude");
+    fs::create_dir(&hidden).unwrap();
+    // A link with a plain name leads there too.
+    let link = dir.path().join("notes");
+    std::os::unix::fs::symlink(&hidden, &link).unwrap();
+    for path in [&hidden, &link] {
+        let state = local();
+        let (status, _) = open(state, path.to_str().unwrap()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{}", path.display());
+    }
+}
+
 #[tokio::test]
 async fn picker_opens_a_folder() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = visible_folder();
     let state = AppState {
         state_dir: dir.path().to_path_buf(),
         ..local()
@@ -166,7 +186,7 @@ async fn picker_opens_a_folder() {
 
 #[tokio::test]
 async fn second_open_is_a_conflict() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = visible_folder();
     let state = AppState {
         state_dir: dir.path().to_path_buf(),
         ..local()
@@ -180,7 +200,7 @@ async fn second_open_is_a_conflict() {
 
 #[tokio::test]
 async fn missing_relative_or_impossible_path_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = visible_folder();
     let missing = dir.path().join("missing");
     fs::write(dir.path().join("a.md"), "").unwrap();
     let through_file = dir.path().join("a.md/notes");

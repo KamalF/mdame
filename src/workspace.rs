@@ -55,6 +55,10 @@ impl Workspace {
             ));
         };
         let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
+        // The folder that the Dir holds: a link swapped after the
+        // canonicalize must not leave `root` naming another one. Without
+        // /proc, as on macOS, the resolved path stands.
+        let root = fd_path(&dir).unwrap_or(root);
         Ok(Workspace {
             root,
             dir,

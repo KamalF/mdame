@@ -411,13 +411,14 @@ async fn open_workspace(
     // Starting the watcher walks the whole folder.
     let opened = tokio::task::spawn_blocking({
         let (app, path) = (app.clone(), path.clone());
-        move || app.open_workspace(&path)
+        move || app.open_picked(&path)
     })
     .await?;
     opened.map_err(|error| {
         let message = format!("{}: {error}", request.path);
         match error {
             OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),
+            OpenError::Hidden => ApiError::BadRequest(message),
             OpenError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
                 ApiError::NotFound(message)
             }

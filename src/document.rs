@@ -3,7 +3,7 @@ use std::io::{self, ErrorKind, Read, Seek, Write};
 use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use cap_std::fs::{Dir, File, Metadata, OpenOptions};
+use cap_std::fs::{Dir, File, Metadata, MetadataExt, OpenOptions};
 use serde::Serialize;
 
 use crate::error::io_message;
@@ -183,6 +183,12 @@ pub fn save(
             .and_then(|history| history::snapshot(&history, path, &old, now_ms()))
             .map_err(SaveError::Snapshot)?;
     }
+    // A program that saves by renaming a new file over the path may have
+    // done so during the snapshot: the text written to the old file would
+    // then be in no file.
+    if !is_at(dir, path, &file) {
+        return Err(SaveError::Changed);
+    }
     file.set_len(0)?;
     file.rewind()?;
     file.write_all(content.as_bytes())?;
@@ -211,6 +217,14 @@ fn saved(version: String, file: &File) -> io::Result<Saved> {
 fn now_ms() -> u64 {
     let now = SystemTime::now().duration_since(UNIX_EPOCH);
     now.expect("the clock is after 1970").as_millis() as u64
+}
+
+/// Whether `path` still leads to the open `file`.
+fn is_at(dir: &Dir, path: &str, file: &File) -> bool {
+    let (Ok(opened), Ok(on_path)) = (file.metadata(), dir.metadata(path)) else {
+        return false;
+    };
+    (opened.dev(), opened.ino()) == (on_path.dev(), on_path.ino())
 }
 
 fn not_text() -> io::Error {
@@ -296,6 +310,24 @@ mod tests {
             assert_eq!(saved.iter().filter(|ok| **ok).count(), 1);
             assert!(contents.contains(&dir.read_to_string("a.md").unwrap()));
         }
+    }
+
+    #[test]
+    fn a_file_renamed_over_during_the_save_is_left_alone() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(tmp.path().join("history")).unwrap();
+        let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        dir.write("a.md", "old\n").unwrap();
+        // Another editor saves by rename while mdame opens the history.
+        let history = || {
+            dir.write("new.md", "theirs\n")?;
+            dir.rename("new.md", &dir, "a.md")?;
+            dir.open_dir("history")
+        };
+        let saved = save(&dir, history, "a.md", "ours\n", &version(b"old\n"));
+
+        assert!(matches!(saved, Err(SaveError::Changed)));
+        assert_eq!(dir.read_to_string("a.md").unwrap(), "theirs\n");
     }
 
     #[test]

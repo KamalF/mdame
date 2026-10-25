@@ -1,6 +1,7 @@
 mod common;
 
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::sync::RwLock;
 
 use axum::http::{Method, StatusCode};
@@ -115,6 +116,11 @@ async fn open_workspace_shows_in_state_and_recents() {
 
     let recents: Recents = config::load(&recents_path).unwrap();
     assert_eq!(recents.entries[0].path, file.canonicalize().unwrap());
+    let mode = fs::metadata(dir.path().join("state"))
+        .unwrap()
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o700);
     let body = get_state(state).await;
     let root = dir.path().canonicalize().unwrap();
     assert_eq!(body["workspace"]["root"], root.display().to_string());

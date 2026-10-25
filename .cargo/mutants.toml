@@ -17,8 +17,6 @@ exclude_re = [
     # Needs the inotify watch limit reached, or a folder deleted during the walk.
     "can_skip\\(&error\\) with true in watch_readable",
     "can_skip\\(&error\\) with (true|false) in watch_around",
-    # Any other error from create_dir comes back from create_dir_all below.
-    "history.rs.*ErrorKind::AlreadyExists with true in root",
     # Sends every class through the filter: the same names come out.
     "value.contains\\(\"mdame-\"\\) with true in no_app_names",
 ]

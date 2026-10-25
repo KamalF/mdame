@@ -105,6 +105,15 @@ impl AppState {
             .expect("the clock is after 1970")
             .as_secs();
         recents.add(path, now);
+        // Only the owner may list it.
+        if let Err(error) = config::private_folder(&self.state_dir) {
+            tracing::warn!(
+                "recents not saved: {}: {}",
+                self.state_dir.display(),
+                io_message(&error)
+            );
+            return;
+        }
         if let Err(error) = config::save(&recents, &self.recents_path()) {
             tracing::warn!("could not save the recents: {error}");
         }

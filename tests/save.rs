@@ -275,9 +275,17 @@ async fn save_in_state_mode_keeps_the_snapshot_in_the_state_folder() {
     let mut state = workspace(dir.path());
     state.state_dir = dir.path().join("state");
     state.config.get_mut().unwrap().history = Some(HistoryMode::State);
+    // Others could list it: the save makes it private.
+    fs::create_dir(&state.state_dir).unwrap();
+    fs::set_permissions(&state.state_dir, Permissions::from_mode(0o755)).unwrap();
     let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
 
     assert_eq!(response.status(), StatusCode::OK);
+    let mode = fs::metadata(dir.path().join("state"))
+        .unwrap()
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o700);
     let root = dir.path().join("ws").canonicalize().unwrap();
     let folder = dir
         .path()

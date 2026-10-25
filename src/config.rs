@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::{self, ErrorKind, Write};
+use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -124,6 +125,17 @@ pub fn config_file() -> Option<PathBuf> {
     Some(dir.join("config.toml"))
 }
 
+/// Makes `path` a folder that only the owner can list, even if it was not:
+/// the recents name the opened folders, and the history in `state` mode
+/// follows the workspace's file names.
+pub fn private_folder(path: &Path) -> io::Result<()> {
+    fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(path)?;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+}
+
 pub fn state_dir() -> Option<PathBuf> {
     app_dir(
         std::env::var_os("XDG_STATE_HOME"),
@@ -144,6 +156,18 @@ fn app_dir(xdg: Option<OsString>, home: Option<PathBuf>, fallback: &str) -> Opti
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_state_folder_is_private_even_if_it_was_not() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = dir.path().join("state/mdame");
+        private_folder(&state).unwrap();
+        fs::set_permissions(&state, fs::Permissions::from_mode(0o755)).unwrap();
+        private_folder(&state).unwrap();
+
+        let mode = fs::metadata(&state).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
 
     #[test]
     fn missing_file_is_the_default() {

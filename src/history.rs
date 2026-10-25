@@ -2,27 +2,43 @@ use std::io::{self, ErrorKind, Write};
 use std::path::Path;
 
 use cap_std::ambient_authority;
-use cap_std::fs::{Dir, OpenOptions};
+use cap_std::fs::{Dir, DirBuilder, DirBuilderExt, OpenOptions, OpenOptionsExt};
 
-use crate::config::HistoryMode;
+use crate::config::{self, HistoryMode};
 use crate::workspace::{OWN_DIR, Workspace};
 
 /// Creates the folder if it is missing.
 pub fn root(mode: HistoryMode, workspace: &Workspace, state_dir: &Path) -> io::Result<Dir> {
     match mode {
         HistoryMode::Workspace => {
-            match workspace.dir.create_dir(OWN_DIR) {
-                Ok(()) => workspace
+            // Any other error than an existing folder comes back from
+            // create_dir_all below.
+            // Only the owner may list it: its folders follow the workspace's
+            // file names, also those in a private folder.
+            let mut private = DirBuilder::new();
+            private.mode(0o700);
+            if workspace.dir.create_dir_with(OWN_DIR, &private).is_ok() {
+                // create_new follows no link that another program may have
+                // put there since the folder appeared.
+                let mut options = OpenOptions::new();
+                options.write(true).create_new(true);
+                match workspace
                     .dir
-                    .write(format!("{OWN_DIR}/.gitignore"), "*\n")?,
-                Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
-                Err(error) => return Err(error),
+                    .open_with(format!("{OWN_DIR}/.gitignore"), &options)
+                {
+                    Ok(mut file) => file.write_all(b"*\n")?,
+                    Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+                    Err(error) => return Err(error),
+                }
             }
             let history = format!("{OWN_DIR}/history");
             workspace.dir.create_dir_all(&history)?;
             workspace.dir.open_dir(&history)
         }
         HistoryMode::State => {
+            // A folder that cannot be made private stops the snapshot, and
+            // so the save.
+            config::private_folder(state_dir)?;
             let history = state_dir.join(encode_path(&workspace.root)).join("history");
             std::fs::create_dir_all(&history)?;
             Dir::open_ambient_dir(&history, ambient_authority())
@@ -50,7 +66,8 @@ pub fn snapshot(history: &Dir, path: &str, content: &[u8], now_ms: u64) -> io::R
             None => ms.to_string(),
         };
         let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
+        // A snapshot of a private file must not be readable by others.
+        options.write(true).create_new(true).mode(0o600);
         match history.open_with(format!("{path}/{name}"), &options) {
             Ok(mut file) => {
                 // On disk before the save truncates the file: a power cut
@@ -73,6 +90,7 @@ pub fn snapshot(history: &Dir, path: &str, content: &[u8], now_ms: u64) -> io::R
 mod tests {
     use super::*;
     use std::fs;
+    use std::os::unix::fs::PermissionsExt;
 
     fn workspace() -> (tempfile::TempDir, Workspace) {
         let tmp = tempfile::tempdir().unwrap();
@@ -96,6 +114,11 @@ mod tests {
 
         let gitignore = fs::read_to_string(tmp.path().join(".mdame/.gitignore")).unwrap();
         assert_eq!(gitignore, "*\n");
+        let mode = fs::metadata(tmp.path().join(".mdame"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700);
     }
 
     #[test]
@@ -155,6 +178,19 @@ mod tests {
     }
 
     #[test]
+    fn a_snapshot_is_readable_by_the_owner_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        let name = snapshot(&history, "a.md", b"old", 1000).unwrap();
+
+        let mode = fs::metadata(tmp.path().join("a.md").join(name))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    #[test]
     fn two_snapshots_in_the_same_millisecond_are_both_kept() {
         let tmp = tempfile::tempdir().unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
@@ -168,7 +204,6 @@ mod tests {
 
     #[test]
     fn a_snapshot_that_cannot_be_written_gives_the_error() {
-        use std::os::unix::fs::PermissionsExt;
         let tmp = tempfile::tempdir().unwrap();
         fs::create_dir(tmp.path().join("a.md")).unwrap();
         fs::set_permissions(tmp.path().join("a.md"), fs::Permissions::from_mode(0o555)).unwrap();

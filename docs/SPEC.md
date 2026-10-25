@@ -420,11 +420,11 @@ Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missi
 
 mdame keeps its own files and imports nothing from mdlive, so it starts with no revisions or recents. The layouts follow mdlive v2.3.13, checked against `handlers/api.rs` and `config.rs`, except where noted.
 
-**Revision snapshots.** Before a save overwrites a file, its previous content is copied to `<history root>/<relative path>/<unix milliseconds>.<original extension>`. Example: saving `api/rate-limiting.md` writes `api/rate-limiting.md/1771271566123.md` under the history root. The snapshot is opened with `OpenOptions::create_new`, so it never overwrites one that exists; on `AlreadyExists`, add 1 ms and retry. After writing, keep the newest 20 per file (`snapshots_per_file`) and delete the rest, ignoring files already gone. A test checks that two quick saves give two snapshots. An empty file gets no snapshot: writing over it loses nothing. A save of the text already on disk writes nothing and makes no snapshot, so a habit of pressing Ctrl+S does not push the real revisions out.
+**Revision snapshots.** Before a save overwrites a file, its previous content is copied to `<history root>/<relative path>/<unix milliseconds>.<original extension>`. Example: saving `api/rate-limiting.md` writes `api/rate-limiting.md/1771271566123.md` under the history root. The snapshot is opened with `OpenOptions::create_new`, so it never overwrites one that exists; on `AlreadyExists`, add 1 ms and retry. Its mode is 0600, since the file it copies may be private. After writing, keep the newest 20 per file (`snapshots_per_file`) and delete the rest, ignoring files already gone. A test checks that two quick saves give two snapshots. An empty file gets no snapshot: writing over it loses nothing. A save of the text already on disk writes nothing and makes no snapshot, so a habit of pressing Ctrl+S does not push the real revisions out.
 
 **History location.** The global `history` setting in `config.toml` picks the history root:
 
-- `workspace` (default): `<workspace>/.mdame/history/`. When mdame creates `.mdame/`, it also writes `.mdame/.gitignore` containing `*`, so git, the `ignore` walker, ripgrep and agents skip it with no change to the user's own `.gitignore`.
+- `workspace` (default): `<workspace>/.mdame/history/`. When mdame creates `.mdame/`, it makes it 0700, since its folders follow the workspace's file names, and it writes `.mdame/.gitignore` containing `*`, so git, the `ignore` walker, ripgrep and agents skip it with no change to the user's own `.gitignore`.
 - `state`: `~/.local/state/mdame/<encoded path>/history/`, where the encoded path is the workspace's absolute path with every non-alphanumeric character replaced by `-` (Claude Code's convention, for example `-home-kamal-dev-github-mdame`). Nothing is created in the workspace. Two paths can encode the same (`/a/b-c`, `/a-b/c`); accepted. Renaming a folder orphans its history.
 - Switching mode does not move old snapshots; the README says so.
 
@@ -449,6 +449,8 @@ last_opened_secs = 1771273728
 ```
 
 mdlive's `last_workspaces` and `last_browse_dir` are not carried over.
+
+**State folder.** mdame makes the state folder 0700 before it writes the recents or a `state`-mode snapshot there: the recents name the opened folders, and the history follows the workspace's file names. If it cannot, the recents are not saved, and a `state`-mode save fails.
 
 **User themes.** Any `~/.config/mdame/themes/<name>.css` appears in the theme picker as `<name>`, after the built-ins. A user file with a built-in's name overrides it.
 

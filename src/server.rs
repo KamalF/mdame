@@ -1,9 +1,13 @@
-use crate::app::{AppState, OpenError, hex};
+use crate::app::{
+    Access, AppState, OpenCode, OpenError, PRINTED_CODE_LIFE, hex, new_token, print_urls,
+    write_token,
+};
 use crate::config::{self, HistoryMode, Recent};
 use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history;
 use crate::tree::{self, Suggestion};
+use crate::watch::Event;
 use crate::workspace;
 use crate::ws;
 use axum::{
@@ -14,14 +18,15 @@ use axum::{
     },
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::{get, post, put},
 };
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 
 #[derive(Serialize)]
 struct StateResponse {
@@ -86,14 +91,46 @@ async fn settings(
 /// web pages, which browsers mark with their own Origin. Requests without an
 /// Origin (curl, the page loading itself) pass.
 ///
-/// Every request also needs the token: in the `t` query parameter, which
-/// sets a cookie, or in that cookie.
+/// Every request also needs the token: in the `t` query parameter, or the
+/// open code in `c`, either of which sets a cookie, or in that cookie.
 async fn guard(
     State(app): State<Arc<AppState>>,
-    req: Request,
+    mut req: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
+    let (mut response, set_cookie) = match admit(&app, &req)? {
+        Admission::Pass { checked, cookie } => {
+            req.extensions_mut().insert(checked);
+            (next.run(req).await, cookie)
+        }
+        Admission::Redirect { location, cookie } => {
+            (Redirect::temporary(&location).into_response(), cookie)
+        }
+    };
+    if let Some(cookie) = set_cookie {
+        let value = HeaderValue::try_from(cookie).expect("token is hex digits");
+        response.headers_mut().insert(header::SET_COOKIE, value);
+    }
+    Ok(response)
+}
+
+enum Admission {
+    Pass {
+        checked: Checked,
+        cookie: Option<String>,
+    },
+    Redirect {
+        location: String,
+        cookie: Option<String>,
+    },
+}
+
+/// The decisions of the guard, under one lock on the token and its codes: a
+/// theft that replaces the token during a request is either all seen or not
+/// at all.
+fn admit(app: &AppState, req: &Request) -> Result<Admission, ApiError> {
     let headers = req.headers();
+    let mut access = app.access.lock().unwrap_or_else(PoisonError::into_inner);
 
     let host = headers
         .get(header::HOST)
@@ -112,29 +149,128 @@ async fn guard(
         }
     }
 
-    let mut set_cookie = None;
-    if let Some(token) = &app.token {
-        // The port is in the name so that two mdame on one machine keep
-        // their own cookie: browsers ignore the port when sending cookies.
-        let cookie_name = format!("mdame_token_{}", app.addr.port());
-        if query_has_token(req.uri().query(), token) {
-            // Kept across browser restarts: mdame may run longer than the
-            // browser. Browsers cap Max-Age at 400 days.
-            set_cookie = Some(format!(
-                "{cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=34560000"
+    let Some(token) = access.token.clone() else {
+        return Ok(Admission::Pass {
+            checked: Checked { token: None },
+            cookie: None,
+        });
+    };
+    // The port is in the name so that two mdame on one machine keep their
+    // own cookie: browsers ignore the port when sending cookies.
+    let cookie_name = format!("mdame_token_{}", app.addr.port());
+    // Kept across browser restarts: mdame may run longer than the browser.
+    // Browsers cap Max-Age at 400 days.
+    let cookie =
+        format!("{cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=34560000");
+    let query = req.uri().query();
+    match open_code(&mut access, query) {
+        Code::Stolen => {
+            tracing::warn!(
+                "a link that mdame opened or printed was used twice: the token is a new one"
+            );
+            replace_token(app, &mut access);
+            return Err(ApiError::Forbidden(
+                "open the new URL that mdame printed: this link was used before",
             ));
-        } else if !cookie_has_token(headers, &cookie_name, token) {
-            tracing::debug!("refused: missing or wrong token");
-            return Err(ApiError::Forbidden("missing or wrong token"));
         }
+        // The code leaves the address: a reload would send it again, and a
+        // second use counts as a theft.
+        Code::Fresh => {
+            // Absolute: a path that starts with `//` would name another host.
+            let location = format!("http://{host}{}", req.uri().path());
+            return Ok(Admission::Redirect {
+                location,
+                cookie: Some(cookie),
+            });
+        }
+        Code::Absent => {}
     }
+    let checked = Checked {
+        token: Some(token.clone()),
+    };
+    if query_has(query, "t", &token) {
+        return Ok(Admission::Pass {
+            checked,
+            cookie: Some(cookie),
+        });
+    }
+    if cookie_has_token(headers, &cookie_name, &token) {
+        return Ok(Admission::Pass {
+            checked,
+            cookie: None,
+        });
+    }
+    tracing::debug!("refused: missing or wrong token");
+    Err(ApiError::Forbidden("missing or wrong token"))
+}
 
-    let mut response = next.run(req).await;
-    if let Some(cookie) = set_cookie {
-        let value = HeaderValue::try_from(cookie).expect("token is hex digits");
-        response.headers_mut().insert(header::SET_COOKIE, value);
+/// The token that the guard checked a request against: a socket closes once
+/// a theft replaces it.
+#[derive(Clone)]
+pub struct Checked {
+    pub token: Option<String>,
+}
+
+enum Code {
+    /// The query holds an open code, used now for the first time.
+    Fresh,
+    /// The query holds an open code that something used before: a code
+    /// leaves the address once used, so something else had it first. The
+    /// code then stops counting, so that one theft makes one new token.
+    Stolen,
+    Absent,
+}
+
+fn open_code(access: &mut Access, query: Option<&str>) -> Code {
+    let codes = &mut access.open_codes;
+    let Some(index) = codes
+        .iter()
+        .position(|code| query_has(query, "c", &code.code))
+    else {
+        return Code::Absent;
+    };
+    let code = &mut codes[index];
+    // Used before, however late it comes back: a browser that started
+    // slowly still finds the theft.
+    if code.used {
+        codes.remove(index);
+        Code::Stolen
+    } else if code.made.elapsed() < code.life {
+        code.used = true;
+        Code::Fresh
+    } else {
+        Code::Absent
     }
-    Ok(response)
+}
+
+/// An open code went to someone else first. A new token makes the cookie
+/// that it got worthless.
+fn replace_token(app: &AppState, access: &mut Access) {
+    let (Ok(token), Ok(code)) = (new_token(), new_token()) else {
+        tracing::error!("no new token: the OS gave no random bytes");
+        return;
+    };
+    if let Some(path) = &app.token_file
+        && let Err(error) = write_token(path, &token, |temp, path| fs::rename(temp, path))
+    {
+        let path = path.display();
+        tracing::warn!(
+            "delete {path}: the next start would take the old token again: {}",
+            io_message(&error)
+        );
+    }
+    access.token = Some(token.clone());
+    // The new URL carries a new open code, not the token: the user may open
+    // it from the terminal, through a command line again. A used code stays:
+    // a second use of it is still a theft.
+    access.open_codes.retain(|code| code.used);
+    access
+        .open_codes
+        .push(OpenCode::new(code.clone(), PRINTED_CODE_LIFE));
+    // Wakes every socket: those of the old token close at once, not at
+    // their next event.
+    let _ = app.events.send(Event::Resync);
+    print_urls(app.addr, &code, &token);
 }
 
 fn is_own_host(host: &str, addr: SocketAddr) -> bool {
@@ -154,12 +290,12 @@ fn is_own_host(host: &str, addr: SocketAddr) -> bool {
     .contains(&host.to_string())
 }
 
-fn query_has_token(query: Option<&str>, token: &str) -> bool {
+fn query_has(query: Option<&str>, key: &str, secret: &str) -> bool {
     query.is_some_and(|query| {
         query
             .split('&')
-            .filter_map(|pair| pair.strip_prefix("t="))
-            .any(|value| same_secret(value, token))
+            .filter_map(|pair| pair.strip_prefix(key)?.strip_prefix('='))
+            .any(|value| same_secret(value, secret))
     })
 }
 

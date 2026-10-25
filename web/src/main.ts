@@ -339,6 +339,10 @@ async function refresh() {
   editor.checkDisk();
 }
 
+// The code or the token in the address has done its work: the cookie now
+// stands for it, and a reload must not send it again.
+if (location.search) history.replaceState(null, "", location.pathname + location.hash);
+
 await live.connect({ onEvent, onReconnect: refresh });
 
 const state = await api<State>("GET", "/api/state");

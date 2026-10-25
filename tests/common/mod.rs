@@ -2,12 +2,18 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::response::Response;
-use mdame::{app::AppState, config::Config, server::router, watch::EVENT_CAPACITY};
+use mdame::{
+    app::{Access, AppState},
+    config::Config,
+    server::router,
+    watch::EVENT_CAPACITY,
+};
 use serde_json::Value;
 use tokio::sync::broadcast;
 use tower::ServiceExt;
@@ -23,12 +29,22 @@ pub async fn send_body(
     headers: &[(&str, &str)],
     body: &str,
 ) -> Response {
+    let request = request(method, uri, headers, body);
+    router(Arc::new(state)).oneshot(request).await.unwrap()
+}
+
+/// Sends to a router that keeps its state from one request to the next.
+pub async fn send_to(app: &Router, uri: &str, headers: &[(&str, &str)]) -> Response {
+    let request = request(Method::GET, uri, headers, "");
+    app.clone().oneshot(request).await.unwrap()
+}
+
+fn request(method: Method, uri: &str, headers: &[(&str, &str)], body: &str) -> Request<Body> {
     let mut request = Request::builder().method(method).uri(uri);
     for (name, value) in headers {
         request = request.header(*name, *value);
     }
-    let request = request.body(Body::from(body.to_owned())).unwrap();
-    router(Arc::new(state)).oneshot(request).await.unwrap()
+    request.body(Body::from(body.to_owned())).unwrap()
 }
 
 pub async fn status_and_json(response: Response) -> (StatusCode, Value) {
@@ -47,7 +63,8 @@ pub fn local() -> AppState {
     AppState {
         addr: "127.0.0.1:4891".parse().unwrap(),
         workspace: RwLock::new(None),
-        token: None,
+        access: Mutex::new(Access::default()),
+        token_file: None,
         config: RwLock::new(Config::default()),
         config_path: PathBuf::new(),
         state_dir: PathBuf::new(),

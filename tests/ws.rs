@@ -49,6 +49,22 @@ async fn file_change_reaches_the_tab_with_a_relative_path() {
     );
 }
 
+/// A socket that a stolen token opened must not keep getting events.
+#[tokio::test]
+async fn a_new_token_closes_the_sockets_of_the_old_one() {
+    let (state, url) = serve(common::local()).await;
+    let mut client = connect(&url).await;
+
+    state.access.lock().unwrap().token = Some("new".to_string());
+    state.events.send(Event::Resync).unwrap();
+    let message = timeout(Duration::from_secs(2), client.next()).await;
+    let closed = match message.expect("an answer within 2 s") {
+        None | Some(Err(_)) | Some(Ok(Message::Close(_))) => true,
+        Some(Ok(_)) => false,
+    };
+    assert!(closed);
+}
+
 #[tokio::test]
 async fn every_tab_gets_each_event() {
     let (state, url) = serve(common::local()).await;

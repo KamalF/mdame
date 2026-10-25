@@ -191,7 +191,7 @@ Each part of the app maps to one focused library; custom code is limited to snap
 | open | 5.4 | Open the browser | custom per-OS commands |
 | tracing, tracing-subscriber | 0.1.44; 0.3.23 | Logging and timing spans; `-v` sets debug level | log + env_logger (no spans, while axum and tower speak tracing), println |
 | thiserror | 2.0 | Typed API errors | none |
-| getrandom | 0.4.3 | Secure random bytes from the OS for the network token | rand (far more than the one call that mdame needs), reading `/dev/urandom` (no Windows) |
+| getrandom | 0.4.3 | Secure random bytes from the OS for the token and its codes | rand (far more than the one call that mdame needs), reading `/dev/urandom` (no Windows) |
 
 Written ourselves instead of a crate:
 
@@ -278,7 +278,8 @@ mdame/
 - `config: RwLock<Config>`.
 - `workspace: RwLock<Option<Arc<Workspace>>>`; `None` means the picker is shown. It is a `std::sync` lock, read only through `AppState::workspace() -> Result<Arc<Workspace>, ApiError>`, which clones the `Arc` out and drops the guard at once, never across an `.await`. Chosen over `OnceLock` and `tokio::sync::watch` because it supports Later workspace switching unchanged.
 - `events: broadcast::Sender<Event>` for WebSocket clients.
-- `token: Option<String>`: every request must carry it. `None` turns the check off for tests of other rules (see Token).
+- `access: Mutex<Access>`: the token and its open codes (the opened and the printed one), under one lock, so that a request decides from one view of them. A `None` token turns the check off for tests of other rules.
+- `token_file: Option<PathBuf>`: where the token is kept, on loopback (see Token).
 
 **Opening a workspace.** Once per launch: from the command line at start, or from the picker. Build the `Workspace` (open the `Dir`, start the watcher), store it, and send `workspace` to all clients. A second `POST /api/workspace` gets 409. Switching to another workspace is a Later item; it will reuse the same route, lock and event.
 
@@ -403,7 +404,8 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 | --- | --- |
 | A website in another tab calls the local API | No CORS layer at all. A middleware rejects any request whose `Origin` header is present and not mdame's own origin, and rejects WebSocket upgrades the same way. |
 | DNS rebinding: a hostile domain resolving to 127.0.0.1 | The same middleware rejects requests whose `Host` is not `localhost`, `127.0.0.1`, `[::1]` or the bound address, with the right port. If mdame is bound to all interfaces (`0.0.0.0` or `::`), any `Host` with the right port passes, because the browser can name the machine by any address or hostname. The token is then the defence: a rebinding page has neither the token nor the cookie. |
-| Another device on the network, or another program on this machine | A random token (see Token). mdame opens the browser at the URL with `?t=<token>`, and prints that URL. The first request that carries it sets an HttpOnly, SameSite=Strict cookie with a Max-Age of 400 days, the most that browsers keep. Every later request needs that cookie or the token in the query. The cookie name contains the port, so that two mdame on one machine do not overwrite each other's cookie. The token is compared in constant time. |
+| Another device on the network, or another program on this machine | A random token (see Token). The first request that carries it sets an HttpOnly, SameSite=Strict cookie with a Max-Age of 400 days, the most that browsers keep. Every later request needs that cookie or the token in the query. The cookie name contains the port, so that two mdame on one machine do not overwrite each other's cookie. The token is compared in constant time. mdame opens the browser at `http://127.0.0.1:<port>/?c=<code>`, and prints a URL with a second code. A code stands for the token once: other accounts can read the browser's command line with `ps`, and a click on a printed URL in a terminal may start a browser too. The opened code works within a minute, the printed one within ten. A code that works answers with the cookie and a redirect to the same page without the code, so a reload never sends it again. A code that comes back was used by someone else first. mdame then makes a new token, keeps it, prints a new URL with a new code, and closes the WebSockets of the old token. Without a display, as over SSH, mdame opens no browser. Beyond loopback, other devices need the token, so mdame prints `http://<address>:<port>/?t=<token>`. Open it on another device: a click on it here puts the token on a command line. On 0.0.0.0 and ::, which name no address that another device can use, mdame prints the URL with a code for this machine. A second line, `http://<this machine>:<port>/?t=<token>`, is for other devices. On a machine with other accounts, mount `/proc` with `hidepid=invisible`, so that they cannot read command lines at all. |
+| A program on this machine that is built to attack mdame | Out of scope. Such a program can take the port while mdame is stopped, and then get the cookie and the unsaved text of the open tabs. It can also serve a page on another port of 127.0.0.1: if the browser opens it, it gets the cookie, since browsers send cookies to every port of a host. If you suspect it, delete the token file: every browser then needs the URL that mdame prints. |
 | Path traversal or symlink escape | All workspace file access goes through a cap-std `Dir` opened on the root. No `std::fs` call takes a client-supplied path. |
 | Symlinks inside the workspace | Symlinked files that resolve inside the root open normally; a symlink with an absolute target is always an error in cap-std, even one pointing inside. The tree walker does not descend into symlinked directories in v1. |
 | Script in a markdown file, possibly agent-written | ammonia strips scripts, handlers and `javascript:` URLs before HTML leaves the server. |
@@ -414,7 +416,7 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 
 The workspace picker and `/api/complete` list paths outside the workspace by design. They sit behind the same guard and only reveal names, not contents.
 
-**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame, and open any folder while the picker shows. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too.
+**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame, and open any folder while the picker shows. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too. Also give it a PID namespace of its own, which hides your other processes from it. The code in the URL that mdame opens is on the browser launcher's command line for a moment, and `hidepid` hides only the processes of other accounts.
 
 Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missing token, on loopback too, a `../` path, a symlink pointing out of the workspace, an in-workspace symlinked file, and an `.html` and an `.svg` under `/raw` returning `sandbox` (and `text/plain` for the `.html`). The guard rows land in milestone 1, the rest with their routes.
 
@@ -658,6 +660,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | `mdame <file>` opens the file's folder with that file first, not the file alone | 18 October 2026 |
 | Testing rules: one home per rule, matrix tests for rules that hold for every route, property tests, mutation testing per milestone; no list of invariants beside the test names | 20 October 2026 |
 | A token on loopback too, kept in a 0600 file and a 400-day cookie: a sandboxed program that shares the network could otherwise write any file through mdame | 23 October 2026 |
+| Reviews count a program on this machine only when it lacks the token. A program built to attack mdame is out of scope: one that takes the port after mdame stops, or that serves a page on another port of the same host. Defending against it cost too much: tabs that die at each restart, preferences that reset, and URLs that cannot be typed or bookmarked | 25 October 2026 |
 
 ### Review log, 14 October 2026
 

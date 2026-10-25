@@ -206,6 +206,7 @@ fn relative(root: &Path, path: &Path) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use notify_debouncer_full::DebounceEventResult;
     use notify_debouncer_full::notify::event::{
         AccessKind, CreateKind, DataChange, Flag, RemoveKind,
     };
@@ -409,6 +410,51 @@ mod tests {
         assert!(!can_skip(&notify::Error::new(
             notify::ErrorKind::MaxFilesWatch
         )));
+    }
+
+    /// The watcher test of an unreadable folder cannot show this: notify
+    /// keeps the watches that it added before the folder that failed, so
+    /// what stays watched depends on the order in which a folder lists its
+    /// entries.
+    #[test]
+    fn watch_around_watches_all_but_the_skipped_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        for folder in ["x/skipped", "y"] {
+            fs::create_dir_all(root.join(folder)).unwrap();
+        }
+        let (sender, received) = std::sync::mpsc::channel();
+        let mut debouncer =
+            notify_debouncer_full::new_debouncer(Duration::from_millis(50), None, sender).unwrap();
+        watch_around(&mut debouncer, &root, &root.join("x/skipped")).unwrap();
+        for file in ["x/skipped/a.md", "x/b.md", "y/c.md"] {
+            fs::write(root.join(file), "").unwrap();
+        }
+
+        let expected = [root.join("x/b.md"), root.join("y/c.md")];
+        let paths =
+            |batch: DebounceEventResult| batch.unwrap().into_iter().flat_map(|e| e.event.paths);
+        let mut seen = Vec::new();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !expected.iter().all(|path| seen.contains(path)) {
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            let Ok(batch) = received.recv_timeout(left) else {
+                break;
+            };
+            seen.extend(paths(batch));
+        }
+        // A moment more, for an event of the skipped folder.
+        while let Ok(batch) = received.recv_timeout(Duration::from_millis(300)) {
+            seen.extend(paths(batch));
+        }
+        for path in &expected {
+            assert!(
+                seen.contains(path),
+                "{} missing from {seen:?}",
+                path.display()
+            );
+        }
+        assert!(!seen.contains(&root.join("x/skipped/a.md")), "{seen:?}");
     }
 
     #[test]

@@ -402,12 +402,16 @@ async fn save(
 }
 
 /// The version that a save's `If-Match` names. Any other form than one
-/// strong `ETag`, such as `*` or a list, names no version, so the save is
-/// refused as stale.
+/// strong `ETag`, such as `*` or a list on one line or several, names no
+/// version, so the save is refused as stale.
 fn if_match(headers: &HeaderMap) -> Result<String, ApiError> {
-    let value = headers.get(header::IF_MATCH).ok_or_else(|| {
+    let mut values = headers.get_all(header::IF_MATCH).iter();
+    let value = values.next().ok_or_else(|| {
         ApiError::PreconditionRequired("a save needs an If-Match header".to_owned())
     })?;
+    if values.next().is_some() {
+        return Ok(String::new());
+    }
     let version = value
         .to_str()
         .ok()

@@ -200,6 +200,19 @@ async fn if_match_must_be_one_strong_etag() {
 }
 
 #[tokio::test]
+async fn if_match_sent_twice_never_matches() {
+    let dir = tempfile::tempdir().unwrap();
+    let uri = "/api/file?path=a.md";
+    let body = json!({ "content": "new\n" }).to_string();
+    let (good, other) = (etag(b"old\n"), etag(b"other\n"));
+    let headers = [HOST, JSON, ("if-match", &good), ("if-match", &other)];
+    let response = send_body(workspace(dir.path()), Method::PUT, uri, &headers, &body).await;
+
+    assert_eq!(response.status(), StatusCode::PRECONDITION_FAILED);
+    assert_eq!(read(dir.path(), "a.md"), "old\n");
+}
+
+#[tokio::test]
 async fn save_of_a_file_that_mdame_may_not_write_leaves_no_snapshot() {
     let dir = tempfile::tempdir().unwrap();
     let state = workspace(dir.path());

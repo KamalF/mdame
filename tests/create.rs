@@ -1,6 +1,7 @@
 mod common;
 
 use std::fs;
+use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
@@ -71,11 +72,28 @@ async fn create_in_a_missing_folder_names_the_folder() {
     assert!(!dir.path().join("ws/new").exists());
 }
 
+/// Not in the routes matrix: the path comes in the body.
 #[tokio::test]
 async fn create_stays_in_the_workspace() {
     let dir = tempfile::tempdir().unwrap();
-    let (status, _) = create(workspace(dir.path()), "../out.md").await;
+    workspace(dir.path());
+    let outside = dir.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    symlink(&outside, dir.path().join("ws/folder-out")).unwrap();
+    symlink(outside.join("b.md"), dir.path().join("ws/dangling-out.md")).unwrap();
+    let absolute = outside.join("b.md").to_str().unwrap().to_owned();
+    let cases = [
+        ("../outside/b.md", StatusCode::FORBIDDEN),
+        (absolute.as_str(), StatusCode::FORBIDDEN),
+        ("/b.md", StatusCode::FORBIDDEN),
+        ("folder-out/b.md", StatusCode::FORBIDDEN),
+        // The link is a file of that name.
+        ("dangling-out.md", StatusCode::CONFLICT),
+    ];
+    for (path, expected) in cases {
+        let (status, _) = create(workspace(dir.path()), path).await;
 
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    assert!(!dir.path().join("out.md").exists());
+        assert_eq!(status, expected, "{path}");
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0, "{path}");
+    }
 }

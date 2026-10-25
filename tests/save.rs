@@ -8,7 +8,9 @@ use axum::http::{Method, StatusCode};
 use axum::response::Response;
 use common::{HOST, JSON, etag, etag_of, send_body, status_and_json};
 use mdame::app::AppState;
+use mdame::config::HistoryMode;
 use mdame::document::version;
+use mdame::history::encode_path;
 use serde_json::json;
 
 /// Saves `content` to `path`, with `If-Match` when `if_match` is given.
@@ -265,6 +267,31 @@ async fn save_without_a_writable_history_folder_writes_nothing() {
         assert!(message.contains("history folder"), "{message}");
         assert_eq!(read(dir.path(), "a.md"), "old\n", "setup {n}");
     }
+}
+
+#[tokio::test]
+async fn save_in_state_mode_keeps_the_snapshot_in_the_state_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = workspace(dir.path());
+    state.state_dir = dir.path().join("state");
+    state.config.get_mut().unwrap().history = Some(HistoryMode::State);
+    let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let root = dir.path().join("ws").canonicalize().unwrap();
+    let folder = dir
+        .path()
+        .join("state")
+        .join(encode_path(&root))
+        .join("history/a.md");
+    let snapshot = fs::read_dir(folder)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    assert_eq!(fs::read_to_string(snapshot).unwrap(), "old\n");
+    assert!(!dir.path().join("ws/.mdame").exists());
 }
 
 #[tokio::test]

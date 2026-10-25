@@ -84,8 +84,9 @@ async fn path_routes_stay_in_the_workspace() {
         ("relative-out.md", StatusCode::FORBIDDEN),
         ("link.md", StatusCode::OK),
     ];
-    // A save that would succeed: the content of `a.md`, from its version.
-    let save = json!({ "content": "# A\n" }).to_string();
+    // A save that succeeds and writes, through the link too: other text,
+    // from the version of `a.md`.
+    let save = json!({ "content": "# B\n" }).to_string();
     let if_match = etag(b"# A\n");
     for (method, route) in PATH_ROUTES {
         for (path, expected) in &cases {

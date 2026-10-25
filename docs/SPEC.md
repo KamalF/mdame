@@ -135,7 +135,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 | "New file in folder" and copy actions kept, right-click menu Later | Hover buttons on tree rows; file actions in the status bar |
 | Single binary dropped | Kept: rust-embed gives it free, and dropping it makes installing harder |
 | Find bar kept | The browser's find; no custom code |
-| `-H` kept | A URL token is required when not bound to localhost |
+| `-H` kept | A URL token is required, on loopback too |
 | "Renamed file follows open tabs" without tabs | The current view follows a rename |
 | Five themes Later, theme picker kept | Picker ships with light, dark and user themes |
 | Single-file and folder mode Later, daemon kept | Same code path as starting at the picker, with the workspace preloaded, so in v1 |
@@ -278,7 +278,7 @@ mdame/
 - `config: RwLock<Config>`.
 - `workspace: RwLock<Option<Arc<Workspace>>>`; `None` means the picker is shown. It is a `std::sync` lock, read only through `AppState::workspace() -> Result<Arc<Workspace>, ApiError>`, which clones the `Arc` out and drops the guard at once, never across an `.await`. Chosen over `OnceLock` and `tokio::sync::watch` because it supports Later workspace switching unchanged.
 - `events: broadcast::Sender<Event>` for WebSocket clients.
-- `token: Option<String>` when bound beyond localhost.
+- `token: Option<String>`: every request must carry it. `None` turns the check off for tests of other rules (see Token).
 
 **Opening a workspace.** Once per launch: from the command line at start, or from the picker. Build the `Workspace` (open the `Dir`, start the watcher), store it, and send `workspace` to all clients. A second `POST /api/workspace` gets 409. Switching to another workspace is a Later item; it will reuse the same route, lock and event.
 
@@ -395,7 +395,7 @@ A theme file sets the CSS variables used by `content.css` and the code colours, 
 
 ## Security
 
-Only the mdame page itself, on the owner's machine or on a device holding the token, can reach the API; file access never leaves the workspace; workspace content never runs as script on mdame's origin. Build the guard in milestone 1, before any route that touches files.
+Only the mdame page itself, in a browser that holds the token, can reach the API; file access never leaves the workspace; workspace content never runs as script on mdame's origin. Build the guard in milestone 1, before any route that touches files.
 
 The guard trusts origins, not code: any script running on a page at mdame's origin passes it. So the rule underneath every row below is that untrusted content never becomes a page on mdame's origin.
 
@@ -403,7 +403,7 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 | --- | --- |
 | A website in another tab calls the local API | No CORS layer at all. A middleware rejects any request whose `Origin` header is present and not mdame's own origin, and rejects WebSocket upgrades the same way. |
 | DNS rebinding: a hostile domain resolving to 127.0.0.1 | The same middleware rejects requests whose `Host` is not `localhost`, `127.0.0.1`, `[::1]` or the bound address, with the right port. If mdame is bound to all interfaces (`0.0.0.0` or `::`), any `Host` with the right port passes, because the browser can name the machine by any address or hostname. The token is then the defence: a rebinding page has neither the token nor the cookie. |
-| Another device on the network, when bound with `-H` beyond localhost | Generate a random token at startup and print the URL with `?t=<token>`. The first request sets an HttpOnly, SameSite=Strict cookie; every later request needs that cookie or the query token. The cookie name contains the port, so that two mdame on one machine do not overwrite each other's cookie. The token is compared in constant time. |
+| Another device on the network, or another program on this machine | A random token (see Token). mdame opens the browser at the URL with `?t=<token>`, and prints that URL. The first request that carries it sets an HttpOnly, SameSite=Strict cookie with a Max-Age of 400 days, the most that browsers keep. Every later request needs that cookie or the token in the query. The cookie name contains the port, so that two mdame on one machine do not overwrite each other's cookie. The token is compared in constant time. |
 | Path traversal or symlink escape | All workspace file access goes through a cap-std `Dir` opened on the root. No `std::fs` call takes a client-supplied path. |
 | Symlinks inside the workspace | Symlinked files that resolve inside the root open normally; a symlink with an absolute target is always an error in cap-std, even one pointing inside. The tree walker does not descend into symlinked directories in v1. |
 | Script in a markdown file, possibly agent-written | ammonia strips scripts, handlers and `javascript:` URLs before HTML leaves the server. |
@@ -414,7 +414,9 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 
 The workspace picker and `/api/complete` list paths outside the workspace by design. They sit behind the same guard and only reveal names, not contents.
 
-Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missing token when bound to 0.0.0.0, a `../` path, a symlink pointing out of the workspace, an in-workspace symlinked file, and an `.html` and an `.svg` under `/raw` returning `sandbox` (and `text/plain` for the `.html`). The guard rows land in milestone 1, the rest with their routes.
+**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame, and open any folder while the picker shows. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too.
+
+Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missing token, on loopback too, a `../` path, a symlink pointing out of the workspace, an in-workspace symlinked file, and an `.html` and an `.svg` under `/raw` returning `sandbox` (and `text/plain` for the `.html`). The guard rows land in milestone 1, the rest with their routes.
 
 ## On-disk formats
 
@@ -450,7 +452,7 @@ last_opened_secs = 1771273728
 
 mdlive's `last_workspaces` and `last_browse_dir` are not carried over.
 
-**State folder.** mdame makes the state folder 0700 before it writes the recents or a `state`-mode snapshot there: the recents name the opened folders, and the history follows the workspace's file names. If it cannot, the recents are not saved, and a `state`-mode save fails.
+**Token.** On loopback, mdame keeps the token in `<state folder>/token`, mode 0600, so that the cookie of a tab or a bookmark still works after a restart. The first start makes the file. A token file that others can read, or that holds no token, gives a warning, and the token then lasts one run: delete the file to fix it. Deleting the file also locks every browser out, from the next start on. Beyond loopback, the token is new at each start, since its URL goes to other devices. mdame makes the state folder 0700 before it writes the token, the recents or a `state`-mode snapshot there: the token opens mdame, the recents name the opened folders, and the history follows the workspace's file names. If it cannot, the token lasts one run, the recents are not saved, and a `state`-mode save fails.
 
 **User themes.** Any `~/.config/mdame/themes/<name>.css` appears in the theme picker as `<name>`, after the built-ins. A user file with a built-in's name overrides it.
 
@@ -655,6 +657,7 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Sidebar key `b` instead of `k`: a memory hook (VS Code's Ctrl+B), works on every layout, and leaves `j`/`k` free for scrolling | 18 October 2026 |
 | `mdame <file>` opens the file's folder with that file first, not the file alone | 18 October 2026 |
 | Testing rules: one home per rule, matrix tests for rules that hold for every route, property tests, mutation testing per milestone; no list of invariants beside the test names | 20 October 2026 |
+| A token on loopback too, kept in a 0600 file and a 400-day cookie: a sandboxed program that shares the network could otherwise write any file through mdame | 23 October 2026 |
 
 ### Review log, 14 October 2026
 

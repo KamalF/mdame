@@ -1,5 +1,7 @@
-use std::io::{self, ErrorKind};
+use std::fs::{self, OpenOptions};
+use std::io::{self, ErrorKind, Write};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -23,7 +25,7 @@ pub struct Args {
     #[arg(short, long, default_value_t = 4891)]
     pub port: u16,
 
-    /// Address to listen on; any other than loopback needs the token printed in the URL
+    /// Address to listen on
     #[arg(short = 'H', long, default_value = "127.0.0.1")]
     pub host: IpAddr,
 
@@ -46,11 +48,13 @@ pub enum OpenError {
 pub struct AppState {
     pub addr: SocketAddr,
     pub workspace: RwLock<Option<Arc<Workspace>>>,
-    /// Set when bound beyond loopback; every request must then carry it.
+    /// Every request must carry it. `None` turns the check off: tests of
+    /// other rules use that.
     pub token: Option<String>,
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
-    /// The recents, and the history root in `state` mode, are below it.
+    /// The recents, the token, and the history root in `state` mode are
+    /// below it.
     pub state_dir: PathBuf,
     pub events: broadcast::Sender<Event>,
 }
@@ -129,15 +133,25 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let config = config::load(&config_path)?;
     let state_dir = config::state_dir().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
     let listener = bind_first_free(args.host, args.port, PORT_ATTEMPTS).await?;
-    let token = if args.host.is_loopback() {
-        None
-    } else {
-        Some(new_token()?)
+    // On loopback, the token is kept, so that tabs and bookmarks survive a
+    // restart. Beyond, its URL goes to other devices: it lasts one run.
+    let token_file = args.host.is_loopback().then(|| state_dir.join("token"));
+    let kept = token_file.as_deref().and_then(|path| {
+        kept_token(&state_dir, path)
+            .inspect_err(|error| {
+                let path = path.display();
+                tracing::warn!("the token lasts one run: {path}: {}", io_message(error));
+            })
+            .ok()
+    });
+    let token = match kept {
+        Some(token) => token,
+        None => new_token()?,
     };
     let app_state = AppState {
         addr: listener.local_addr()?,
         workspace: RwLock::new(None),
-        token,
+        token: Some(token.clone()),
         config: RwLock::new(config),
         config_path,
         state_dir,
@@ -150,9 +164,8 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     }
     let state = Arc::new(app_state);
 
-    let token = state.token.as_deref();
-    println!("mdame on {}", page_url(state.addr, token));
-    if let Err(error) = open::that_detached(page_url(browser_addr(state.addr), token)) {
+    println!("mdame on {}", page_url(state.addr, &token));
+    if let Err(error) = open::that_detached(page_url(browser_addr(state.addr), &token)) {
         tracing::warn!("could not open the browser: {error}");
     }
     axum::serve(listener, server::router(state)).await?;
@@ -173,11 +186,8 @@ async fn bind_first_free(ip: IpAddr, first: u16, attempts: usize) -> io::Result<
     ))
 }
 
-fn page_url(addr: SocketAddr, token: Option<&str>) -> String {
-    match token {
-        Some(token) => format!("http://{addr}/?t={token}"),
-        None => format!("http://{addr}/"),
-    }
+fn page_url(addr: SocketAddr, token: &str) -> String {
+    format!("http://{addr}/?t={token}")
 }
 
 /// 0.0.0.0 and :: are not addresses to connect to, and some browsers refuse
@@ -189,6 +199,64 @@ fn browser_addr(addr: SocketAddr) -> SocketAddr {
         IpAddr::V6(_) => Ipv6Addr::LOCALHOST.into(),
     };
     SocketAddr::new(loopback, addr.port())
+}
+
+/// Loopback needs the token too: a program in a sandbox that shares the
+/// network, such as a coding agent, could otherwise write any file through
+/// mdame. The token is kept in `path`, which only the owner can read, so
+/// that tabs keep their cookie when mdame restarts. Deleting the file locks
+/// every browser out.
+fn kept_token(state_dir: &Path, path: &Path) -> io::Result<String> {
+    match fs::read_to_string(path) {
+        Ok(_) if fs::metadata(path)?.permissions().mode() & 0o077 != 0 => {
+            // Others may have read it already: only a new token is safe.
+            return Err(io::Error::new(
+                ErrorKind::PermissionDenied,
+                "delete this file, then start mdame again: others can read it",
+            ));
+        }
+        Ok(token) => return checked_token(token),
+        Err(error) if error.kind() != ErrorKind::NotFound => return Err(error),
+        Err(_) => {}
+    }
+    config::private_folder(state_dir)?;
+    let token = new_token().map_err(io::Error::other)?;
+    // Written in full under another name, then linked: another start, or
+    // the next one after a power cut, never reads a partial file.
+    // A random name, not the token: others may list the folder.
+    let temp = path.with_extension(new_token().map_err(io::Error::other)?);
+    let linked = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        // 0600 from the start: a chmod after the write would leave a moment
+        // when others can read it.
+        .mode(0o600)
+        .open(&temp)
+        .and_then(|mut file| {
+            file.write_all(token.as_bytes())?;
+            file.sync_all()
+        })
+        .and_then(|()| fs::hard_link(&temp, path));
+    let _ = fs::remove_file(&temp);
+    match linked {
+        Ok(()) => Ok(token),
+        // Another start made it first.
+        Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+            checked_token(fs::read_to_string(path)?)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn checked_token(token: String) -> io::Result<String> {
+    if token.len() == 32 && token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Ok(token)
+    } else {
+        Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "delete this file, then start mdame again: it holds no token",
+        ))
+    }
 }
 
 fn new_token() -> Result<String, getrandom::Error> {
@@ -208,11 +276,65 @@ mod tests {
     #[test]
     fn page_url_carries_the_token() {
         let addr = "192.168.1.5:4891".parse().unwrap();
-        assert_eq!(page_url(addr, None), "http://192.168.1.5:4891/");
-        assert_eq!(
-            page_url(addr, Some("abc")),
-            "http://192.168.1.5:4891/?t=abc"
-        );
+        assert_eq!(page_url(addr, "abc"), "http://192.168.1.5:4891/?t=abc");
+    }
+
+    #[test]
+    fn the_token_is_kept_for_the_next_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = dir.path().join("state");
+        let path = state.join("token");
+        let first = kept_token(&state, &path).unwrap();
+
+        assert_eq!(kept_token(&state, &path).unwrap(), first);
+        let mode = fs::metadata(&path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+        let mode = fs::metadata(&state).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
+
+    #[test]
+    fn two_starts_at_once_get_the_same_token() {
+        for _ in 0..100 {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("token");
+            let barrier = std::sync::Barrier::new(2);
+            let tokens = std::thread::scope(|scope| {
+                let starts = [(); 2].map(|()| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        kept_token(dir.path(), &path).unwrap()
+                    })
+                });
+                starts.map(|start| start.join().unwrap())
+            });
+            assert_eq!(tokens[0], tokens[1]);
+        }
+    }
+
+    #[test]
+    fn a_token_file_that_others_can_read_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("token");
+        kept_token(dir.path(), &path).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+
+        let error = kept_token(dir.path(), &path).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+    }
+
+    #[test]
+    fn a_token_file_with_no_token_is_refused() {
+        let cases = ["", "secret", "0123456789abcdef0123456789abcdeg"];
+        for content in cases {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("token");
+            fs::write(&path, content).unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+
+            let error = kept_token(dir.path(), &path).unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::InvalidData, "{content}");
+        }
     }
 
     #[test]

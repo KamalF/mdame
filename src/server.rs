@@ -86,8 +86,8 @@ async fn settings(
 /// web pages, which browsers mark with their own Origin. Requests without an
 /// Origin (curl, the page loading itself) pass.
 ///
-/// When bound beyond loopback, every request also needs the token: in the
-/// `t` query parameter, which sets a cookie, or in that cookie.
+/// Every request also needs the token: in the `t` query parameter, which
+/// sets a cookie, or in that cookie.
 async fn guard(
     State(app): State<Arc<AppState>>,
     req: Request,
@@ -118,8 +118,10 @@ async fn guard(
         // their own cookie: browsers ignore the port when sending cookies.
         let cookie_name = format!("mdame_token_{}", app.addr.port());
         if query_has_token(req.uri().query(), token) {
+            // Kept across browser restarts: mdame may run longer than the
+            // browser. Browsers cap Max-Age at 400 days.
             set_cookie = Some(format!(
-                "{cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/"
+                "{cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=34560000"
             ));
         } else if !cookie_has_token(headers, &cookie_name, token) {
             tracing::debug!("refused: missing or wrong token");
@@ -139,8 +141,8 @@ fn is_own_host(host: &str, addr: SocketAddr) -> bool {
     let port = addr.port();
     if addr.ip().is_unspecified() {
         // Bound to all interfaces: the browser may name this machine by any
-        // address or hostname. The token, always set in this case, is the
-        // defence against DNS rebinding.
+        // address or hostname. The token is the defence against DNS
+        // rebinding.
         return host.ends_with(&format!(":{port}"));
     }
     [

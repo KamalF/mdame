@@ -11,7 +11,7 @@ const LOOPBACK: &str = "127.0.0.1:4891";
 const ALL: &str = "0.0.0.0:4891";
 const LAN: &str = "192.168.1.5:4891";
 
-/// A server bound with `-H`, reached as 192.168.1.5 from the network.
+/// A server bound to `bound`, with the token "secret".
 fn network(bound: &str) -> AppState {
     AppState {
         addr: bound.parse().unwrap(),
@@ -60,13 +60,24 @@ async fn request_passes_only_with_own_host_own_origin_and_the_token() {
     }
 }
 
+/// A program on this machine that can reach the port.
+#[tokio::test]
+async fn loopback_needs_the_token_too() {
+    let host = ("host", "127.0.0.1:4891");
+    let response = send(network(LOOPBACK), "/api/state", &[host]).await;
+    assert_eq!(response.status(), FORBIDDEN);
+    let cookie = ("cookie", "mdame_token_4891=secret");
+    let response = send(network(LOOPBACK), "/api/state", &[host, cookie]).await;
+    assert_eq!(response.status(), OK);
+}
+
 #[tokio::test]
 async fn query_token_sets_the_cookie_and_the_cookie_does_not() {
     let host = ("host", "192.168.1.5:4891");
     let response = send(network(ALL), "/?t=secret", &[host]).await;
     assert_eq!(
         response.headers()[header::SET_COOKIE],
-        "mdame_token_4891=secret; HttpOnly; SameSite=Strict; Path=/"
+        "mdame_token_4891=secret; HttpOnly; SameSite=Strict; Path=/; Max-Age=34560000"
     );
 
     let cookie = ("cookie", "mdame_token_4891=secret");

@@ -6,7 +6,7 @@ use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
-use common::{HOST, etag, send_body, status_and_json};
+use common::{HOST, JSON, etag, send_body, status_and_json};
 use mdame::app::AppState;
 use serde_json::json;
 
@@ -90,11 +90,7 @@ async fn path_routes_stay_in_the_workspace() {
     for (method, route) in PATH_ROUTES {
         for (path, expected) in &cases {
             let uri = route.replace("{}", &path.replace('/', "%2F"));
-            let headers = [
-                HOST,
-                ("content-type", "application/json"),
-                ("if-match", &if_match),
-            ];
+            let headers = [HOST, JSON, ("if-match", &if_match)];
             let response =
                 send_body(workspace(dir.path()), method.clone(), &uri, &headers, &save).await;
             assert_eq!(response.status(), *expected, "{uri}");

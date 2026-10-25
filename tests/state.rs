@@ -4,7 +4,7 @@ use std::fs;
 use std::sync::RwLock;
 
 use axum::http::{Method, StatusCode};
-use common::{HOST, get_json, local, send_body, status_and_json};
+use common::{HOST, JSON, get_json, local, send_body, status_and_json};
 use mdame::app::AppState;
 use mdame::config::{self, Config, HistoryMode, Recents};
 use mdame::watch::Event;
@@ -32,8 +32,6 @@ async fn needs_setup_until_history_is_chosen() {
     };
     assert_eq!(needs_setup(state).await, false);
 }
-
-const JSON: (&str, &str) = ("content-type", "application/json");
 
 async fn put(state: AppState, body: &str) -> (StatusCode, Value) {
     let response = send_body(state, Method::PUT, "/api/settings", &[HOST, JSON], body).await;

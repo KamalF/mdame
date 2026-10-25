@@ -3,7 +3,7 @@ mod common;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
-use common::{HOST, get_json, send_body, status_and_json};
+use common::{HOST, JSON, get_json, send_body, status_and_json};
 use mdame::app::AppState;
 use serde_json::{Value, json};
 
@@ -11,8 +11,7 @@ const MARKDOWN: &str = "# Title\n\n![logo](img/logo.png)\n\n<script>x</script>\n
 
 async fn preview(state: AppState, path: &str, content: &str) -> (StatusCode, Value) {
     let body = json!({ "path": path, "content": content }).to_string();
-    let json = ("content-type", "application/json");
-    let response = send_body(state, Method::POST, "/api/render", &[HOST, json], &body).await;
+    let response = send_body(state, Method::POST, "/api/render", &[HOST, JSON], &body).await;
     status_and_json(response).await
 }
 

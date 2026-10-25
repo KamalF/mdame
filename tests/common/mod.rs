@@ -58,6 +58,8 @@ pub fn local() -> AppState {
 
 pub const HOST: (&str, &str) = ("host", "127.0.0.1:4891");
 
+pub const JSON: (&str, &str) = ("content-type", "application/json");
+
 /// The `ETag` that mdame gives a file holding `content`.
 pub fn etag(content: &[u8]) -> String {
     format!("\"{}\"", mdame::document::version(content))

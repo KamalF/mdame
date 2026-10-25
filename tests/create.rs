@@ -5,11 +5,9 @@ use std::path::Path;
 
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
-use common::{HOST, etag, etag_of, send_body, status_and_json};
+use common::{HOST, JSON, etag, etag_of, send_body, status_and_json};
 use mdame::app::AppState;
 use serde_json::{Value, json};
-
-const JSON: (&str, &str) = ("content-type", "application/json");
 
 async fn post(state: AppState, path: &str) -> Response {
     let body = json!({ "path": path }).to_string();

@@ -168,7 +168,14 @@ Every request passes the guard before reaching a handler. Handlers stay thin and
 
 **When a file changes on disk.** The debouncer reports the path; `watch.rs` sends `changed`; tabs showing that file refetch and morph, keeping scroll. The tree refetches only on create, remove or rename, and on a change to a file of the tree while it is sorted by date.
 
-**Saving.** The editor loads its text with `GET /api/source`, which returns the content and its `ETag` (a content hash) in one response. It saves with `PUT /api/file` and `If-Match` set to that ETag. If the content on disk changed since, the server answers 412 and the editor shows the changed-on-disk notice. Otherwise `history.rs` snapshots the old content, the new content is written, and the watcher's own event updates other tabs.
+**Saving.** The editor loads its text with `GET /api/source`, which returns the content and its `ETag` (a content hash) in one response. It saves with `PUT /api/file` and `If-Match` set to that ETag. If the content on disk changed since, the server answers 412, and the editor checks the file on disk as after a `changed` event. Otherwise `history.rs` snapshots the old content, the new content is written, and the watcher's own event updates other tabs.
+
+After a `changed` event or a 412, the editor fetches the file again and compares it with its own text:
+
+- If the file has the editor's version, nothing changes. After a 412, the status bar says "Save again": the file was replaced during the save, so the save did not happen.
+- If the file has a new version and the editor has no unsaved edits, the editor reloads it without a notice. Only the changed lines change, so the cursor and the scroll stay. Ctrl+Z undoes the reload.
+- If the file has a new version and the editor has unsaved edits, a notice says that the file changed on disk. Reload replaces the edits with the file on disk, and Ctrl+Z brings them back. Overwrite saves the editor's text over the file, and the snapshot keeps the text that was on disk.
+- If the file is gone, a notice says so. Recreate creates the file again and saves the editor's text into it.
 
 ## Libraries
 
@@ -327,7 +334,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 
 | Event | Fields | Browser reaction |
 | --- | --- | --- |
-| `changed` | `path` | If it is the open file or a folder holding it: refetch and morph; in the editor, show the "changed on disk" notice |
+| `changed` | `path` | If it is the open file or a folder holding it: refetch and morph; in the editor, compare the file with the editor's text (see Saving) |
 | `created` | `path` | Refetch the tree; if it is the open file or a folder holding it, refetch the file too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, refetch the file, which shows not-found unless it is already back |
 | `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again); if `to` is the open file or a folder holding it, refetch the file |

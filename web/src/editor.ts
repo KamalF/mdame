@@ -2,7 +2,7 @@ import { indentLess, isolateHistory } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
-import { Compartment, Prec } from "@codemirror/state";
+import { Compartment, Prec, Text } from "@codemirror/state";
 import { keymap, type Panel, showPanel } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
@@ -41,6 +41,9 @@ interface Open {
    * `If-Match`. */
   base: string;
   saved: EditorView["state"]["doc"];
+  /** The file is gone from disk: the text is in no file, so leaving asks
+   * first. */
+  gone: boolean;
   modified: number;
   /** The file's own line break: CodeMirror's text uses `\n` only. */
   lineBreak: string;
@@ -61,7 +64,7 @@ function report() {
     path: open.path,
     modified: open.modified,
     // Undoing back to the saved text clears the dot.
-    dirty: !open.view.state.doc.eq(open.saved),
+    dirty: isDirty(),
     error: open.error,
     preview: previewOn,
   });
@@ -145,6 +148,7 @@ export async function mount(
     previewPane,
     base: source.version,
     saved: view.state.doc,
+    gone: false,
     modified: source.modified,
     lineBreak: lineBreakOf(source.content),
     queue: serial(reportError),
@@ -237,7 +241,7 @@ export function openPath(): string | null {
 }
 
 export function isDirty(): boolean {
-  return open !== null && !open.view.state.doc.eq(open.saved);
+  return open !== null && (open.gone || !open.view.state.doc.eq(open.saved));
 }
 
 /** If a save is asked for during another save, it runs next. A dropped
@@ -259,13 +263,14 @@ export function save() {
       // The text typed during the save is still unsaved.
       current.base = etagOf(response);
       current.saved = doc;
+      current.gone = false;
       current.modified = saved.modified;
       current.error = null;
       if (open === current) setNotice(current, null);
     } catch (error) {
       const { code, message } = error as ApiError;
       // The file changed or went away on disk: the notice tells which.
-      if (code === "precondition_failed" || code === "not_found") check(current);
+      if (code === "precondition_failed") await compare(current, true);
       else current.error = message;
     }
     if (open === current) report();
@@ -278,22 +283,32 @@ export function checkDisk() {
 }
 
 function check(current: Open) {
-  current.queue("check", async () => {
-    let disk: Source | null = null;
-    try {
-      disk = await fetchSource(current.path);
-    } catch (error) {
-      if ((error as ApiError).code !== "not_found") {
-        current.error = (error as ApiError).message;
-        if (open === current) report();
-        return;
-      }
+  current.queue("check", () => compare(current, false));
+}
+
+/** `refused`: the server refused a save with 412 just before. */
+async function compare(current: Open, refused: boolean) {
+  let disk: Source | null = null;
+  try {
+    disk = await fetchSource(current.path);
+  } catch (error) {
+    if ((error as ApiError).code !== "not_found") {
+      current.error = (error as ApiError).message;
+      if (open === current) report();
+      return;
     }
-    if (open !== current) return;
-    const reaction = reactToDisk(disk, current.base, isDirty());
-    if (reaction.kind === "reload") reload(current, reaction.disk);
-    setNotice(current, reaction.kind === "notice" ? noticePanel(current, reaction.disk) : null);
-  });
+  }
+  if (open !== current) return;
+  current.gone = disk === null;
+  const reaction = reactToDisk(disk, current.base, isDirty());
+  if (reaction.kind === "reload") reload(current, reaction.disk);
+  setNotice(current, reaction.kind === "notice" ? noticePanel(current, reaction.disk) : null);
+  // The same text came back on disk, by a rename for example: no notice,
+  // but the save did not happen.
+  if (refused && reaction.kind === "ignore") {
+    current.error = "Save again: the file was replaced on disk during the save.";
+  }
+  report();
 }
 
 /** Ctrl+Z undoes the reload alone, which brings back the unsaved edits. */
@@ -320,7 +335,7 @@ function setNotice(current: Open, panel: Panel | null) {
  * and Overwrite. */
 function noticePanel(current: Open, disk: Source | null): Panel {
   const dom = document.createElement("div");
-  dom.className = "mdame-notice";
+  dom.className = "mdame-disk-notice";
   dom.setAttribute("role", "alert");
   const text = document.createElement("span");
   text.textContent = disk ? "This file changed on disk." : "This file was deleted on disk.";
@@ -362,6 +377,10 @@ function recreate(current: Open) {
     try {
       const created = await send("POST", "/api/file", { path: current.path });
       current.base = etagOf(created);
+      // The file on disk is empty: the text is unsaved until the save lands,
+      // so leaving asks first.
+      current.saved = Text.empty;
+      current.gone = false;
     } catch (error) {
       current.error = (error as ApiError).message;
       if (open === current) report();

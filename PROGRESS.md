@@ -15,7 +15,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
-| 6 | Editor | — | about 12 |
+| 6 | Editor | Review and `cargo mutants` done 25 October 2026; manual checklist left | about 12 |
 | 7 | Revisions | — | about 6 |
 | 8 | Themes and polish | — | about 9 |
 
@@ -149,12 +149,54 @@ Rules, as test names, by commit:
 10. New file in a folder (done): `POST /api/file` with `{path}`: `create_makes_an_empty_file`, `create_of_an_existing_file_is_refused`, `create_refuses_a_type_that_the_editor_cannot_open`, `create_in_a_missing_folder_names_the_folder`, `create_stays_in_the_workspace`; `save_of_an_empty_file_makes_no_snapshot`; a row in the routes matrix. `dialogs.ts`: `a name with no extension gets .md`, `a name with an extension stays as typed, without the spaces around it`, `an empty name gives null`. A hover button on folder rows and a button in the sidebar header open the new-file dialog. The deleted-file notice offers Recreate: it creates the file, then saves.
 11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match` (done): `GET /api/source`, `PUT` and `POST /api/file` send the version as an `ETag` header and no longer in the body. `save_with_a_stale_version_is_refused_and_writes_nothing` (now 412), `save_without_if_match_is_refused` (428), `if_match_must_be_one_strong_etag`; the source, create and routes tests read the header. In the client, `send` in `api.ts` gives the response, for its headers.
 12. Manual checklist, `cargo mutants`, review loop.
-    - For the checklist: scroll a long file to its middle in the editor, then run "replace all" (Ctrl+F) with a longer text, so that content above the visible part grows. Both panes must stay on the same section. Checked on 21 October 2026 with Chrome's scroll anchoring off: the preview moved from 7687 to 10477 px and stayed on Section 30; left in place, it would have shown Section 22.
+
+- Review loop over milestone 6: 29 rounds and a simplify pass, converged on 24 October 2026. On 25 October, Kamal chose a simpler access design than the one that the review had reached (see the SPEC's Decided table), and the review's fixes were regrouped by topic: they are the commits after 20c1f2b.
+  - Access: the token is required on loopback too, and kept in a 0600 file. The URLs that mdame opens and prints carry one-time codes; a code used twice gives a new token. Programs built to attack mdame from this machine are out of scope.
+  - Saving: a failed save leaves the file and the history as they were. A save of the text on disk writes nothing. A file renamed over the path during a save gets 412. Saves and disk checks run one at a time, and none is dropped.
+  - Limits: the editor opens only visible text files that the view shows, through links too, and the picker refuses hidden folders. Snapshots, `.mdame` and the state folder are private.
+  - Page: one preview render at a time; the file's line breaks are kept; a reload keeps the cursor across many changes; a deleted file counts as unsaved; Esc, Ctrl+S and Ctrl+B/I fixes. After a lost connection, the page sends nothing until mdame is back on the same folder.
+- `cargo mutants` after the review, on 25 October 2026: 381 mutants, 13 missed and 3 timeouts. Tests now catch 6 of them (`watch_around`, which notify's partial watches had hidden, and `has_display`). `run` names every field of its access, so that a lost token does not compile. The 9 others are excluded with their reasons. A run over the changed files then found none missed.
+
+### Manual checklist
+
+Not run yet. These checks cover what no unit test covers. Run mdame on a test folder that holds a long markdown file, in Chrome and Firefox.
+
+Editor:
+
+1. `e` and the Edit button open the editor, and Esc closes it. Ctrl+S and the Save button save. The unsaved dot shows after an edit and clears after a save, or after an undo back to the saved text. With unsaved edits, Back or a click in the sidebar asks first, and closing the tab warns.
+2. Drag the divider and hide the preview: both stay as set after a reload.
+3. Scroll the editor, then the preview: each pane follows the other. Scroll a long file to its middle, then run "replace all" (Ctrl+F) with a longer text: both panes stay on the same section. Checked on 21 October 2026 with Chrome's scroll anchoring off.
+4. In Firefox, scroll the preview of a file with a closed `<details>` near the top: the editor does not jump to the line of the hidden block.
+5. Ctrl+B and Ctrl+I wrap a selection and unwrap it; Tab indents the selected lines.
+6. Change the open file from a terminal: with no edits, the editor reloads it with no notice, and the cursor stays. With edits, a notice offers Reload and Overwrite. Delete the file: the notice offers Recreate.
+7. Open a file in the editor, make no edit, and delete it from a terminal: the unsaved dot shows, and Esc asks first.
+8. The new-file button of a folder opens the dialog; the new file opens in the editor. `docs//notes` gives `docs/notes.md`.
+9. In the editor of a large file, type in several bursts: DevTools shows one `POST /api/render` at a time.
+10. On an image, a hidden file, or a file over 8 MB, the status bar has no Edit button, and `e` does nothing.
+11. With the system in dark mode, the editor's cursor, selection and line numbers are readable, and so is the completion list that `<d` opens.
+12. With Caps Lock on, Ctrl+S in the editor saves and opens no browser dialog.
+13. With unsaved edits, a click on a `#…` link in the preview keeps them.
+14. Below 900 px, with the sidebar overlay open over the editor, the first Esc closes the overlay, and the second closes the editor.
+15. With unsaved edits, press Back, change the file of the previous page on disk while the dialog is open, and choose Keep editing: the editor is still there.
+
+Connection:
+
+16. Stop mdame while the editor has unsaved edits, and press Ctrl+S: the status bar says to try again once mdame is back. Start mdame again: the tab reconnects, and Ctrl+S saves.
+17. Restart mdame on the same folder: the open tab keeps working, with the same sidebar width and open folders.
+18. Restart mdame on another folder: the tab reloads. With unsaved edits, stay on the page: Ctrl+S writes nothing and says to copy the text and reload.
+
+Access:
+
+19. mdame opens `http://127.0.0.1:4891/?c=…`, and the address bar then shows no `c=`. A reload of that tab after a minute still works (the cookie).
+20. Open `http://127.0.0.1:4891/` in a private window: 403 "missing or wrong token".
+21. The URL that mdame prints works once, within ten minutes. A second use gets 403: mdame prints a new URL, and the tabs of the old token get 403.
+22. Delete `~/.local/state/mdame/token` and restart mdame: the old tab gets 403, and the new one works.
+23. Start mdame over SSH, with no display: it opens no browser and says to open the printed URL.
+24. Start mdame on a large folder whose first walk takes over a minute: the opened tab still gets in.
 
 ## Next
 
-1. Milestone 6, commit 12: `cargo mutants` done (20c1f2b). Review loop: converged on 24 October 2026, after 29 rounds and a simplify pass; its fixes are the commits after 20c1f2b. Rounds 6–27 reworked access: the token is required on loopback too. On 25 October, Kamal chose a simpler access design over the one that the review had reached: one token kept on loopback, one-time codes in the URLs that mdame opens and prints, and no defence against a program built to attack mdame (see the SPEC's Decided table). The review's commits were then regrouped by topic. `cargo mutants` again on 25 October, after the simpler access design: 381 mutants, 13 missed and 3 timeouts. Tests now catch 6 of them (`watch_around`, which notify's partial watches had hidden, and `has_display`), `run` names every field of its access so that a lost token does not compile, and the 9 others are excluded with their reasons. Next: the manual checklist, and the merge into `main`.
-   - For the checklist, the fixes that no unit test covers. Start mdame over SSH with no display: it opens no browser and says to open the printed URL. Start it on a large folder whose first walk takes over a minute: the opened tab still gets in. In Firefox, scroll the preview of a file with a closed `<details>` near the top: the editor follows the scroll and does not jump to the line of the hidden block. Open `http://127.0.0.1:4891/` in a private window: 403 "missing or wrong token". mdame opens the browser at `http://127.0.0.1:4891/?c=…`, and the address bar then shows no `c=`. The URL that it prints works once, within ten minutes; a second use gets 403, mdame prints a new URL, and the tabs of the old token get 403. Reloading the opened tab after a minute still works (the cookie). Restart mdame on the same folder: the open tab reconnects and keeps working, with the same sidebar width and open folders. Restart it on another folder: the tab reloads. Delete `~/.local/state/mdame/token` and restart: the old tab gets 403, and the new one works. In the editor of a large file, type in several bursts: DevTools shows one `POST /api/render` at a time. On an image, or on a file over 8 MB, the status bar has no Edit button and `e` does nothing. With the system in dark mode, the editor's cursor, selection and line numbers are readable, and so is the completion list that `<d` opens. Stop mdame while the editor has unsaved edits and press Ctrl+S: the status bar says to try again once mdame is back. Start mdame again: Ctrl+S saves. Restart mdame on another folder while the editor has unsaved edits, and stay on the page: Ctrl+S writes nothing and says to copy the text and reload. With Caps Lock on, Ctrl+S in the editor saves and opens no browser dialog. If the editor has unsaved edits, a click on a `#…` link in the preview keeps them. Below 900 px, with the sidebar overlay open over the editor, the first Esc closes the overlay and the second closes the editor. If the editor has unsaved edits, press Back, change the file of the previous page on disk while the dialog is open, and choose to keep editing: the editor is still there. Open a file in the editor, make no edit, and delete it from a terminal: the unsaved dot shows, and Esc asks first.
+1. Milestone 6: run the manual checklist above, then merge into `main`.
 
 ## Open points
 
@@ -188,13 +230,9 @@ Rules, as test names, by commit:
   - A text full of control characters escapes past the 32 MB body limit.
   - `history::snapshot` keeps a branch for paths with no extension, which the editor's routes refuse.
   - Tests: three permission tests fail as root; the picker tests fail when `TMPDIR` is in a hidden folder; `tests/source.rs` and `tests/save.rs` repeat one table.
-
 - The editor does not follow a rename of its file, as the view does: it shows the deleted notice.
-
 - Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
-
-- History rewritten on 18 October 2026 so that the front end is TypeScript from the first commit; the JavaScript history is kept in `backup/before-typescript` and `backup/m4-viewing-before-typescript` until they are deleted.
-
+- Backup branches, to delete once they are no longer needed: `backup/before-typescript` and `backup/m4-viewing-before-typescript` (the JavaScript history, before the rewrite of 18 October 2026), `backup/m4-before-dist-fix`, `backup/m6-before-import-fixup`, and `backup/m6-before-history-rewrite` (milestone 6 before its review commits were regrouped, 25 October 2026).
 - From the review of milestone 5, for later:
   - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs.
   - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
@@ -211,9 +249,8 @@ Rules, as test names, by commit:
 - Debug builds render a dense 1 MB markdown file in about 10 s. If `mise run dev` feels slow, `[profile.dev.package."*"] opt-level = 2` optimizes the dependencies only.
 - From the review of 18 October 2026, for later:
   - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`; run `/api/complete` in `spawn_blocking`.
-  - Usability: print a usable address when bound to `0.0.0.0`; debounce completion requests; unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
-  - Tests: shared helpers in `tests/common`; `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.
+  - Usability: debounce completion requests; unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
+  - Tests: `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.
 - From the review of milestone 3, for later:
   - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice, as in the picker.
   - Big workspaces: a limit on the filter results, latinized names computed once, cached icons; `/api/tree` walks the whole folder on each request. Measure with the milestone 5 refetches first.
-  - Tests: a `get_json` helper in `tests/common` for `tree.rs`, `complete.rs` and `state.rs`.

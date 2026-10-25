@@ -47,6 +47,10 @@ pub fn io_message(error: &io::Error) -> String {
 
 impl From<JsonRejection> for ApiError {
     fn from(rejection: JsonRejection) -> Self {
+        // A body over the limit: the same refusal as content over 8 MB.
+        if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            return ApiError::TooLarge("the text is too large to send".to_owned());
+        }
         ApiError::BadRequest(rejection.body_text())
     }
 }

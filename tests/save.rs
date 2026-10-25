@@ -212,6 +212,24 @@ async fn if_match_sent_twice_never_matches() {
     assert_eq!(read(dir.path(), "a.md"), "old\n");
 }
 
+/// The body limit is the same refusal as the edit limit, not a bad request.
+#[tokio::test]
+async fn save_of_a_body_over_the_limit_is_too_large() {
+    let dir = tempfile::tempdir().unwrap();
+    let content = "a".repeat(33 * 1024 * 1024);
+    let response = put(
+        workspace(dir.path()),
+        "a.md",
+        Some(&etag(b"old\n")),
+        &content,
+    )
+    .await;
+
+    let (status, body) = status_and_json(response).await;
+    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(body["error"]["code"], "too_large");
+}
+
 #[tokio::test]
 async fn save_of_a_file_that_mdame_may_not_write_leaves_no_snapshot() {
     let dir = tempfile::tempdir().unwrap();
@@ -265,7 +283,8 @@ async fn save_takes_content_up_to_the_edit_limit() {
     let dir = tempfile::tempdir().unwrap();
     // The spec's limit, not the constant: a test must fail if the constant moves.
     let limit = 8 * 1024 * 1024;
-    let content = "a".repeat(limit);
+    // Quotes double in JSON: the body is twice the limit.
+    let content = "\"".repeat(limit);
     let response = put(
         workspace(dir.path()),
         "a.md",

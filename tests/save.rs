@@ -120,6 +120,25 @@ async fn save_of_an_empty_file_makes_no_snapshot() {
 }
 
 #[tokio::test]
+async fn save_of_the_text_on_disk_writes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = workspace(dir.path());
+    let file = fs::File::options()
+        .write(true)
+        .open(dir.path().join("ws/a.md"))
+        .unwrap();
+    let long_ago = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+    file.set_modified(long_ago).unwrap();
+    let response = put(state, "a.md", Some(&etag(b"old\n")), "old\n").await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(etag_of(&response), etag(b"old\n"));
+    let modified = fs::metadata(dir.path().join("ws/a.md")).unwrap().modified();
+    assert_eq!(modified.unwrap(), long_ago);
+    assert!(!dir.path().join("ws/.mdame").exists());
+}
+
+#[tokio::test]
 async fn save_writes_the_file_in_place() {
     let dir = tempfile::tempdir().unwrap();
     let state = common::workspace(dir.path(), &[("a.md", b"a longer text\n")]);

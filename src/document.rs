@@ -172,6 +172,11 @@ pub fn save(
     if version(&old) != base_version {
         return Err(SaveError::Changed);
     }
+    // Ctrl+S pressed out of habit would fill the history with copies of the
+    // file and push the real revisions out.
+    if old == content.as_bytes() {
+        return Ok(saved(base_version.to_owned(), &file)?);
+    }
     // Writing over an empty file loses nothing.
     if !old.is_empty() {
         history()

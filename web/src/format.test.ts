@@ -30,7 +30,11 @@ test("bold wraps the selection", () => {
 test("bold unwraps an already bold selection", () => {
   expect(run(bold, "say **[hi]** now")).toBe("say [hi] now");
   expect(run(bold, "say [**hi**] now")).toBe("say [hi] now");
-  expect(run(bold, "say __[hi]__ now")).toBe("say [hi] now");
+});
+
+test("bold wraps a selection over two bold spans", () => {
+  expect(run(bold, "[**a** and **b**]")).toBe("**[**a** and **b**]**");
+  expect(run(bold, "**[a** and **b]**")).toBe("****[a** and **b]****");
 });
 
 test("bold on an empty selection puts the cursor between markers", () => {
@@ -45,7 +49,30 @@ test("italic wraps the selection", () => {
 test("italic unwraps an already italic selection", () => {
   expect(run(italic, "say *[hi]* now")).toBe("say [hi] now");
   expect(run(italic, "say [*hi*] now")).toBe("say [hi] now");
-  expect(run(italic, "say _[hi]_ now")).toBe("say [hi] now");
+});
+
+test("italic around a selected bold span toggles back", () => {
+  expect(run(italic, "[**hi**]")).toBe("*[**hi**]*");
+  expect(run(italic, "*[**hi**]*")).toBe("[**hi**]");
+  expect(run(bold, "**[*hi*]**")).toBe("[*hi*]");
+});
+
+test("bold leaves out the line break of a selected line", () => {
+  expect(run(bold, "[Hello world\n]Next")).toBe("**[Hello world]**\nNext");
+  expect(run(bold, "[**Hello world**\n]Next")).toBe("[Hello world]\nNext");
+  expect(run(italic, "[ hi ]")).toBe(" *[hi]* ");
+});
+
+test("an escaped star is not a marker", () => {
+  expect(run(italic, "\\*[a]*")).toBe("\\**[a]**");
+  expect(run(italic, "\\[*a*] b")).toBe("\\*[*a*]* b");
+  // An escaped backslash escapes nothing after it.
+  expect(run(italic, "\\\\*[a]* b")).toBe("\\\\[a] b");
+});
+
+test("underscores are not markers", () => {
+  expect(run(italic, "my_[bar]_var")).toBe("my_*[bar]*_var");
+  expect(run(italic, "[_bar_]")).toBe("*[_bar_]*");
 });
 
 test("italic on an empty selection puts the cursor between markers", () => {

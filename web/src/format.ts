@@ -1,21 +1,32 @@
 import { indentMore } from "@codemirror/commands";
 import { EditorSelection, type StateCommand } from "@codemirror/state";
 
-function leadingRun(text: string): string {
-  return /^(\*+|_+)/.exec(text)?.[0] ?? "";
+/**
+ * The run of `*` that starts `text`, where `before` is the text in front of
+ * it. A `*` after an odd number of backslashes is a literal star, not a
+ * marker.
+ */
+function leadingRun(text: string, before: string): string {
+  const run = /^\*+/.exec(text)?.[0] ?? "";
+  return escaped(before) ? run.slice(1) : run;
 }
 
 function trailingRun(text: string): string {
-  return /(\*+|_+)$/.exec(text)?.[0] ?? "";
+  const run = /\*+$/.exec(text)?.[0] ?? "";
+  return escaped(text.slice(0, text.length - run.length)) ? run.slice(1) : run;
+}
+
+/** Whether the character after `text` is escaped. */
+function escaped(text: string): boolean {
+  return /\\*$/.exec(text)![0].length % 2 === 1;
 }
 
 /**
- * Whether the runs of `*` or `_` on the two sides of a text hold `marker`.
- * In a run, each pair is bold and a leftover one is italic, so `***a***`
- * is both.
+ * Whether the runs of `*` on the two sides of a text hold `marker`. In a
+ * run, each pair is bold and a leftover one is italic, so `***a***` is
+ * both.
  */
 function holds(marker: string, left: string, right: string): boolean {
-  if (!left || left[0] !== right[0]) return false;
   return marker.length === 2
     ? left.length >= 2 && right.length >= 2
     : left.length % 2 === 1 && right.length % 2 === 1;
@@ -24,16 +35,25 @@ function holds(marker: string, left: string, right: string): boolean {
 /**
  * Wraps each selection in `marker` (`**` or `*`). If the markers are
  * already there, just outside the selection or at its two ends, removes
- * them instead. On an empty selection, the cursor lands between the
+ * them instead. Only the markers of one span count: `**a** and **b**`
+ * gets wrapped. `_` never counts, since it is often part of a name such
+ * as `my_var`. On an empty selection, the cursor lands between the
  * markers.
  */
 export function toggleMarker(marker: string): StateCommand {
   const n = marker.length;
   return ({ state, dispatch }) => {
-    const changes = state.changeByRange(({ from, to }) => {
+    const changes = state.changeByRange((range) => {
+      const { from, to } = inward(state.sliceDoc(range.from, range.to), range.from);
       const before = state.sliceDoc(state.doc.lineAt(from).from, from);
       const after = state.sliceDoc(to, state.doc.lineAt(to).to);
-      if (holds(marker, trailingRun(before), leadingRun(after))) {
+      const text = state.sliceDoc(from, to);
+      const left = leadingRun(text, before);
+      const right = trailingRun(text);
+      // Empty when the whole text is one run of `*`.
+      const inner = text.slice(left.length, text.length - right.length);
+      const oneSpan = !inner.includes("*");
+      if (oneSpan && holds(marker, trailingRun(before), leadingRun(after, before + text))) {
         return {
           changes: [
             { from: from - n, to: from },
@@ -42,8 +62,7 @@ export function toggleMarker(marker: string): StateCommand {
           range: EditorSelection.range(from - n, to - n),
         };
       }
-      const text = state.sliceDoc(from, to);
-      if (text.length >= 2 * n && holds(marker, leadingRun(text), trailingRun(text))) {
+      if (inner && oneSpan && holds(marker, left, right)) {
         return {
           changes: [
             { from, to: from + n },
@@ -63,6 +82,17 @@ export function toggleMarker(marker: string): StateCommand {
     dispatch(state.update(changes, { scrollIntoView: true, userEvent: "input" }));
     return true;
   };
+}
+
+/**
+ * The range of `text`, which starts at `from`, without spaces and line
+ * breaks at its ends. A triple-click selects the line break too, and
+ * CommonMark accepts no marker after a line break or before a space.
+ */
+function inward(text: string, from: number): { from: number; to: number } {
+  const start = text.length - text.trimStart().length;
+  const end = text.trimEnd().length;
+  return start < end ? { from: from + start, to: from + end } : { from, to: from + text.length };
 }
 
 export const tab: StateCommand = ({ state, dispatch }) => {

@@ -1,11 +1,11 @@
 import { api, type ApiError } from "./api.ts";
-import { latestOnly } from "./latest.ts";
+import { serial } from "./serial.ts";
 import { message, morphInto, prepare } from "./view.ts";
 
 /** Typing pauses shorter than this share one render. */
 const DELAY = 150;
 
-const render = latestOnly(async (path: string, content: string): Promise<HTMLElement> => {
+async function render(path: string, content: string): Promise<HTMLElement> {
   try {
     const { html } = await api<{ html: string }>("POST", "/api/render", { path, content });
     return await prepare(html);
@@ -15,11 +15,18 @@ const render = latestOnly(async (path: string, content: string): Promise<HTMLEle
     message(article, (error as ApiError).message);
     return article;
   }
-});
+}
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 let target: HTMLElement | null = null;
 let rendered = () => {};
+
+/**
+ * The server cannot stop a render, and a crafted file can take an hour:
+ * a tab runs one render at a time, and the newest text waits for it.
+ */
+const queue = serial(reportError);
+let next: { el: HTMLElement; path: string; content: string } | null = null;
 
 /** Calls `listener` after each render: the preview's height may have changed. */
 export function onRender(listener: () => void) {
@@ -27,15 +34,21 @@ export function onRender(listener: () => void) {
 }
 
 /** Renders `content` into `el` now, as the view would show it at `path`. */
-export async function show(el: HTMLElement, path: string, content: string) {
+export function show(el: HTMLElement, path: string, content: string) {
   clearTimeout(timer);
   target = el;
-  const article = await render(path, content);
-  if (!article || target !== el) return;
-  const shown = el.querySelector<HTMLElement>(":scope > article");
-  if (shown) morphInto(shown, article);
-  else el.replaceChildren(article);
-  rendered();
+  next = { el, path, content };
+  queue("render", async () => {
+    if (!next) return;
+    const { el, path, content } = next;
+    next = null;
+    const article = await render(path, content);
+    if (target !== el) return;
+    const shown = el.querySelector<HTMLElement>(":scope > article");
+    if (shown) morphInto(shown, article);
+    else el.replaceChildren(article);
+    rendered();
+  });
 }
 
 /** Renders `content` once typing pauses. */
@@ -49,4 +62,5 @@ export function update(path: string, content: () => string) {
 export function stop() {
   clearTimeout(timer);
   target = null;
+  next = null;
 }

@@ -15,7 +15,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 3 | Sidebar | Done 18 October 2026, merged into `main` the same day | 19, with the review fixes |
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
-| 6 | Editor | Review and `cargo mutants` done 25 October 2026; manual checklist left | about 12 |
+| 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | — | about 6 |
 | 8 | Themes and polish | — | about 9 |
 
@@ -159,7 +159,7 @@ Rules, as test names, by commit:
 
 ### Manual checklist
 
-Not run yet. These checks cover what no unit test covers. Run mdame on a test folder that holds a long markdown file, in Chrome and Firefox.
+Run by hand on 25 October 2026: all 24 checks passed. These checks cover what no unit test covers. Run mdame on a test folder that holds a long markdown file, in Chrome and Firefox.
 
 Editor:
 
@@ -190,13 +190,13 @@ Access:
 19. mdame opens `http://127.0.0.1:4891/?c=…`, and the address bar then shows no `c=`. A reload of that tab after a minute still works (the cookie).
 20. Open `http://127.0.0.1:4891/` in a private window: 403 "missing or wrong token".
 21. The URL that mdame prints works once, within ten minutes. A second use gets 403: mdame prints a new URL, and the tabs of the old token get 403.
-22. Delete `~/.local/state/mdame/token` and restart mdame: the old tab gets 403, and the new one works.
+22. Delete `~/.local/state/mdame/token` and restart mdame: the old tab gets 403, and the new one works. Keep the old tab in a browser that mdame does not open: the tabs of a browser share the cookie.
 23. Start mdame over SSH, with no display: it opens no browser and says to open the printed URL.
-24. Start mdame on a large folder whose first walk takes over a minute: the opened tab still gets in.
+24. Start mdame on a large folder whose first walk takes over a minute: the opened tab still gets in. Checked on 25 October 2026 on `~/dev`, with mdame paused for 75 s during the walk.
 
 ## Next
 
-1. Milestone 6: run the manual checklist above, then merge into `main`.
+1. Start milestone 7 (revisions) on a new branch, `m7-revisions`.
 
 ## Open points
 

@@ -222,6 +222,8 @@ export function togglePreview() {
 export function unmount() {
   request++;
   preview.stop();
+  // Its listener holds the closed editor and its whole text.
+  preview.onRender(() => {});
   open?.view.destroy();
   open = null;
 }

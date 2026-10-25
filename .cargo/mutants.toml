@@ -6,7 +6,7 @@ exclude_re = [
     # Start-up wiring: the manual checklist covers it.
     "replace main -> ExitCode",
     "replace run -> Result",
-    "replace (config_file|state_dir|recents_file) ->",
+    "replace (config_file|state_dir) ->",
     # Lookup tables: a test would only repeat them.
     "delete match arm .* in (Family::of|image_type|content_type)",
     # A file that grows between its size check and its read: a race.

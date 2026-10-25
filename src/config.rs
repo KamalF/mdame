@@ -132,10 +132,6 @@ pub fn state_dir() -> Option<PathBuf> {
     )
 }
 
-pub fn recents_file() -> Option<PathBuf> {
-    Some(state_dir()?.join("recents.toml"))
-}
-
 /// The XDG spec says to ignore a relative or empty value, and fall back.
 fn app_dir(xdg: Option<OsString>, home: Option<PathBuf>, fallback: &str) -> Option<PathBuf> {
     let base = xdg

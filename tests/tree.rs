@@ -13,7 +13,7 @@ async fn tree_of_the_open_workspace() {
     fs::create_dir(dir.path().join("docs")).unwrap();
     fs::write(dir.path().join("docs/a.md"), "").unwrap();
     let state = AppState {
-        recents_path: dir.path().join("recents.toml"),
+        state_dir: dir.path().to_path_buf(),
         ..local()
     };
     state.open_workspace(dir.path()).unwrap();

@@ -50,7 +50,6 @@ pub fn local() -> AppState {
         token: None,
         config: RwLock::new(Config::default()),
         config_path: PathBuf::new(),
-        recents_path: PathBuf::new(),
         state_dir: PathBuf::new(),
         events: broadcast::channel(EVENT_CAPACITY).0,
     }
@@ -81,7 +80,7 @@ pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {
     fs::create_dir_all(&root).unwrap();
     fs::write(dir.join("secret.md"), "secret\n").unwrap();
     let state = AppState {
-        recents_path: dir.join("recents.toml"),
+        state_dir: dir.to_path_buf(),
         ..local()
     };
     state.open_workspace(&root).unwrap();

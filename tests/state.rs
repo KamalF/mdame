@@ -107,7 +107,7 @@ async fn open_workspace_shows_in_state_and_recents() {
     fs::write(&file, "").unwrap();
     let recents_path = dir.path().join("state/recents.toml");
     let state = AppState {
-        recents_path: recents_path.clone(),
+        state_dir: dir.path().join("state"),
         ..local()
     };
 
@@ -127,7 +127,7 @@ async fn unreadable_recents_do_not_stop_the_open() {
     let recents_path = dir.path().join("recents.toml");
     fs::write(&recents_path, "not toml [").unwrap();
     let state = AppState {
-        recents_path: recents_path.clone(),
+        state_dir: dir.path().to_path_buf(),
         ..local()
     };
 
@@ -147,7 +147,7 @@ async fn open(state: AppState, path: &str) -> (StatusCode, Value) {
 async fn picker_opens_a_folder() {
     let dir = tempfile::tempdir().unwrap();
     let state = AppState {
-        recents_path: dir.path().join("recents.toml"),
+        state_dir: dir.path().to_path_buf(),
         ..local()
     };
     let mut events = state.events.subscribe();
@@ -162,7 +162,7 @@ async fn picker_opens_a_folder() {
 async fn second_open_is_a_conflict() {
     let dir = tempfile::tempdir().unwrap();
     let state = AppState {
-        recents_path: dir.path().join("recents.toml"),
+        state_dir: dir.path().to_path_buf(),
         ..local()
     };
     state.open_workspace(dir.path()).unwrap();
@@ -206,7 +206,7 @@ async fn recents_newest_first() {
     "#;
     fs::write(&recents_path, text).unwrap();
     let state = AppState {
-        recents_path,
+        state_dir: dir.path().to_path_buf(),
         ..local()
     };
 
@@ -226,7 +226,7 @@ async fn unreadable_recents_are_an_empty_list() {
     let recents_path = dir.path().join("recents.toml");
     fs::write(&recents_path, "not toml [").unwrap();
     let state = AppState {
-        recents_path,
+        state_dir: dir.path().to_path_buf(),
         ..local()
     };
 

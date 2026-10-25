@@ -50,8 +50,7 @@ pub struct AppState {
     pub token: Option<String>,
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
-    pub recents_path: PathBuf,
-    /// The history root in `state` mode is below it.
+    /// The recents, and the history root in `state` mode, are below it.
     pub state_dir: PathBuf,
     pub events: broadcast::Sender<Event>,
 }
@@ -93,7 +92,7 @@ impl AppState {
     /// Recents are a convenience: a file that cannot be read or saved only
     /// gives a warning.
     pub fn recents(&self) -> Recents {
-        config::load(&self.recents_path).unwrap_or_else(|error| {
+        config::load(&self.recents_path()).unwrap_or_else(|error| {
             tracing::warn!("recents ignored: {error}");
             Recents::default()
         })
@@ -106,17 +105,19 @@ impl AppState {
             .expect("the clock is after 1970")
             .as_secs();
         recents.add(path, now);
-        if let Err(error) = config::save(&recents, &self.recents_path) {
+        if let Err(error) = config::save(&recents, &self.recents_path()) {
             tracing::warn!("could not save the recents: {error}");
         }
+    }
+
+    fn recents_path(&self) -> PathBuf {
+        self.state_dir.join("recents.toml")
     }
 }
 
 pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = config::config_file().ok_or("set HOME or XDG_CONFIG_HOME: no home folder")?;
     let config = config::load(&config_path)?;
-    let recents_path =
-        config::recents_file().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
     let state_dir = config::state_dir().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
     let listener = bind_first_free(args.host, args.port, PORT_ATTEMPTS).await?;
     let token = if args.host.is_loopback() {
@@ -130,7 +131,6 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         token,
         config: RwLock::new(config),
         config_path,
-        recents_path,
         state_dir,
         events: broadcast::channel(EVENT_CAPACITY).0,
     };

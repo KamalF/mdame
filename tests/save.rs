@@ -276,6 +276,15 @@ async fn save_of_a_deleted_file_is_refused() {
 
     assert_eq!(response.status(), StatusCode::PRECONDITION_FAILED);
     assert!(!dir.path().join("ws/a.md").exists());
+    // A file where a folder of the path was.
+    let response = put(
+        workspace(dir.path()),
+        "a.md/b.md",
+        Some(&etag(b"old\n")),
+        "new\n",
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::PRECONDITION_FAILED);
 }
 
 #[tokio::test]

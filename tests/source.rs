@@ -18,6 +18,19 @@ async fn source_returns_the_text_and_its_version() {
     assert!(body["modified"].as_u64().unwrap() > 0);
 }
 
+/// The editor shows the deleted-file notice on this code.
+#[tokio::test]
+async fn source_of_a_missing_file_is_not_found() {
+    let dir = tempfile::tempdir().unwrap();
+    // The second one has a file where its folder would be.
+    for path in ["missing.md", "a.md/b.md"] {
+        let state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
+        let (status, body) = get_json(state, &format!("/api/source?path={path}")).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(body["error"]["code"], "not_found", "{path}");
+    }
+}
+
 #[tokio::test]
 async fn source_refuses_what_is_not_utf8_text() {
     let dir = tempfile::tempdir().unwrap();

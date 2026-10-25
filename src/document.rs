@@ -165,7 +165,10 @@ pub fn save(
     // write fails before the snapshot, and the write goes to the file whose
     // version was checked.
     let (mut file, _) = match open_file(dir, path, OpenOptions::new().read(true).write(true)) {
-        Err(error) if error.kind() == ErrorKind::NotFound => return Err(SaveError::Changed),
+        // A folder of the path that is now a file gives NotADirectory.
+        Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
+            return Err(SaveError::Changed);
+        }
         opened => opened?,
     };
     let old = read_at_most(&file, EDIT_LIMIT)?;

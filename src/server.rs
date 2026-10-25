@@ -460,7 +460,8 @@ async fn create(
 fn file_error(path: &str, error: io::Error) -> ApiError {
     let message = format!("{path}: {}", io_message(&error));
     match error.kind() {
-        io::ErrorKind::NotFound => ApiError::NotFound(message),
+        // A folder of the path that is now a file.
+        io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => ApiError::NotFound(message),
         io::ErrorKind::Unsupported => ApiError::NotViewable(message),
         io::ErrorKind::FileTooLarge => ApiError::TooLarge(message),
         // cap-std refuses `..`, absolute paths and links out with no OS

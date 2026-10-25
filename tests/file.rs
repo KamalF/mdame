@@ -24,6 +24,7 @@ async fn markdown_file_is_rendered() {
     assert_eq!(body["family"], "markdown");
     assert_eq!(body["size"], 8);
     assert_eq!(body["too_large"], false);
+    assert_eq!(body["editable"], true);
     assert!(body["modified"].as_u64().unwrap() > 0);
     assert!(
         body["html"]
@@ -50,6 +51,36 @@ async fn file_over_1_mb_is_not_rendered() {
 }
 
 #[tokio::test]
+async fn the_editor_is_offered_up_to_the_edit_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    workspace(dir.path());
+    // The spec's limit, not the constant: a test must fail if the constant moves.
+    let limit = 8 * 1024 * 1024;
+    fs::write(dir.path().join("ws/limit.txt"), "a".repeat(limit)).unwrap();
+    fs::write(dir.path().join("ws/huge.txt"), "a".repeat(limit + 1)).unwrap();
+
+    let (_, body) = get_file(workspace(dir.path()), "limit.txt").await;
+    let html = body["html"].as_str().unwrap();
+    assert!(html.contains("Open it in the editor"), "{html}");
+    assert_eq!(body["editable"], true);
+    let (_, body) = get_file(workspace(dir.path()), "huge.txt").await;
+    let html = body["html"].as_str().unwrap();
+    assert!(html.contains("too large to show or to edit"), "{html}");
+    assert_eq!(body["editable"], false);
+}
+
+#[tokio::test]
+async fn hidden_files_are_not_offered_to_the_editor() {
+    let dir = tempfile::tempdir().unwrap();
+    for path in [".todo.md", "notes/.drafts/a.md"] {
+        let state = common::workspace(dir.path(), &[(path, b"# A\n")]);
+        let (status, body) = get_file(state, path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert_eq!(body["editable"], false, "{path}");
+    }
+}
+
+#[tokio::test]
 async fn image_is_not_read() {
     let dir = tempfile::tempdir().unwrap();
     let state = workspace(dir.path());
@@ -57,6 +88,7 @@ async fn image_is_not_read() {
     let (status, body) = get_file(state, "big.png").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["too_large"], false);
+    assert_eq!(body["editable"], false);
     assert_eq!(body["html"], r#"<img src="/raw/big.png" alt="big.png">"#);
 }
 

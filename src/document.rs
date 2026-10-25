@@ -29,6 +29,9 @@ pub struct View {
     pub modified: u64,
     pub size: u64,
     pub too_large: bool,
+    /// Whether the page offers the editor. The editor's routes check again,
+    /// on the open file.
+    pub editable: bool,
 }
 
 /// The rendered file at `path`, relative to the workspace root. A file
@@ -48,9 +51,12 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
     };
     let too_large = html.is_none();
     let html = html.unwrap_or_else(|| {
-        "<p class=\"mdame-notice\">This file is over 1 MB, too large to show. \
-         Open it in the editor.</p>"
-            .to_owned()
+        let notice = if size > EDIT_LIMIT {
+            "This file is over 8 MB, too large to show or to edit."
+        } else {
+            "This file is over 1 MB, too large to show. Open it in the editor."
+        };
+        format!("<p class=\"mdame-notice\">{notice}</p>")
     });
     Ok(View {
         html,
@@ -58,6 +64,7 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
         modified: modified_secs(&metadata).unwrap_or(0),
         size,
         too_large,
+        editable: editable_name(Path::new(path)).is_ok() && size <= EDIT_LIMIT,
     })
 }
 

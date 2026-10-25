@@ -13,6 +13,7 @@ export interface FileView {
   modified: number;
   size: number;
   too_large: boolean;
+  editable: boolean;
 }
 
 export function message(el: HTMLElement, text: string) {
@@ -103,6 +104,10 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
 /** The path of the file on screen, if one is. */
 export function shownPath(): string | undefined {
   return shown?.path;
+}
+
+export function shownFile(): FileView | undefined {
+  return shown?.file;
 }
 
 /** The file on screen moved to `path`: a refresh then patches it in place. */

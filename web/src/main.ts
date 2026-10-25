@@ -33,8 +33,10 @@ function showFileStatus(path: string, file: view.FileView) {
   modified.textContent = new Date(file.modified * 1000).toLocaleString();
   const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
   fileStatus.replaceChildren(name, modified, copyPath);
-  if (file.family !== "image") {
+  if (file.editable) {
     fileStatus.append(iconButton("Edit", "pencil", () => startEditing(path), "Edit (e)"));
+  }
+  if (file.family !== "image") {
     const content = async () => {
       const response = await fetch(view.rawUrl(path));
       if (!response.ok) throw errorFrom(response.status, null);
@@ -268,7 +270,11 @@ async function showWorkspace(state: State) {
     "/": sidebar.focusFilter,
     e: () => {
       const { path, editing } = route();
-      if (path && !editing && view.shownPath() === path) startEditing(path);
+      const file = view.shownFile();
+      // As the Edit button.
+      if (path && !editing && view.shownPath() === path && file?.editable) {
+        startEditing(path);
+      }
     },
   });
   const mounted = sidebar.mount(nav, { root, current, onOpen: openFile, onNewFile: newFile });

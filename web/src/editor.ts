@@ -192,10 +192,14 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
 
   function table(): Anchor[] {
     const origin = pane.getBoundingClientRect().top - pane.scrollTop;
-    const blocks = [...pane.querySelectorAll("[data-sourcepos]")].map((el) => ({
-      line: parseInt(el.getAttribute("data-sourcepos")!),
-      top: el.getBoundingClientRect().top - origin,
-    }));
+    const blocks = [...pane.querySelectorAll("[data-sourcepos]")]
+      // The content of a closed <details> has no box: its rect of zeros
+      // would be an anchor at the current scroll position.
+      .filter((el) => el.getClientRects().length > 0)
+      .map((el) => ({
+        line: parseInt(el.getAttribute("data-sourcepos")!),
+        top: el.getBoundingClientRect().top - origin,
+      }));
     return anchorTable(blocks, view.state.doc.lines, pane.scrollHeight);
   }
 

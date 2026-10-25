@@ -13,18 +13,35 @@ const CHOICES = [
   },
 ];
 
-/** Asks once where to keep revisions. Esc saves the selected choice too. */
-export function askHistory() {
+/** Shows a modal dialog: its title, `body`, then `buttons`. */
+function modal(id: string, heading: string, body: Node[], buttons: HTMLButtonElement[]) {
   const dialog = document.createElement("dialog");
   dialog.className = "mdame-dialog";
-  dialog.setAttribute("aria-labelledby", "mdame-setup-title");
-
+  dialog.setAttribute("aria-labelledby", id);
   const form = document.createElement("form");
   form.method = "dialog";
-
   const title = document.createElement("h2");
-  title.id = "mdame-setup-title";
-  title.textContent = "Where should mdame keep revisions?";
+  title.id = id;
+  title.textContent = heading;
+  const actions = document.createElement("div");
+  actions.className = "mdame-dialog-actions";
+  actions.append(...buttons);
+  form.append(title, ...body, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  dialog.showModal();
+  return { dialog, form };
+}
+
+function errorLine(): HTMLParagraphElement {
+  const error = document.createElement("p");
+  error.className = "mdame-dialog-error";
+  error.setAttribute("role", "alert");
+  return error;
+}
+
+/** Asks once where to keep revisions. Esc saves the selected choice too. */
+export function askHistory() {
   const intro = document.createElement("p");
   intro.textContent = "mdame saves the previous version of a file each time you save it.";
 
@@ -55,19 +72,15 @@ export function askHistory() {
   note.textContent =
     "You can change this later in ~/.config/mdame/config.toml. Old revisions do not move.";
 
-  const error = document.createElement("p");
-  error.className = "mdame-dialog-error";
-  error.setAttribute("role", "alert");
-
-  const actions = document.createElement("div");
-  actions.className = "mdame-dialog-actions";
+  const error = errorLine();
   const button = document.createElement("button");
   button.textContent = "Continue";
-  actions.append(button);
-
-  form.append(title, intro, fieldset, note, error, actions);
-  dialog.append(form);
-  document.body.append(dialog);
+  const { dialog, form } = modal(
+    "mdame-setup-title",
+    "Where should mdame keep revisions?",
+    [intro, fieldset, note, error],
+    [button],
+  );
 
   // "close" follows both Continue and Esc.
   dialog.addEventListener("close", async () => {
@@ -80,26 +93,13 @@ export function askHistory() {
       dialog.showModal();
     }
   });
-  dialog.showModal();
   button.focus();
 }
 
 /** Asks before unsaved edits are lost. Resolves true to discard them. */
 export function confirmDiscard(): Promise<boolean> {
-  const dialog = document.createElement("dialog");
-  dialog.className = "mdame-dialog";
-  dialog.setAttribute("aria-labelledby", "mdame-discard-title");
-
-  const form = document.createElement("form");
-  form.method = "dialog";
-  const title = document.createElement("h2");
-  title.id = "mdame-discard-title";
-  title.textContent = "Discard unsaved changes?";
   const intro = document.createElement("p");
   intro.textContent = "The changes since the last save will be lost.";
-
-  const actions = document.createElement("div");
-  actions.className = "mdame-dialog-actions";
   const keep = document.createElement("button");
   keep.value = "keep";
   keep.className = "is-secondary";
@@ -107,12 +107,12 @@ export function confirmDiscard(): Promise<boolean> {
   const discard = document.createElement("button");
   discard.value = "discard";
   discard.textContent = "Discard";
-  actions.append(keep, discard);
-
-  form.append(title, intro, actions);
-  dialog.append(form);
-  document.body.append(dialog);
-  dialog.showModal();
+  const { dialog } = modal(
+    "mdame-discard-title",
+    "Discard unsaved changes?",
+    [intro],
+    [keep, discard],
+  );
   keep.focus();
   // Esc closes with an empty returnValue: it keeps the edits.
   return new Promise((resolve) => {
@@ -140,15 +140,6 @@ export function newFilePath(input: string): string | null {
  * Resolves to its path, or null if the user cancels.
  */
 export function askNewFile(folder: string): Promise<string | null> {
-  const dialog = document.createElement("dialog");
-  dialog.className = "mdame-dialog";
-  dialog.setAttribute("aria-labelledby", "mdame-new-title");
-
-  const form = document.createElement("form");
-  form.method = "dialog";
-  const title = document.createElement("h2");
-  title.id = "mdame-new-title";
-  title.textContent = "New file";
   const field = document.createElement("input");
   field.type = "text";
   field.setAttribute("aria-labelledby", "mdame-new-title");
@@ -159,27 +150,17 @@ export function askNewFile(folder: string): Promise<string | null> {
   note.className = "mdame-dialog-note";
   note.textContent = "The path starts at the workspace folder. A name with no extension gets .md.";
 
-  const error = document.createElement("p");
-  error.className = "mdame-dialog-error";
-  error.setAttribute("role", "alert");
-
-  const actions = document.createElement("div");
-  actions.className = "mdame-dialog-actions";
+  const error = errorLine();
   // Not a submit button: Enter in the field must create, not cancel.
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "is-secondary";
   cancel.textContent = "Cancel";
-  cancel.addEventListener("click", () => dialog.close());
   const create = document.createElement("button");
   create.value = "create";
   create.textContent = "Create";
-  actions.append(cancel, create);
-
-  form.append(title, field, note, error, actions);
-  dialog.append(form);
-  document.body.append(dialog);
-  dialog.showModal();
+  const { dialog } = modal("mdame-new-title", "New file", [field, note, error], [cancel, create]);
+  cancel.addEventListener("click", () => dialog.close());
   field.focus();
 
   return new Promise((resolve) => {

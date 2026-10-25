@@ -13,6 +13,7 @@ import * as preview from "./preview.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
+import { message } from "./view.ts";
 
 /** What `/api/source` answers, with its `ETag` as the version. */
 interface Source {
@@ -78,13 +79,12 @@ function etagOf(response: Response): string {
   return response.headers.get("ETag")!;
 }
 
-/** Opens `path` in `el`. Returns false if it failed, with the reason in
- * `el`, or if a later call replaced this one. */
+/** Opens `path` in `el`. If it fails, `el` shows the reason. */
 export async function mount(
   el: HTMLElement,
   path: string,
   listener: (state: EditorState) => void,
-): Promise<boolean> {
+) {
   unmount();
   const id = ++request;
   onState = listener;
@@ -92,14 +92,11 @@ export async function mount(
   try {
     source = await fetchSource(path);
   } catch (error) {
-    if (id !== request) return false;
-    const line = document.createElement("p");
-    line.className = "mdame-placeholder";
-    line.textContent = (error as ApiError).message;
-    el.replaceChildren(line);
-    return false;
+    if (id !== request) return;
+    message(el, (error as ApiError).message);
+    return;
   }
-  if (id !== request) return false;
+  if (id !== request) return;
   const view = new EditorView({
     doc: source.content,
     extensions: [
@@ -153,7 +150,6 @@ export async function mount(
   };
   report();
   view.focus();
-  return true;
 }
 
 /**

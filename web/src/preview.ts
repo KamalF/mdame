@@ -1,6 +1,6 @@
 import { api, type ApiError } from "./api.ts";
 import { latestOnly } from "./latest.ts";
-import { morphInto, prepare } from "./view.ts";
+import { message, morphInto, prepare } from "./view.ts";
 
 /** Typing pauses shorter than this share one render. */
 const DELAY = 150;
@@ -12,10 +12,7 @@ const render = latestOnly(async (path: string, content: string): Promise<HTMLEle
   } catch (error) {
     const article = document.createElement("article");
     article.className = "mdame-document";
-    const line = document.createElement("p");
-    line.className = "mdame-placeholder";
-    line.textContent = (error as ApiError).message;
-    article.append(line);
+    message(article, (error as ApiError).message);
     return article;
   }
 });

@@ -1,4 +1,4 @@
-import { icon } from "./icons.ts";
+import { icon, iconButton } from "./icons.ts";
 
 /**
  * An icon button that copies `text()` and shows a check, or a cross on
@@ -11,12 +11,7 @@ interface CopyOptions {
 }
 
 export function copyButton({ label, iconName, text }: CopyOptions): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.className = "mdame-icon-button";
-  button.setAttribute("aria-label", label);
-  button.title = label;
-  button.append(icon(iconName));
-  button.addEventListener("click", async () => {
+  const button = iconButton(label, iconName, async () => {
     try {
       await navigator.clipboard.writeText(await text());
       button.replaceChildren(icon("check"));

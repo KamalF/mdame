@@ -1,7 +1,7 @@
 import uFuzzy from "@leeoniya/ufuzzy";
 import { api } from "./api.ts";
 import { copyButton } from "./copy.ts";
-import { fileIcon, icon } from "./icons.ts";
+import { fileIcon, icon, iconButton } from "./icons.ts";
 import { isPlainClick } from "./keys.ts";
 import { load, store } from "./storage.ts";
 
@@ -324,14 +324,8 @@ export async function mount(
   }
 
   function newFileButton(folder: string) {
-    const button = document.createElement("button");
-    button.className = "mdame-icon-button";
     const label = folder ? `New file in ${folder}` : "New file";
-    button.setAttribute("aria-label", label);
-    button.title = label;
-    button.append(icon("file-plus"));
-    button.addEventListener("click", () => onNewFile(folder));
-    return button;
+    return iconButton(label, "file-plus", () => onNewFile(folder));
   }
 
   function folderRow(node: TreeNode) {

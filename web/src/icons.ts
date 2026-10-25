@@ -54,6 +54,21 @@ export function icon(name: string): SVGSVGElement {
   return svg;
 }
 
+export function iconButton(
+  label: string,
+  name: string,
+  onClick: () => void,
+  title = label,
+): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "mdame-icon-button";
+  button.setAttribute("aria-label", label);
+  button.title = title;
+  button.append(icon(name));
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 /** The icon name for a file, from the family that /api/tree sends. */
 export function fileIcon(family: string | undefined): string {
   if (family === "markdown") return "text";

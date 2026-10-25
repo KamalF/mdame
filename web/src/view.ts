@@ -15,7 +15,7 @@ export interface FileView {
   too_large: boolean;
 }
 
-function message(el: HTMLElement, text: string) {
+export function message(el: HTMLElement, text: string) {
   const line = document.createElement("p");
   line.className = "mdame-placeholder";
   line.textContent = text;

@@ -5,7 +5,7 @@ import { api, errorFrom, exists, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { askHistory, askNewFile, confirmDiscard } from "./dialogs.ts";
 import * as editor from "./editor.ts";
-import { icon } from "./icons.ts";
+import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
 import * as picker from "./picker.ts";
@@ -34,13 +34,7 @@ function showFileStatus(path: string, file: view.FileView) {
   const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
   fileStatus.replaceChildren(name, modified, copyPath);
   if (file.family !== "image") {
-    const edit = document.createElement("button");
-    edit.className = "mdame-icon-button";
-    edit.setAttribute("aria-label", "Edit");
-    edit.title = "Edit (e)";
-    edit.append(icon("pencil"));
-    edit.addEventListener("click", () => startEditing(path));
-    fileStatus.append(edit);
+    fileStatus.append(iconButton("Edit", "pencil", () => startEditing(path), "Edit (e)"));
     const content = async () => {
       const response = await fetch(view.rawUrl(path));
       if (!response.ok) throw errorFrom(response.status, null);
@@ -64,14 +58,9 @@ function showEditStatus(state: editor.EditorState) {
   error.className = "mdame-status-error";
   error.setAttribute("role", "alert");
   error.textContent = state.error ?? "";
-  const preview = document.createElement("button");
-  preview.className = "mdame-icon-button";
   const label = state.preview ? "Hide preview" : "Show preview";
-  preview.setAttribute("aria-label", label);
-  preview.title = label;
+  const preview = iconButton(label, "columns", editor.togglePreview);
   preview.setAttribute("aria-pressed", String(state.preview));
-  preview.append(icon("columns"));
-  preview.addEventListener("click", () => editor.togglePreview());
   const save = document.createElement("button");
   save.className = "mdame-status-button";
   save.title = "Save (Ctrl+S)";
@@ -221,23 +210,23 @@ function onEvent(event: live.LiveEvent) {
   else if (reaction.refresh && current) refreshContentSoon(current);
 }
 
-async function openFile(path: string, hash = "") {
-  if (!(await mayLeaveEditor())) return;
+/** Shows `url` in the page, as a new history entry. */
+function go(url: string) {
   editingFromView = false;
-  history.pushState(null, "", sidebar.viewUrl(path) + hash);
+  history.pushState(null, "", url);
   sidebar.closeSidebarOverlay();
   showRoute();
+}
+
+async function openFile(path: string, hash = "") {
+  if (await mayLeaveEditor()) go(sidebar.viewUrl(path) + hash);
 }
 
 /** Asks for the path of a new file, creates it and opens it in the editor. */
 async function newFile(folder: string) {
   if (!(await mayLeaveEditor())) return;
   const path = await askNewFile(folder);
-  if (path === null) return;
-  editingFromView = false;
-  history.pushState(null, "", editUrl(path));
-  sidebar.closeSidebarOverlay();
-  showRoute();
+  if (path !== null) go(editUrl(path));
 }
 
 // Links to `/view/…` open without a page load, as sidebar rows do.

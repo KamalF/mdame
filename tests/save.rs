@@ -1,7 +1,7 @@
 mod common;
 
 use std::fs::{self, Permissions};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
@@ -300,6 +300,42 @@ async fn save_in_state_mode_keeps_the_snapshot_in_the_state_folder() {
         .path();
     assert_eq!(fs::read_to_string(snapshot).unwrap(), "old\n");
     assert!(!dir.path().join("ws/.mdame").exists());
+}
+
+/// A leaked token must not rewrite `.git/config`, a `Makefile` or a snapshot.
+#[tokio::test]
+async fn save_refuses_what_the_editor_may_not_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let files: [(&str, &[u8]); 4] = [
+        ("Makefile", b"all:\n"),
+        (".git/x.md", b"# A\n"),
+        (".mdame/history/a.md/1.md", b"# A\n"),
+        (".claude/settings.json", b"{}\n"),
+    ];
+    for (path, content) in files {
+        let state = common::workspace(dir.path(), &files);
+        let response = put(state, path, Some(&etag(content)), "new\n").await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(
+            fs::read(dir.path().join("ws").join(path)).unwrap(),
+            content,
+            "{path}"
+        );
+    }
+    // A name that the editor opens, linked to a file that it does not.
+    let state = common::workspace(dir.path(), &files);
+    symlink(".git/x.md", dir.path().join("ws/notes.md")).unwrap();
+    let response = put(state, "notes.md", Some(&etag(b"# A\n")), "new\n").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(read(dir.path(), ".git/x.md"), "# A\n");
+    // A name that the editor does not open, linked to a file that it does.
+    let state = common::workspace(dir.path(), &files);
+    fs::write(dir.path().join("ws/a.md"), "# A\n").unwrap();
+    symlink("a.md", dir.path().join("ws/.a.md")).unwrap();
+    let response = put(state, ".a.md", Some(&etag(b"# A\n")), "new\n").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(read(dir.path(), "a.md"), "# A\n");
 }
 
 #[tokio::test]

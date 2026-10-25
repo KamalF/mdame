@@ -1,5 +1,6 @@
 use std::io::{self, ErrorKind};
-use std::path::{Path, PathBuf};
+use std::os::fd::{AsFd, AsRawFd};
+use std::path::{Component, Path, PathBuf};
 
 use cap_std::ambient_authority;
 use cap_std::fs::Dir;
@@ -9,6 +10,20 @@ use crate::watch::Watcher;
 /// mdame's own folder in the workspace: never shown, and its events are
 /// ignored.
 pub const OWN_DIR: &str = ".mdame";
+
+/// Where the file or folder of `handle` is, as the kernel knows it. A link
+/// or a swapped entry in the path that opened it does not count. A file
+/// deleted or renamed over since then ends in " (deleted)".
+pub fn fd_path(handle: &impl AsFd) -> io::Result<PathBuf> {
+    std::fs::read_link(format!("/proc/self/fd/{}", handle.as_fd().as_raw_fd()))
+}
+
+/// Whether a part of `path` is hidden, as the tree leaves such entries out.
+pub fn is_hidden(path: &Path) -> bool {
+    path.components().any(
+        |part| matches!(part, Component::Normal(name) if name.as_encoded_bytes().starts_with(b".")),
+    )
+}
 
 pub struct Workspace {
     pub root: PathBuf,

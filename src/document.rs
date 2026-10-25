@@ -1,5 +1,7 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{self, ErrorKind, Read, Seek, Write};
+use std::os::fd::AsFd;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -9,6 +11,7 @@ use serde::Serialize;
 use crate::error::io_message;
 use crate::history;
 use crate::render::{self, Family};
+use crate::workspace::{fd_path, is_hidden};
 
 /// Bigger files are not rendered: the page would freeze. The editor can
 /// still open them.
@@ -93,14 +96,11 @@ pub struct Source {
     pub modified: u64,
 }
 
-/// The text of the file at `path`, for the editor. An image, or a file
-/// that is not UTF-8, gives `Unsupported`: a lossy load would corrupt the
-/// file on the next save.
+/// The text of the file at `path`, for the editor. A file that the editor
+/// may not open, or that is not UTF-8, gives `Unsupported`: a lossy load
+/// would corrupt the file on the next save.
 pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
-    let (file, metadata) = open_file(dir, path, OpenOptions::new().read(true))?;
-    if Family::of(path) == Some(Family::Image) {
-        return Err(not_text());
-    }
+    let (file, metadata) = open_editable(dir, path, OpenOptions::new().read(true))?;
     if metadata.len() > EDIT_LIMIT {
         return Err(too_large());
     }
@@ -164,7 +164,7 @@ pub fn save(
     // One handle for the check and the write: a file that mdame may not
     // write fails before the snapshot, and the write goes to the file whose
     // version was checked.
-    let (mut file, _) = match open_file(dir, path, OpenOptions::new().read(true).write(true)) {
+    let (mut file, _) = match open_editable(dir, path, OpenOptions::new().read(true).write(true)) {
         // A folder of the path that is now a file gives NotADirectory.
         Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
             return Err(SaveError::Changed);
@@ -202,13 +202,18 @@ pub fn save(
 /// A type that the editor cannot open, or that the tree hides, gives
 /// `Unsupported`.
 pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
-    if matches!(Family::of(path), None | Some(Family::Image)) {
-        return Err(io::Error::new(
-            ErrorKind::Unsupported,
-            "not a type of text file that mdame shows",
-        ));
+    if Path::new(path).is_absolute() {
+        return Err(outside());
     }
-    let file = dir.open_with(path, OpenOptions::new().write(true).create_new(true))?;
+    editable_name(Path::new(path))?;
+    // Created through a handle on its folder: a folder swapped after the
+    // check cannot move the new file.
+    let (folder, name) = match path.rsplit_once('/') {
+        Some((folder, name)) => (dir.open_dir(folder)?, name),
+        None => (dir.try_clone()?, path),
+    };
+    editable_name(&real_path(dir, &folder)?.join(name))?;
+    let file = folder.open_with(name, OpenOptions::new().write(true).create_new(true))?;
     saved(version(b""), &file)
 }
 
@@ -222,12 +227,63 @@ fn now_ms() -> u64 {
     now.expect("the clock is after 1970").as_millis() as u64
 }
 
+/// The editor opens, saves and creates the text types that the view shows,
+/// outside the hidden folders that the tree leaves out, such as `.git`,
+/// `.mdame` or `.claude`: a leaked token then cannot rewrite `.git/config`,
+/// an agent's settings or a snapshot. The name asked counts, and so does
+/// where the open file is: a link, or an entry swapped during the request,
+/// may lead from `notes.md` to `.git/config`.
+fn open_editable(dir: &Dir, path: &str, options: &OpenOptions) -> io::Result<(File, Metadata)> {
+    let (file, metadata) = open_file(dir, path, options)?;
+    editable_name(Path::new(path))?;
+    match editable_name(&real_path(dir, &file)?) {
+        // A program that saves by renaming a new file over the path did so
+        // after the open. The kernel now names the open file "… (deleted)".
+        Err(_) if !is_at(dir, path, &file) => open_editable(dir, path, options),
+        checked => checked.map(|()| (file, metadata)),
+    }
+}
+
 /// Whether `path` still leads to the open `file`.
 fn is_at(dir: &Dir, path: &str, file: &File) -> bool {
     let (Ok(opened), Ok(on_path)) = (file.metadata(), dir.metadata(path)) else {
         return false;
     };
     (opened.dev(), opened.ino()) == (on_path.dev(), on_path.ino())
+}
+
+/// Where `handle` is, relative to the workspace root, as the kernel knows it.
+/// The path asked may lead elsewhere, through a link or a swapped entry.
+fn real_path(dir: &Dir, handle: &impl AsFd) -> io::Result<PathBuf> {
+    let root = fd_path(dir)?;
+    let path = fd_path(handle)?;
+    match path.strip_prefix(&root) {
+        Ok(relative) => Ok(relative.to_path_buf()),
+        Err(_) => Err(outside()),
+    }
+}
+
+/// As cap-std refuses a path out: no OS error code, so the API says
+/// "path outside the workspace".
+fn outside() -> io::Error {
+    io::Error::new(ErrorKind::PermissionDenied, "outside the workspace")
+}
+
+fn editable_name(path: &Path) -> io::Result<()> {
+    if is_hidden(path) {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "mdame does not edit hidden files or files in hidden folders",
+        ));
+    }
+    let family = path.to_str().and_then(Family::of);
+    if matches!(family, None | Some(Family::Image)) {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "not a type of text file that mdame edits",
+        ));
+    }
+    Ok(())
 }
 
 fn not_text() -> io::Error {
@@ -269,6 +325,7 @@ pub fn modified_secs(metadata: &Metadata) -> Option<u64> {
 mod tests {
     use super::*;
     use cap_std::ambient_authority;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     #[test]
     fn read_at_most_refuses_a_file_over_the_limit() {
@@ -331,6 +388,29 @@ mod tests {
 
         assert!(matches!(saved, Err(SaveError::Changed)));
         assert_eq!(dir.read_to_string("a.md").unwrap(), "theirs\n");
+    }
+
+    #[test]
+    fn a_file_renamed_over_after_the_open_is_opened_again() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        dir.write("a.md", "old\n").unwrap();
+        let stop = AtomicBool::new(false);
+        let failed = std::thread::scope(|scope| {
+            // Another editor saves by rename, again and again.
+            scope.spawn(|| {
+                while !stop.load(Ordering::Relaxed) {
+                    dir.write("new.md", "theirs\n").unwrap();
+                    dir.rename("new.md", &dir, "a.md").unwrap();
+                }
+            });
+            // Without the second open, about one in three fails.
+            let failed = (0..2000).filter_map(|_| source(&dir, "a.md").err()).next();
+            stop.store(true, Ordering::Relaxed);
+            failed
+        });
+
+        assert!(failed.is_none(), "{failed:?}");
     }
 
     #[test]

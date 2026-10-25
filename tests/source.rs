@@ -32,6 +32,35 @@ async fn source_of_a_missing_file_is_not_found() {
 }
 
 #[tokio::test]
+async fn source_refuses_what_the_editor_may_not_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let files: [(&str, &[u8]); 4] = [
+        ("Makefile", b"all:\n"),
+        (".git/x.md", b"# A\n"),
+        (".mdame/history/a.md/1.md", b"# A\n"),
+        (".claude/settings.json", b"{}\n"),
+    ];
+    for (path, _) in files {
+        let state = common::workspace(dir.path(), &files);
+        let (status, body) = get_json(state, &format!("/api/source?path={path}")).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(body["error"]["code"], "not_viewable", "{path}");
+    }
+    // A name that the editor opens, linked to a file that it does not.
+    let state = common::workspace(dir.path(), &files);
+    std::os::unix::fs::symlink(".git/x.md", dir.path().join("ws/notes.md")).unwrap();
+    let (status, _) = get_json(state, "/api/source?path=notes.md").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    // A name that the editor does not open, linked to a file that it does.
+    let state = common::workspace(dir.path(), &files);
+    std::fs::write(dir.path().join("ws/a.md"), "# A\n").unwrap();
+    std::os::unix::fs::symlink("a.md", dir.path().join("ws/.a.md")).unwrap();
+    let (status, body) = get_json(state, "/api/source?path=.a.md").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"]["code"], "not_viewable");
+}
+
+#[tokio::test]
 async fn source_refuses_what_is_not_utf8_text() {
     let dir = tempfile::tempdir().unwrap();
     let files: [(&str, &[u8]); 2] = [("latin1.md", b"caf\xe9\n"), ("a.png", b"# A\n")];

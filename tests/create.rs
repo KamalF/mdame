@@ -48,12 +48,25 @@ async fn create_of_an_existing_file_is_refused() {
 #[tokio::test]
 async fn create_refuses_a_type_that_the_editor_cannot_open() {
     let dir = tempfile::tempdir().unwrap();
-    for path in ["b.png", "notes"] {
+    fs::create_dir_all(dir.path().join("ws/.git")).unwrap();
+    symlink(".git", dir.path().join("ws/git-link")).unwrap();
+    for path in [
+        "b.png",
+        "notes",
+        ".git/b.md",
+        ".mdame/b.md",
+        ".claude/b.json",
+        "git-link/b.md",
+    ] {
         let (status, _) = create(workspace(dir.path()), path).await;
 
         assert_eq!(status, StatusCode::BAD_REQUEST, "{path}");
         assert!(!dir.path().join("ws").join(path).exists(), "{path}");
     }
+    // The name is the reason, not the type.
+    let (_, body) = create(workspace(dir.path()), ".notes.md").await;
+    let message = body["error"]["message"].as_str().unwrap();
+    assert!(message.contains("hidden"), "{message}");
 }
 
 #[tokio::test]

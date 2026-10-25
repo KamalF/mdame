@@ -130,12 +130,16 @@ async function stopEditing() {
 }
 
 function showContent(path: string | null) {
+  // While the discard dialog of a Back is open, the address already names
+  // the next page but the editor is still on screen.
+  if (editor.openPath() !== null) return;
   fileStatus.replaceChildren();
   if (path) view.showFile(content, path).then((file) => file && showFileStatus(path, file));
   else view.showNothing(content, fileCount === 0);
 }
 
 function refreshContent(path: string) {
+  if (editor.openPath() !== null) return;
   view.refreshFile(content, path).then((file) => {
     if (file) showFileStatus(path, file);
     // Not found now: the old time and copy buttons would be wrong.
@@ -182,6 +186,8 @@ function refreshTree() {
 
 /** Keeps showing the open file, or a file in a folder, after a rename. */
 async function follow(moved: string) {
+  // As in showContent: the editor may still be on screen.
+  if (editor.openPath() !== null) return;
   const current = sidebar.pathFromUrl(location.pathname);
   if (!current) return;
   // An editor that saves by renaming the file to a backup writes it again
@@ -286,15 +292,17 @@ async function showWorkspace(state: State) {
 
 addEventListener("popstate", async () => {
   const left = editor.openPath();
+  const fromView = editingFromView;
   editingFromView = false;
   const next = route();
-  if (left !== null && !(next.editing && next.path === left)) {
-    // The address has already changed: put the editor's back if the user
-    // keeps editing.
-    if (!(await mayLeaveEditor())) {
-      history.pushState(null, "", editUrl(left));
-      return;
-    }
+  // A `#…` link in the preview: mounting the editor again would drop the edits.
+  if (left !== null && next.editing && next.path === left) return;
+  // The address has already changed: put the editor's back if the user
+  // keeps editing. It takes the place of the entry that the user left.
+  if (left !== null && !(await mayLeaveEditor())) {
+    history.pushState(null, "", editUrl(left));
+    editingFromView = fromView;
+    return;
   }
   showRoute();
 });

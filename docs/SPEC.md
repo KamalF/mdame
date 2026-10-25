@@ -503,7 +503,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | `/` | Focus the sidebar filter |
 | `h`, `r` | Revisions (diff in the editor) |
 
-Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler.
+Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the editor, unless a dialog or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
 
 ### Theme contract
 

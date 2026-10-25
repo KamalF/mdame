@@ -406,9 +406,9 @@ addEventListener("beforeunload", (event) => {
 });
 
 // Cmd/Ctrl+S saves from anywhere on the page, not only from the editor,
-// and never opens the browser's own save dialog.
+// and never opens the browser's own save dialog. Caps Lock gives "S".
 addEventListener("keydown", (event: KeyboardEvent) => {
-  if (!open || event.key !== "s" || !(event.ctrlKey || event.metaKey)) return;
+  if (!open || event.key.toLowerCase() !== "s" || !(event.ctrlKey || event.metaKey)) return;
   if (event.altKey || event.shiftKey) return;
   event.preventDefault();
   save();

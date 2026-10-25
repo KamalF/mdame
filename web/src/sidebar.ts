@@ -426,6 +426,7 @@ export function clampWidth(width: number): number {
 let toggle = () => {};
 let show = () => {};
 let closeOverlay = () => {};
+let overlayOpen = () => false;
 
 /** Hides or shows the sidebar; below 900 px, opens or closes the overlay. */
 export function toggleSidebar() {
@@ -434,6 +435,10 @@ export function toggleSidebar() {
 
 export function closeSidebarOverlay() {
   closeOverlay();
+}
+
+export function isOverlayOpen(): boolean {
+  return overlayOpen();
 }
 
 /** Shows the sidebar if needed, then focuses the filter field. */
@@ -523,13 +528,16 @@ export function setupLayout({ frame, handle, backdrop, button }: LayoutElements)
     frame.classList.remove("overlay-open");
     showButton();
   };
+  overlayOpen = () => frame.classList.contains("overlay-open");
 
   frame.classList.toggle("sidebar-hidden", load<boolean>("mdame:sidebar-hidden", false) === true);
   button.addEventListener("click", toggle);
   backdrop.addEventListener("click", closeOverlay);
   addEventListener("keydown", (event: KeyboardEvent) => {
     // The filter uses its first Esc to clear itself.
-    if (event.key === "Escape" && !event.defaultPrevented && frame.classList.contains("overlay-open")) {
+    // Esc on an open dialog closes the dialog only.
+    const dialog = document.querySelector("dialog[open]");
+    if (event.key === "Escape" && !event.defaultPrevented && !dialog && frame.classList.contains("overlay-open")) {
       closeOverlay();
     }
   });

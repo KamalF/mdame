@@ -309,11 +309,14 @@ addEventListener("popstate", async () => {
 
 // Esc reaches the page from inside CodeMirror too: bindKeys ignores it there.
 addEventListener("keydown", (event: KeyboardEvent) => {
-  if (event.key !== "Escape" || event.defaultPrevented) return;
+  // An input method uses Esc to cancel what it composes.
+  if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
   // Esc in a dialog closes the dialog.
-  if ((event.target as Element).closest?.("dialog")) return;
-  if (!route().editing) return;
+  // Focus may have left the dialog for the page, after a click on its text.
+  if (document.querySelector("dialog[open]")) return;
+  // The sidebar's own listener closes its overlay first.
+  if (!route().editing || sidebar.isOverlayOpen()) return;
   // Otherwise the browser applies this Esc to the dialog that it opens,
   // which closes at once.
   event.preventDefault();

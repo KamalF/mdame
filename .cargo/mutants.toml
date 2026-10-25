@@ -20,4 +20,19 @@ exclude_re = [
     "can_skip\\(&error\\) with (true|false) in watch_around",
     # Sends every class through the filter: the same names come out.
     "value.contains\\(\"mdame-\"\\) with true in no_app_names",
+    # Any other read error comes back from the read after the link.
+    "app.rs.*ErrorKind::NotFound with false in kept_token",
+    # Needs a write error in a folder that private_folder just made
+    # writable: a full disk.
+    "app.rs.*ErrorKind::AlreadyExists with true in kept_token",
+    # The .gitignore of a .mdame made a moment before: AlreadyExists needs
+    # a race, another error a full disk.
+    "history.rs.*ErrorKind::AlreadyExists with (true|false) in root",
+    "history.rs.*replace == with != in root",
+    # A retry that never ends: the tests hang, and only a timeout ends them.
+    "history.rs.*ErrorKind::AlreadyExists with true in snapshot",
+    "history.rs.*replace == with != in snapshot",
+    "history.rs.*replace \\+= with \\*= in snapshot",
+    # The life of a code ends at one instant: < and <= differ there only.
+    "replace < with <= in open_code",
 ]

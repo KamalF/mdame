@@ -1,7 +1,7 @@
 import "../styles/base.css";
 import "../styles/layout.css";
 import "../styles/components.css";
-import { api, errorFrom, exists, type State } from "./api.ts";
+import { api, errorFrom, exists, isHeld, request, setHold, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { askHistory, askNewFile, confirmDiscard } from "./dialogs.ts";
 import * as editor from "./editor.ts";
@@ -38,7 +38,7 @@ function showFileStatus(path: string, file: view.FileView) {
   }
   if (file.family !== "image") {
     const content = async () => {
-      const response = await fetch(view.rawUrl(path));
+      const response = await request(view.rawUrl(path));
       if (!response.ok) throw errorFrom(response.status, null);
       return response.text();
     };
@@ -206,6 +206,8 @@ async function follow(moved: string) {
 }
 
 function onEvent(event: live.LiveEvent) {
+  // Until the state check after a reconnection: it refetches everything.
+  if (isHeld()) return;
   const current = sidebar.pathFromUrl(location.pathname);
   const reaction = live.react(event, current, shownRoot === null, sidebar.orderDependsOn);
   if (reaction.kind === "reload") refresh();
@@ -330,11 +332,6 @@ function show(state: State) {
   const root = state.workspace?.root ?? null;
   // The tab that opened a workspace also gets its `workspace` event.
   if (root === shownRoot) return;
-  // The server restarted on another workspace, or on the picker.
-  if (shownRoot) {
-    location.reload();
-    return;
-  }
   shownRoot = root;
   showStatus(state);
   if (state.workspace) {
@@ -345,22 +342,47 @@ function show(state: State) {
   }
 }
 
+/** Counts the closes of the WebSocket. */
+let closes = 0;
+
 /** Refetches everything on screen, after events may have been missed. */
 async function refresh() {
-  show(await api<State>("GET", "/api/state"));
+  const closed = closes;
+  const state = await api<State>("GET", "/api/state");
+  // The answer may come from the mdame that is gone since.
+  if (closes !== closed) return;
+  // The server restarted on another workspace, or on the picker.
+  if (shownRoot && state.workspace?.root !== shownRoot) {
+    // The leave-page warning lets the user stay, to copy unsaved edits.
+    setHold("Copy your text, then reload the page: mdame now shows another folder.");
+    location.reload();
+    return;
+  }
+  setHold(null);
+  show(state);
   if (!shownRoot) return;
   refreshTree();
   view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
+  // The editor that failed to load meanwhile shows why.
+  if (route().editing && editor.mountFailed()) showRoute();
   editor.checkDisk();
+  editor.refreshPreview();
 }
 
 // The code or the token in the address has done its work: the cookie now
 // stands for it, and a reload must not send it again.
 if (location.search) history.replaceState(null, "", location.pathname + location.hash);
 
-await live.connect({ onEvent, onReconnect: refresh });
+await live.connect({
+  onEvent,
+  onReconnect: refresh,
+  onClose: () => {
+    closes++;
+    setHold("Try again once mdame is back.");
+  },
+});
 
 const state = await api<State>("GET", "/api/state");
 show(state);

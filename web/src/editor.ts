@@ -6,7 +6,7 @@ import { Compartment, Prec, Text } from "@codemirror/state";
 import { keymap, type Panel, showPanel } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
-import { type ApiError, send } from "./api.ts";
+import { type ApiError, isHeld, send } from "./api.ts";
 import { lineBreakOf, reactToDisk, reloadChanges } from "./disk.ts";
 import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
@@ -102,6 +102,13 @@ function etagOf(response: Response): string {
   return response.headers.get("ETag")!;
 }
 
+/** The last mount failed: its reason is on screen, and no editor is. */
+let failed = false;
+
+export function mountFailed(): boolean {
+  return failed;
+}
+
 /** Opens `path` in `el`. If it fails, `el` shows the reason. */
 export async function mount(
   el: HTMLElement,
@@ -111,11 +118,13 @@ export async function mount(
   unmount();
   const id = ++request;
   onState = listener;
+  failed = false;
   let source: Source;
   try {
     source = await fetchSource(path);
   } catch (error) {
     if (id !== request) return;
+    failed = true;
     message(el, (error as ApiError).message);
     return;
   }
@@ -141,7 +150,9 @@ export async function mount(
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         report();
-        preview.update(path, () => update.state.doc.toString());
+        // While mdame is away, the last preview stays: a reconnection
+        // renders it again.
+        if (!isHeld()) preview.update(path, () => update.state.doc.toString());
       }),
     ],
   });
@@ -241,13 +252,19 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
   return alignPreview;
 }
 
+/** Renders the preview again, after a reconnection: a render that failed
+ * while mdame was away left its error on screen. */
+export function refreshPreview() {
+  if (open && previewOn) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
+}
+
 export function togglePreview() {
   if (!open) return;
   previewOn = !previewOn;
   store("mdame:preview", previewOn);
   open.split.classList.toggle("preview-hidden", !previewOn);
-  if (previewOn) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
-  else preview.stop();
+  if (!previewOn) preview.stop();
+  else if (!isHeld()) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
   report();
 }
 

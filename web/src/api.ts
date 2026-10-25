@@ -34,6 +34,29 @@ export function errorFrom(status: number, body: ErrorBody | null): ApiError {
   return new ApiError("http_" + status, `the server answered ${status}`);
 }
 
+/** Why the page sends no request but the state's, or null when it may.
+ * From a lost connection until the page sees its workspace on the server
+ * again: a mdame started meanwhile on another folder would take the writes
+ * into its own files. */
+let held: string | null = null;
+
+export function setHold(reason: string | null) {
+  held = reason;
+}
+
+export function isHeld(): boolean {
+  return held !== null;
+}
+
+/** `fetch`, unless the page holds its requests. */
+export function request(url: string, init?: RequestInit): Promise<Response> {
+  // The state request is how the page learns that it may send again.
+  if (held !== null && url !== "/api/state") {
+    return Promise.reject(new ApiError("held", held));
+  }
+  return fetch(url, init);
+}
+
 export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const response = await send(method, path, body);
   return response.json().catch(() => null);
@@ -51,7 +74,7 @@ export async function send(
     options.headers = { ...headers, "content-type": "application/json" };
     options.body = JSON.stringify(body);
   }
-  const response = await fetch(path, options);
+  const response = await request(path, options);
   if (!response.ok) {
     throw errorFrom(response.status, await response.json().catch(() => null));
   }
@@ -61,7 +84,7 @@ export async function send(
 /** Whether the file behind `url` exists: a file too large or unreadable
  * to serve still does. */
 export async function exists(url: string): Promise<boolean> {
-  return fetch(url, { method: "HEAD" }).then(
+  return request(url, { method: "HEAD" }).then(
     (response) => response.status !== 404,
     () => false,
   );

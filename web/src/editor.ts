@@ -7,7 +7,7 @@ import { keymap, type Panel, showPanel } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { type ApiError, send } from "./api.ts";
-import { reactToDisk, reloadChanges } from "./disk.ts";
+import { lineBreakOf, reactToDisk, reloadChanges } from "./disk.ts";
 import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
@@ -42,6 +42,8 @@ interface Open {
   base: string;
   saved: EditorView["state"]["doc"];
   modified: number;
+  /** The file's own line break: CodeMirror's text uses `\n` only. */
+  lineBreak: string;
   /** Saves and disk checks run one at a time: a check that reads the file
    * while a save writes it could reload the text from before the save. */
   queue: Queue;
@@ -144,6 +146,7 @@ export async function mount(
     base: source.version,
     saved: view.state.doc,
     modified: source.modified,
+    lineBreak: lineBreakOf(source.content),
     queue: serial(reportError),
     error: null,
   };
@@ -249,7 +252,7 @@ export function save() {
       const response = await send(
         "PUT",
         `/api/file?path=${encodeURIComponent(current.path)}`,
-        { content: doc.toString() },
+        { content: doc.sliceString(0, doc.length, current.lineBreak) },
         { "If-Match": current.base },
       );
       const saved: { modified: number } = await response.json();
@@ -303,6 +306,7 @@ function reload(current: Open, disk: Source) {
   current.base = disk.version;
   current.saved = view.state.doc;
   current.modified = disk.modified;
+  current.lineBreak = lineBreakOf(disk.content);
   report();
 }
 

@@ -30,6 +30,9 @@ export function reactToDisk<T extends { version: string }>(
  * that the cursor and the scroll stay on the same text.
  */
 export function reloadChanges(text: string, next: string): ChangeSpec[] {
+  // The editor's text breaks lines with `\n` only: a `\r` inserted before
+  // one would be a second line break.
+  next = next.replace(/\r\n?/g, "\n");
   // Lines first, then characters inside the changed lines. Above about
   // 16 KB of changes, a character diff alone gives one change for the
   // whole text, and the cursor jumps. As in diff-match-patch, each
@@ -58,6 +61,15 @@ export function reloadChanges(text: string, next: string): ChangeSpec[] {
     const to = startA[change.toA];
     return charChanges(text.slice(from, to), next.slice(startB[change.fromB], startB[change.toB]), from);
   });
+}
+
+/** The line break that a save writes back, since the editor's text uses
+ * `\n` only: the more common one, so that one pasted line does not change
+ * every line of the file. */
+export function lineBreakOf(content: string): string {
+  const crlf = content.split("\r\n").length - 1;
+  const lf = content.split("\n").length - 1 - crlf;
+  return crlf > lf ? "\r\n" : "\n";
 }
 
 function charChanges(text: string, next: string, offset: number): ChangeSpec[] {

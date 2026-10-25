@@ -11,6 +11,7 @@ import { reactToDisk, reloadChanges } from "./disk.ts";
 import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
+import { type Queue, serial } from "./serial.ts";
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
 import { message } from "./view.ts";
@@ -41,10 +42,9 @@ interface Open {
   base: string;
   saved: EditorView["state"]["doc"];
   modified: number;
-  saving: boolean;
-  /** Saves and disk checks, which run one at a time. */
-  queue: Promise<void>;
-  checkQueued: boolean;
+  /** Saves and disk checks run one at a time: a check that reads the file
+   * while a save writes it could reload the text from before the save. */
+  queue: Queue;
   error: string | null;
 }
 
@@ -143,9 +143,7 @@ export async function mount(
     base: source.version,
     saved: view.state.doc,
     modified: source.modified,
-    saving: false,
-    queue: Promise.resolve(),
-    checkQueued: false,
+    queue: serial(reportError),
     error: null,
   };
   report();
@@ -236,21 +234,13 @@ export function isDirty(): boolean {
   return open !== null && !open.view.state.doc.eq(open.saved);
 }
 
-/**
- * Runs `task` after the save or disk check in progress: a check that reads
- * the file while a save writes it could reload the text from before the
- * save.
- */
-function enqueue(current: Open, task: () => Promise<void>) {
-  // A task that throws must not block the ones after it.
-  current.queue = current.queue.then(task).catch(reportError);
-}
-
+/** If a save is asked for during another save, it runs next. A dropped
+ * save would lose the text typed meanwhile, and Overwrite would move the
+ * base without a save. */
 export function save() {
   const current = open;
-  if (!current || current.saving) return;
-  current.saving = true;
-  enqueue(current, async () => {
+  if (!current) return;
+  current.queue("save", async () => {
     const doc = current.view.state.doc;
     try {
       const response = await send(
@@ -271,8 +261,6 @@ export function save() {
       // The file changed or went away on disk: the notice tells which.
       if (code === "precondition_failed" || code === "not_found") check(current);
       else current.error = message;
-    } finally {
-      current.saving = false;
     }
     if (open === current) report();
   });
@@ -284,10 +272,7 @@ export function checkDisk() {
 }
 
 function check(current: Open) {
-  if (current.checkQueued) return;
-  current.checkQueued = true;
-  enqueue(current, async () => {
-    current.checkQueued = false;
+  current.queue("check", async () => {
     let disk: Source | null = null;
     try {
       disk = await fetchSource(current.path);
@@ -366,15 +351,20 @@ function noticePanel(current: Open, disk: Source | null): Panel {
 
 /** Creates the deleted file again, empty, then saves the text into it. */
 function recreate(current: Open) {
-  enqueue(current, async () => {
+  current.queue("recreate", async () => {
     try {
       const created = await send("POST", "/api/file", { path: current.path });
       current.base = etagOf(created);
     } catch (error) {
       current.error = (error as ApiError).message;
+      if (open === current) report();
+      return;
     }
+    // Asked for once the file exists. If a save was queued before this
+    // task, an earlier call would merge into it, and that save runs too
+    // early.
+    if (open === current) save();
   });
-  save();
 }
 
 function noticeButton(label: string, title: string): HTMLButtonElement {

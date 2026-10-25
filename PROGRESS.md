@@ -142,10 +142,10 @@ Rules, as test names, by commit:
 3. `PUT /api/file` with JSON `content` and `base_version`, 409 (done): `save_writes_the_content_when_the_version_matches` (it also returns the new version), `save_snapshots_the_old_content_first`, `save_with_a_stale_version_is_refused_and_writes_nothing`, `save_of_a_deleted_file_is_refused`, `save_takes_content_up_to_the_edit_limit`; rows in the routes matrix. A save never creates a file: `POST /api/file` does, as the spec says.
 4. `POST /api/render` (done): `preview_gives_the_same_html_as_the_view`, `preview_over_1_mb_shows_a_notice`; rows in the routes matrix.
 5. Editor screen (done): `/edit/<path>`, `e` and the Edit button open it, `Esc` closes it, Cmd/Ctrl+S and the Save button save, an unsaved dot, a dialog before in-app navigation loses edits, and the browser's leave-page warning. No unit test: all of it is DOM wiring or CodeMirror's own `doc.eq`; the manual checklist covers it. A save error shows in the status bar until the notice of commit 9.
-6. Split, divider, preview (done): the preview renders through `POST /api/render` 150 ms after typing stops, morphed in as a view refresh; the divider and the preview toggle are remembered in `localStorage`. `latestOnly` (`latest.ts`): `an answer older than the latest call is dropped`. `load` and `store` moved from `sidebar.ts` to `storage.ts`.
+6. Split, divider, preview (done): the preview renders through `POST /api/render` 150 ms after typing stops, morphed in as a view refresh; the divider and the preview toggle are remembered in `localStorage`. `latestOnly` (`latest.ts`): `an answer older than the latest call is dropped`. The review replaced it with the queue of `serial.ts`: a tab runs one render at a time. `load` and `store` moved from `sidebar.ts` to `storage.ts`.
 7. Scroll sync (done): `scrollsync.ts`, with no DOM: `maps a line to the last block starting at or before it`, `interpolates towards the next block`, `before the first block is the top`, `past the last block is the end`, `a block that would move back is skipped`, `preview to editor inverts editor to preview` (property test, between the first and the last anchor). The wiring in `editor.ts` keeps the preview aligned after each render.
-8. Ctrl+B, Ctrl+I, Tab, line numbers (done): `format.ts`: `bold wraps the selection`, `bold unwraps an already bold selection` (markers just outside the selection or at its ends, with `*` or `_`), `bold on an empty selection puts the cursor between markers`, the same three for italic, `bold and italic stack`, `tab inserts two spaces at the cursor`, `tab indents the selected lines`. Shift+Tab removes one indent level. `basicSetup` already shows the line numbers.
-9. Changed-on-disk notice (done): `disk.ts`: `a change whose version equals the base is our own save`, `a change with unsaved edits shows the notice`, `a change without unsaved edits reloads`, `a removal shows the notice with nothing to reload`, `a reload keeps the cursor between two changes`, `a reload gives the text on disk` (property test). `live.ts`: `concerns names the open file, a folder holding it, and either end of a rename`. The notice is a CodeMirror panel above the text. A deleted file gets the notice even without unsaved edits. A save refused with 409 shows the notice. Saves and disk checks run one at a time. The reload diff comes from `@codemirror/merge`, a milestone 7 dependency added early.
+8. Ctrl+B, Ctrl+I, Tab, line numbers (done): `format.ts`: `bold wraps the selection`, `bold unwraps an already bold selection` (markers just outside the selection or at its ends, `*` only: `_` is often part of a name), `bold on an empty selection puts the cursor between markers`, the same three for italic, `bold and italic stack`, `tab inserts two spaces at the cursor`, `tab indents the selected lines`. Shift+Tab removes one indent level. `basicSetup` already shows the line numbers.
+9. Changed-on-disk notice (done): `disk.ts`: `a change whose version equals the base is our own save`, `a change with unsaved edits shows the notice`, `a change without unsaved edits reloads`, `a removal shows the notice with nothing to reload`, `a reload keeps the cursor between two changes`, `a reload gives the text on disk` (property test). `live.ts`: `concerns names the open file, a folder holding it, and either end of a rename`. The notice is a CodeMirror panel above the text. A deleted file gets the notice even without unsaved edits. A save refused with 409 shows the notice (412 since rule 11). Saves and disk checks run one at a time. The reload diff comes from `@codemirror/merge`, a milestone 7 dependency added early.
 10. New file in a folder (done): `POST /api/file` with `{path}`: `create_makes_an_empty_file`, `create_of_an_existing_file_is_refused`, `create_refuses_a_type_that_the_editor_cannot_open`, `create_in_a_missing_folder_names_the_folder`, `create_stays_in_the_workspace`; `save_of_an_empty_file_makes_no_snapshot`; a row in the routes matrix. `dialogs.ts`: `a name with no extension gets .md`, `a name with an extension stays as typed, without the spaces around it`, `an empty name gives null`. A hover button on folder rows and a button in the sidebar header open the new-file dialog. The deleted-file notice offers Recreate: it creates the file, then saves.
 11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match` (done): `GET /api/source`, `PUT` and `POST /api/file` send the version as an `ETag` header and no longer in the body. `save_with_a_stale_version_is_refused_and_writes_nothing` (now 412), `save_without_if_match_is_refused` (428), `if_match_must_be_one_strong_etag`; the source, create and routes tests read the header. In the client, `send` in `api.ts` gives the response, for its headers.
 12. Manual checklist, `cargo mutants`, review loop.
@@ -153,9 +153,41 @@ Rules, as test names, by commit:
 
 ## Next
 
-1. Milestone 6, commit 12: manual checklist, `cargo mutants`, review loop.
+1. Milestone 6, commit 12: `cargo mutants` done (20c1f2b). Review loop: converged on 24 October 2026, after 29 rounds and a simplify pass; its fixes are the commits after 20c1f2b. Rounds 6–27 reworked access: the token is required on loopback too. On 25 October, Kamal chose a simpler access design over the one that the review had reached: one token kept on loopback, one-time codes in the URLs that mdame opens and prints, and no defence against a program built to attack mdame (see the SPEC's Decided table). The review's commits were then regrouped by topic. Next: `cargo mutants` again, since the run of 25 October (17 missed, 3 timeouts) came before the simpler access design, then the manual checklist, and the merge into `main`.
+   - For the checklist, the fixes that no unit test covers. Start mdame over SSH with no display: it opens no browser and says to open the printed URL. Start it on a large folder whose first walk takes over a minute: the opened tab still gets in. In Firefox, scroll the preview of a file with a closed `<details>` near the top: the editor follows the scroll and does not jump to the line of the hidden block. Open `http://127.0.0.1:4891/` in a private window: 403 "missing or wrong token". mdame opens the browser at `http://127.0.0.1:4891/?c=…`, and the address bar then shows no `c=`. The URL that it prints works once, within ten minutes; a second use gets 403, mdame prints a new URL, and the tabs of the old token get 403. Reloading the opened tab after a minute still works (the cookie). Restart mdame on the same folder: the open tab reconnects and keeps working, with the same sidebar width and open folders. Restart it on another folder: the tab reloads. Delete `~/.local/state/mdame/token` and restart: the old tab gets 403, and the new one works. In the editor of a large file, type in several bursts: DevTools shows one `POST /api/render` at a time. On an image, or on a file over 8 MB, the status bar has no Edit button and `e` does nothing. With the system in dark mode, the editor's cursor, selection and line numbers are readable, and so is the completion list that `<d` opens. Stop mdame while the editor has unsaved edits and press Ctrl+S: the status bar says to try again once mdame is back. Start mdame again: Ctrl+S saves. Restart mdame on another folder while the editor has unsaved edits, and stay on the page: Ctrl+S writes nothing and says to copy the text and reload. With Caps Lock on, Ctrl+S in the editor saves and opens no browser dialog. If the editor has unsaved edits, a click on a `#…` link in the preview keeps them. Below 900 px, with the sidebar overlay open over the editor, the first Esc closes the overlay and the second closes the editor. If the editor has unsaved edits, press Back, change the file of the previous page on disk while the dialog is open, and choose to keep editing: the editor is still there. Open a file in the editor, make no edit, and delete it from a terminal: the unsaved dot shows, and Esc asks first.
 
 ## Open points
+
+- From the review of milestone 6, for later:
+  - No header-read or idle timeout: idle connections can hold every file descriptor, and keep the browser out after a theft.
+  - Above about 55,000 distinct lines, or a changed middle of 160,000 lines, the silent reload replaces the whole text and the cursor jumps. A patience diff would lift the limit.
+  - The editor's routes read `/proc/self/fd`, so on macOS every edit is refused. `F_GETPATH` would do there.
+  - The editor uses the markdown language for every file family.
+  - `e` opens the editor at line 1, and Esc shows the view from the top.
+  - In `state` mode, an encoded workspace root over 255 bytes fails every save (`NAME_MAX`). It needs a spec decision.
+  - Snapshots go under the path asked, not the real one: a link splits one file's revisions, and `lnk/../a.md` files `sub/a.md` under `history/a.md/`. Use the real path before the restore of milestone 7.
+  - `split.ts` copies the sidebar's resize handle and its CSS.
+  - Each preview render runs Mermaid again on every diagram, with new ids, so the morph rewrites them all.
+  - The check after our own save downloads the whole file to compare its `ETag`. `If-None-Match` and a 304 would skip the body.
+  - A 1–8 MB text goes to `/api/render` at each typing pause, only to get the notice back.
+- Nits deferred by the review of milestone 6:
+  - Ctrl+B and Ctrl+I: a marker next to a backslash is escaped; Ctrl+I strips the stars inside a code span; between `**a**` and `**b**`, Ctrl+B merges them. Neither undoes itself when a `*` is inside the selection or right next to it.
+  - The editor's status bar has no Copy path or Copy content. It is rebuilt at each keystroke, so Save loses the focus and an error is announced again. A failed disk check leaves its error until a save succeeds.
+  - The view's notice for a 1–8 MB file says "Open it in the editor" for a hidden file, or for a file that is not UTF-8.
+  - A file rewritten during editing as non-UTF-8, or past 8 MB, gives a status error or a 413, and no notice.
+  - A `changed` event during `editor.mount` is lost: a later save gets 412.
+  - Two quick Backs with unsaved edits open two dialogs. `e`, a `#…` link in the preview, then Esc leave [view, edit, view] in the history.
+  - An unedited Ctrl+S rewrites a file with mixed line breaks.
+  - If the state check of a reconnection fails once, the page holds its requests while its socket stays open.
+  - Ctrl+S on non-Latin keyboard layouts (not checked).
+  - The scroll sync reads one rect per `[data-sourcepos]` element at each scroll frame.
+  - A file swapped for a FIFO between the type check and the open hangs the save, and the saves after it: the `O_NONBLOCK` fix of milestone 4's open point must cover the save's open too.
+  - A symbolic link `.mdame` or `.mdame/history` that resolves inside the workspace receives the snapshots.
+  - mdame writes `.mdame/.gitignore` only when it creates `.mdame`.
+  - A save that writes nothing still opens the file for writing, so inotify reports `IN_CLOSE_WRITE`.
+  - A text full of control characters escapes past the 32 MB body limit.
+  - `history::snapshot` keeps a branch for paths with no extension, which the editor's routes refuse.
+  - Tests: three permission tests fail as root; the picker tests fail when `TMPDIR` is in a hidden folder; `tests/source.rs` and `tests/save.rs` repeat one table.
 
 - The editor does not follow a rename of its file, as the view does: it shows the deleted notice.
 
@@ -168,7 +200,6 @@ Rules, as test names, by commit:
   - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
   - Two tabs that open different folders at the same moment both start a watcher; the loser's events reach the tabs for about 50 ms.
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
-  - The status bar's "Copy content" calls `fetch` directly, outside `api.ts` (from milestone 4).
   - A folder deleted between notify's inotify add and its stat gives `Io(NotFound)` with no path, which still turns live updates off; skipping it needs a retry.
   - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
@@ -179,7 +210,7 @@ Rules, as test names, by commit:
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.
 - Debug builds render a dense 1 MB markdown file in about 10 s. If `mise run dev` feels slow, `[profile.dev.package."*"] opt-level = 2` optimizes the dependencies only.
 - From the review of 18 October 2026, for later:
-  - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`; run `/api/complete` in `spawn_blocking`; remove `?t=` from the address bar once the cookie is set; state in the threat model that the machine has one user.
+  - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`; run `/api/complete` in `spawn_blocking`.
   - Usability: print a usable address when bound to `0.0.0.0`; debounce completion requests; unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
   - Tests: shared helpers in `tests/common`; `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.
 - From the review of milestone 3, for later:

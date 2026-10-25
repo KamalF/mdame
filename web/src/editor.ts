@@ -61,13 +61,12 @@ function report() {
     // Undoing back to the saved text clears the dot.
     dirty: !open.view.state.doc.eq(open.saved),
     error: open.error,
-    preview: previewShown(),
+    preview: previewOn,
   });
 }
 
-function previewShown(): boolean {
-  return load("mdame:preview", true);
-}
+/** Kept here as well: the browser may refuse to store it. */
+let previewOn = true;
 
 async function fetchSource(path: string): Promise<Source> {
   const response = await send("GET", `/api/source?path=${encodeURIComponent(path)}`);
@@ -129,12 +128,14 @@ export async function mount(
   previewPane.className = "mdame-preview";
   const split = document.createElement("div");
   split.className = "mdame-split";
-  split.classList.toggle("preview-hidden", !previewShown());
+  // Another tab may have changed it.
+  previewOn = load("mdame:preview", previewOn);
+  split.classList.toggle("preview-hidden", !previewOn);
   split.append(host, divider, previewPane);
   setupSplit(split, divider);
   el.replaceChildren(split);
   preview.onRender(linkScroll(view, previewPane));
-  if (previewShown()) preview.show(previewPane, path, source.content);
+  if (previewOn) preview.show(previewPane, path, source.content);
   open = {
     path,
     view,
@@ -210,10 +211,10 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
 
 export function togglePreview() {
   if (!open) return;
-  const shown = !previewShown();
-  store("mdame:preview", shown);
-  open.split.classList.toggle("preview-hidden", !shown);
-  if (shown) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
+  previewOn = !previewOn;
+  store("mdame:preview", previewOn);
+  open.split.classList.toggle("preview-hidden", !previewOn);
+  if (previewOn) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
   else preview.stop();
   report();
 }

@@ -107,7 +107,7 @@ pub struct Source {
 /// may not open, or that is not UTF-8, gives `Unsupported`: a lossy load
 /// would corrupt the file on the next save.
 pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
-    let (file, metadata) = open_editable(dir, path, OpenOptions::new().read(true))?;
+    let (file, metadata, _) = open_editable(dir, path, OpenOptions::new().read(true))?;
     if metadata.len() > EDIT_LIMIT {
         return Err(too_large());
     }
@@ -171,13 +171,16 @@ pub fn save(
     // One handle for the check and the write: a file that mdame may not
     // write fails before the snapshot, and the write goes to the file whose
     // version was checked.
-    let (mut file, _) = match open_editable(dir, path, OpenOptions::new().read(true).write(true)) {
-        // A folder of the path that is now a file gives NotADirectory.
-        Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
-            return Err(SaveError::Changed);
-        }
-        opened => opened?,
-    };
+    let (mut file, _, real) =
+        match open_editable(dir, path, OpenOptions::new().read(true).write(true)) {
+            // A folder of the path that is now a file gives NotADirectory.
+            Err(error)
+                if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) =>
+            {
+                return Err(SaveError::Changed);
+            }
+            opened => opened?,
+        };
     let old = read_at_most(&file, EDIT_LIMIT)?;
     if version(&old) != base_version {
         return Err(SaveError::Changed);
@@ -190,7 +193,7 @@ pub fn save(
     // Writing over an empty file loses nothing.
     if !old.is_empty() {
         history()
-            .and_then(|history| history::snapshot(&history, path, &old, now_ms()))
+            .and_then(|history| history::snapshot(&history, &real, &old, now_ms()))
             .map_err(SaveError::Snapshot)?;
     }
     // A program that saves by renaming a new file over the path may have
@@ -240,14 +243,22 @@ fn now_ms() -> u64 {
 /// an agent's settings or a snapshot. The name asked counts, and so does
 /// where the open file is: a link, or an entry swapped during the request,
 /// may lead from `notes.md` to `.git/config`.
-fn open_editable(dir: &Dir, path: &str, options: &OpenOptions) -> io::Result<(File, Metadata)> {
+///
+/// Also gives where the file is: its revisions go under that path, so that
+/// a link or a `..` does not split them.
+fn open_editable(
+    dir: &Dir,
+    path: &str,
+    options: &OpenOptions,
+) -> io::Result<(File, Metadata, PathBuf)> {
     let (file, metadata) = open_file(dir, path, options)?;
     editable_name(Path::new(path))?;
-    match editable_name(&real_path(dir, &file)?) {
+    let real = real_path(dir, &file)?;
+    match editable_name(&real) {
         // A program that saves by renaming a new file over the path did so
         // after the open. The kernel now names the open file "… (deleted)".
         Err(_) if !is_at(dir, path, &file) => open_editable(dir, path, options),
-        checked => checked.map(|()| (file, metadata)),
+        checked => checked.map(|()| (file, metadata, real)),
     }
 }
 

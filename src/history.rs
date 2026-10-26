@@ -56,26 +56,27 @@ pub fn encode_path(path: &Path) -> String {
 /// Returns the snapshot's name. Two mdame on one workspace can save the
 /// same file in the same millisecond: the later snapshot takes the next
 /// free millisecond.
-pub fn snapshot(history: &Dir, path: &str, content: &[u8], now_ms: u64) -> io::Result<String> {
+pub fn snapshot(history: &Dir, path: &Path, content: &[u8], now_ms: u64) -> io::Result<String> {
     history.create_dir_all(path)?;
-    let extension = Path::new(path).extension().and_then(|ext| ext.to_str());
+    let extension = path.extension().and_then(|ext| ext.to_str());
     let mut ms = now_ms;
     loop {
         let name = match extension {
             Some(extension) => format!("{ms}.{extension}"),
             None => ms.to_string(),
         };
+        let snapshot = path.join(&name);
         let mut options = OpenOptions::new();
         // A snapshot of a private file must not be readable by others.
         options.write(true).create_new(true).mode(0o600);
-        match history.open_with(format!("{path}/{name}"), &options) {
+        match history.open_with(&snapshot, &options) {
             Ok(mut file) => {
                 // On disk before the save truncates the file: a power cut
                 // must not lose both texts.
                 let written = file.write_all(content).and_then(|()| file.sync_all());
                 if let Err(error) = written {
                     // A partial snapshot would show as a revision.
-                    let _ = history.remove_file(format!("{path}/{name}"));
+                    let _ = history.remove_file(&snapshot);
                     return Err(error);
                 }
                 return Ok(name);
@@ -170,7 +171,7 @@ mod tests {
             ("Makefile", "1771271566123"),
         ];
         for (path, expected) in cases {
-            let name = snapshot(&history, path, b"old", 1771271566123).unwrap();
+            let name = snapshot(&history, Path::new(path), b"old", 1771271566123).unwrap();
             assert_eq!(name, expected);
             let saved = fs::read(tmp.path().join(path).join(expected)).unwrap();
             assert_eq!(saved, b"old");
@@ -181,7 +182,7 @@ mod tests {
     fn a_snapshot_is_readable_by_the_owner_only() {
         let tmp = tempfile::tempdir().unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
-        let name = snapshot(&history, "a.md", b"old", 1000).unwrap();
+        let name = snapshot(&history, Path::new("a.md"), b"old", 1000).unwrap();
 
         let mode = fs::metadata(tmp.path().join("a.md").join(name))
             .unwrap()
@@ -195,8 +196,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
 
-        let first = snapshot(&history, "a.md", b"one", 1000).unwrap();
-        let second = snapshot(&history, "a.md", b"two", 1000).unwrap();
+        let first = snapshot(&history, Path::new("a.md"), b"one", 1000).unwrap();
+        let second = snapshot(&history, Path::new("a.md"), b"two", 1000).unwrap();
         assert_eq!((first.as_str(), second.as_str()), ("1000.md", "1001.md"));
         assert_eq!(fs::read(tmp.path().join("a.md/1000.md")).unwrap(), b"one");
         assert_eq!(fs::read(tmp.path().join("a.md/1001.md")).unwrap(), b"two");
@@ -209,7 +210,7 @@ mod tests {
         fs::set_permissions(tmp.path().join("a.md"), fs::Permissions::from_mode(0o555)).unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
 
-        let error = snapshot(&history, "a.md", b"old", 1000).unwrap_err();
+        let error = snapshot(&history, Path::new("a.md"), b"old", 1000).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::PermissionDenied);
     }
 }

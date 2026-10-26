@@ -16,7 +16,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
-| 7 | Revisions | — | about 6 |
+| 7 | Revisions | In progress on `m7-revisions` | about 7 |
 | 8 | Themes and polish | — | about 9 |
 
 ## Milestone 1: skeleton
@@ -194,9 +194,34 @@ Access:
 23. Start mdame over SSH, with no display: it opens no browser and says to open the printed URL.
 24. Start mdame on a large folder whose first walk takes over a minute: the opened tab still gets in. Checked on 25 October 2026 on `~/dev`, with mdame paused for 75 s during the walk.
 
+## Milestone 7: revisions
+
+Decided on 25 October 2026:
+
+- A revision goes under the real path of its file, relative to the workspace. A link or a `..` in the path asked does not split the revisions of one file.
+- `GET /api/history` creates no folder. A file that mdame never saved over has no revisions.
+- The `id` of a revision is its file name, such as `1771271566123.md`. The routes refuse any other form: digits, then an optional extension, with no `/`.
+- Pruning runs after the write. It keeps the newest `snapshots_per_file` revisions (20 by default), ordered by the time in their name. It deletes no file with another name. A failed prune gives a warning and does not fail the save.
+- Restore writes the bytes of the revision over the file, as a save does. It writes in place, after a snapshot of the current content, and one at a time with the saves. It needs no `If-Match`: the snapshot keeps the text that it replaces. If the revision equals the file, restore writes nothing. A deleted file gets 404.
+- Diff mode follows the wireframe. The editor shows its text as an inline diff against the chosen revision, and stays editable. The list of revisions takes the place of the preview, with Restore below it. No revert per change: restore writes the whole file, since the spec dropped restoring into the editor.
+- With unsaved edits, Restore replaces them as Reload does, in one undo step: Ctrl+Z brings them back.
+- The list shows the time and the size of each revision. Only the chosen revision shows its count of added and removed lines: a count on each row would fetch every revision.
+- `h`, `r` and a Revisions button in the status bar open diff mode against the newest revision.
+- Esc closes the revisions panel first, and the editor stays open. A second Esc closes the editor, as with the sidebar overlay.
+
+Rules, as test names, by commit:
+
+1. Revisions under the real path (done): `a_snapshot_goes_under_the_real_path_of_the_file`.
+2. Pruning: `prune_keeps_the_newest_snapshots`, `prune_orders_by_time_not_by_name`, `prune_deletes_no_other_file`, `save_prunes_to_snapshots_per_file`.
+3. `GET /api/history` and `GET /api/history/view`: `history_lists_the_revisions_newest_first`, `history_of_a_file_never_saved_is_empty_and_creates_no_folder`, `history_view_returns_the_revision_text`, `an_id_names_a_revision_of_this_file_only` (`../`, `a/b`, `.x`, a missing one); rows in the routes matrix.
+4. `POST /api/history/restore`: `restore_writes_the_revision_over_the_file`, `restore_keeps_the_current_content_as_a_revision`, `restore_of_a_deleted_file_is_refused`; rows in the routes matrix.
+5. Diff mode: the list, the merge view, `h`, `r`, the Revisions button, Esc. `revisions.ts`: `today shows the time`, `yesterday says so`, `an older day shows the date`, `counts the added and removed lines of the chunks`.
+6. Restore from the panel: the editor takes the restored text in one undo step, and the list refreshes.
+7. Manual checklist, `cargo mutants`, review loop.
+
 ## Next
 
-1. Start milestone 7 (revisions) on a new branch, `m7-revisions`.
+1. Milestone 7, commit 2: pruning.
 
 ## Open points
 
@@ -207,7 +232,6 @@ Access:
   - The editor uses the markdown language for every file family.
   - `e` opens the editor at line 1, and Esc shows the view from the top.
   - In `state` mode, an encoded workspace root over 255 bytes fails every save (`NAME_MAX`). It needs a spec decision.
-  - Snapshots go under the path asked, not the real one: a link splits one file's revisions, and `lnk/../a.md` files `sub/a.md` under `history/a.md/`. Use the real path before the restore of milestone 7.
   - `split.ts` copies the sidebar's resize handle and its CSS.
   - Each preview render runs Mermaid again on every diagram, with new ids, so the morph rewrites them all.
   - The check after our own save downloads the whole file to compare its `ETag`. `If-None-Match` and a 304 would skip the body.

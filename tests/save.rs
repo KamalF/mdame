@@ -75,6 +75,23 @@ async fn save_snapshots_the_old_content_first() {
 }
 
 #[tokio::test]
+async fn a_snapshot_goes_under_the_real_path_of_the_file() {
+    for path in ["link.md", "lnk/../a.md"] {
+        let dir = tempfile::tempdir().unwrap();
+        let state = common::workspace(dir.path(), &[("sub/a.md", b"old\n")]);
+        let ws = dir.path().join("ws");
+        symlink("sub/a.md", ws.join("link.md")).unwrap();
+        // `lnk/..` is `sub`, not the workspace root.
+        fs::create_dir(ws.join("sub/deep")).unwrap();
+        symlink("sub/deep", ws.join("lnk")).unwrap();
+        let response = put(state, path, Some(&etag(b"old\n")), "new\n").await;
+
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert_eq!(snapshots(dir.path(), "sub/a.md"), ["old\n"], "{path}");
+    }
+}
+
+#[tokio::test]
 async fn the_snapshot_is_named_by_the_time_of_the_save() {
     let dir = tempfile::tempdir().unwrap();
     let before = now_ms();

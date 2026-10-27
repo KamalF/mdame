@@ -17,6 +17,12 @@ pub struct Config {
     pub history: Option<HistoryMode>,
 }
 
+impl Config {
+    pub fn snapshots_per_file(&self) -> usize {
+        self.snapshots_per_file.unwrap_or(20)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HistoryMode {

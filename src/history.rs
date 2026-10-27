@@ -87,6 +87,37 @@ pub fn snapshot(history: &Dir, path: &Path, content: &[u8], now_ms: u64) -> io::
     }
 }
 
+/// Keeps the newest `keep` snapshots of the file at `path`. A name that
+/// mdame does not give a snapshot stays: mdame did not make that file.
+pub fn prune(history: &Dir, path: &Path, keep: usize) -> io::Result<()> {
+    let mut snapshots = Vec::new();
+    for entry in history.read_dir(path)? {
+        let name = entry?.file_name();
+        if let Some(ms) = name.to_str().and_then(snapshot_ms) {
+            snapshots.push((ms, name));
+        }
+    }
+    snapshots.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
+    for (_, name) in snapshots.into_iter().skip(keep) {
+        match history.remove_file(path.join(name)) {
+            // Another mdame on this workspace pruned it first.
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            removed => removed?,
+        }
+    }
+    Ok(())
+}
+
+/// The time in a snapshot's name: digits, then an optional extension.
+fn snapshot_ms(name: &str) -> Option<u64> {
+    let digits = name.split_once('.').map_or(name, |(digits, _)| digits);
+    // parse alone would also take a leading `+`.
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,5 +243,42 @@ mod tests {
 
         let error = snapshot(&history, Path::new("a.md"), b"old", 1000).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+    }
+
+    fn names(tmp: &Path) -> Vec<String> {
+        let mut names: Vec<String> = fs::read_dir(tmp.join("a.md"))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn prune_keeps_the_newest_snapshots() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("a.md")).unwrap();
+        // In the order of the names, 999 would be the newest.
+        for name in ["999.md", "1000.md", "1001.md"] {
+            fs::write(tmp.path().join("a.md").join(name), "").unwrap();
+        }
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        prune(&history, Path::new("a.md"), 2).unwrap();
+
+        assert_eq!(names(tmp.path()), ["1000.md", "1001.md"]);
+    }
+
+    #[test]
+    fn prune_deletes_no_other_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("a.md")).unwrap();
+        let others = ["+5.md", ".1000.md", "12a.md", "notes.txt"];
+        for name in others.iter().chain(&["1000.md", "1001"]) {
+            fs::write(tmp.path().join("a.md").join(name), "").unwrap();
+        }
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        prune(&history, Path::new("a.md"), 0).unwrap();
+
+        assert_eq!(names(tmp.path()), others);
     }
 }

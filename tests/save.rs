@@ -92,6 +92,41 @@ async fn a_snapshot_goes_under_the_real_path_of_the_file() {
 }
 
 #[tokio::test]
+async fn save_prunes_to_snapshots_per_file() {
+    // The spec's default, then a value from config.toml.
+    for (setting, keep) in [(None, 20), (Some(2), 2)] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut state = workspace(dir.path());
+        state.config.get_mut().unwrap().snapshots_per_file = setting;
+        let folder = dir.path().join("ws/.mdame/history/a.md");
+        fs::create_dir_all(&folder).unwrap();
+        for ms in 1..=keep {
+            fs::write(folder.join(format!("{ms}.md")), "older\n").unwrap();
+        }
+        let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let kept = snapshots(dir.path(), "a.md");
+        assert_eq!(kept.len(), keep, "{setting:?}");
+        assert!(kept.contains(&"old\n".to_owned()), "{setting:?}");
+        assert!(!folder.join("1.md").exists(), "{setting:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_save_succeeds_when_pruning_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = workspace(dir.path());
+    state.config.get_mut().unwrap().snapshots_per_file = Some(1);
+    // A folder cannot be removed as a file: the prune fails on it.
+    fs::create_dir_all(dir.path().join("ws/.mdame/history/a.md/1.md")).unwrap();
+    let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(read(dir.path(), "a.md"), "new\n");
+}
+
+#[tokio::test]
 async fn the_snapshot_is_named_by_the_time_of_the_save() {
     let dir = tempfile::tempdir().unwrap();
     let before = now_ms();

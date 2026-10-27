@@ -152,7 +152,8 @@ static SAVES: Mutex<()> = Mutex::new(());
 
 /// Writes `content` to `path` if the file on disk still has `base_version`,
 /// after a snapshot of the old content in the folder that `history` opens.
-/// A deleted file has changed too.
+/// That folder then keeps the newest `keep` snapshots of the file. A
+/// deleted file has changed too.
 ///
 /// The file is written in place, not renamed over: its permissions and
 /// hard links stay.
@@ -160,6 +161,7 @@ pub fn save(
     dir: &Dir,
     // Opening it can create it: a save that makes no snapshot must not.
     history: impl FnOnce() -> io::Result<Dir>,
+    keep: usize,
     path: &str,
     content: &str,
     base_version: &str,
@@ -191,11 +193,13 @@ pub fn save(
         return Ok(saved(base_version.to_owned(), &file)?);
     }
     // Writing over an empty file loses nothing.
-    if !old.is_empty() {
-        history()
-            .and_then(|history| history::snapshot(&history, &real, &old, now_ms()))
-            .map_err(SaveError::Snapshot)?;
-    }
+    let history = if old.is_empty() {
+        None
+    } else {
+        let history = history().map_err(SaveError::Snapshot)?;
+        history::snapshot(&history, &real, &old, now_ms()).map_err(SaveError::Snapshot)?;
+        Some(history)
+    };
     // A program that saves by renaming a new file over the path may have
     // done so during the snapshot: the text written to the old file would
     // then be in no file.
@@ -205,6 +209,15 @@ pub fn save(
     file.set_len(0)?;
     file.rewind()?;
     file.write_all(content.as_bytes())?;
+    // After the write: with `keep` at 0, the snapshot must still cover a
+    // crash during the write.
+    if let Some(history) = history
+        && let Err(error) = history::prune(&history, &real, keep)
+    {
+        // The file is saved: only old revisions are left over.
+        let real = real.display();
+        tracing::warn!("old revisions not deleted: {real}: {}", io_message(&error));
+    }
     Ok(saved(version(content.as_bytes()), &file)?)
 }
 
@@ -376,6 +389,7 @@ mod tests {
                         save(
                             dir,
                             || history.try_clone(),
+                            20,
                             "a.md",
                             &content,
                             &version(b"old\n"),
@@ -402,7 +416,7 @@ mod tests {
             dir.rename("new.md", &dir, "a.md")?;
             dir.open_dir("history")
         };
-        let saved = save(&dir, history, "a.md", "ours\n", &version(b"old\n"));
+        let saved = save(&dir, history, 20, "a.md", "ours\n", &version(b"old\n"));
 
         assert!(matches!(saved, Err(SaveError::Changed)));
         assert_eq!(dir.read_to_string("a.md").unwrap(), "theirs\n");

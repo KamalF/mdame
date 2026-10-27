@@ -1,8 +1,9 @@
 use std::io::{self, ErrorKind, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, DirBuilder, DirBuilderExt, OpenOptions, OpenOptionsExt};
+use serde::Serialize;
 
 use crate::config::{self, HistoryMode};
 use crate::workspace::{OWN_DIR, Workspace};
@@ -39,11 +40,33 @@ pub fn root(mode: HistoryMode, workspace: &Workspace, state_dir: &Path) -> io::R
             // A folder that cannot be made private stops the snapshot, and
             // so the save.
             config::private_folder(state_dir)?;
-            let history = state_dir.join(encode_path(&workspace.root)).join("history");
+            let history = state_history(workspace, state_dir);
             std::fs::create_dir_all(&history)?;
             Dir::open_ambient_dir(&history, ambient_authority())
         }
     }
+}
+
+/// As `root`, but creates nothing: `None` until a save makes the folder.
+pub fn open_root(
+    mode: HistoryMode,
+    workspace: &Workspace,
+    state_dir: &Path,
+) -> io::Result<Option<Dir>> {
+    let opened = match mode {
+        HistoryMode::Workspace => workspace.dir.open_dir(format!("{OWN_DIR}/history")),
+        HistoryMode::State => {
+            Dir::open_ambient_dir(state_history(workspace, state_dir), ambient_authority())
+        }
+    };
+    match opened {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        opened => opened.map(Some),
+    }
+}
+
+fn state_history(workspace: &Workspace, state_dir: &Path) -> PathBuf {
+    state_dir.join(encode_path(&workspace.root)).join("history")
 }
 
 pub fn encode_path(path: &Path) -> String {
@@ -87,18 +110,9 @@ pub fn snapshot(history: &Dir, path: &Path, content: &[u8], now_ms: u64) -> io::
     }
 }
 
-/// Keeps the newest `keep` snapshots of the file at `path`. A name that
-/// mdame does not give a snapshot stays: mdame did not make that file.
+/// Keeps the newest `keep` snapshots of the file at `path`.
 pub fn prune(history: &Dir, path: &Path, keep: usize) -> io::Result<()> {
-    let mut snapshots = Vec::new();
-    for entry in history.read_dir(path)? {
-        let name = entry?.file_name();
-        if let Some(ms) = name.to_str().and_then(snapshot_ms) {
-            snapshots.push((ms, name));
-        }
-    }
-    snapshots.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
-    for (_, name) in snapshots.into_iter().skip(keep) {
+    for (_, name) in snapshots(history, path)?.into_iter().skip(keep) {
         match history.remove_file(path.join(name)) {
             // Another mdame on this workspace pruned it first.
             Err(error) if error.kind() == ErrorKind::NotFound => {}
@@ -106,6 +120,63 @@ pub fn prune(history: &Dir, path: &Path, keep: usize) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+pub struct Revision {
+    pub id: String,
+    /// Unix milliseconds, from the name.
+    pub time: u64,
+    pub size: u64,
+}
+
+/// The revisions of the file at `path`, newest first.
+pub fn list(history: &Dir, path: &Path) -> io::Result<Vec<Revision>> {
+    let mut revisions = Vec::new();
+    for (time, id) in snapshots(history, path)? {
+        let size = history.metadata(path.join(&id))?.len();
+        revisions.push(Revision { id, time, size });
+    }
+    Ok(revisions)
+}
+
+/// The bytes of the revision `id` of the file at `path`. Only the name of
+/// a snapshot is an `id`: `../b.md/1.md` would lead to another file's.
+pub fn read(history: &Dir, path: &Path, id: &str) -> io::Result<Vec<u8>> {
+    if id.contains('/') || snapshot_ms(id).is_none() {
+        return Err(no_revision());
+    }
+    history
+        .read(path.join(id))
+        .map_err(|error| match error.kind() {
+            ErrorKind::NotFound => no_revision(),
+            _ => error,
+        })
+}
+
+pub fn no_revision() -> io::Error {
+    io::Error::new(ErrorKind::NotFound, "no such revision")
+}
+
+/// The snapshots of the file at `path`, newest first, as their time and
+/// name. A name that mdame does not give a snapshot is left out: mdame did
+/// not make that file.
+fn snapshots(history: &Dir, path: &Path) -> io::Result<Vec<(u64, String)>> {
+    let entries = match history.read_dir(path) {
+        // No save has made a snapshot of this file yet.
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+        entries => entries?,
+    };
+    let mut snapshots = Vec::new();
+    for entry in entries {
+        if let Ok(name) = entry?.file_name().into_string()
+            && let Some(ms) = snapshot_ms(&name)
+        {
+            snapshots.push((ms, name));
+        }
+    }
+    snapshots.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
+    Ok(snapshots)
 }
 
 /// The time in a snapshot's name: digits, then an optional extension.

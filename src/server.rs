@@ -5,7 +5,7 @@ use crate::app::{
 use crate::config::{self, HistoryMode, Recent};
 use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
-use crate::history;
+use crate::history::{self, Revision};
 use crate::tree::{self, Suggestion};
 use crate::watch::Event;
 use crate::workspace;
@@ -487,6 +487,53 @@ fn etag(version: &str) -> String {
     format!("\"{version}\"")
 }
 
+async fn revisions(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<FileQuery>, QueryRejection>,
+) -> Result<Json<Vec<Revision>>, ApiError> {
+    let Query(query) = query?;
+    let workspace = app.workspace()?;
+    let mode = app.config.read().unwrap().history.unwrap_or_default();
+    let path = query.path.clone();
+    let revisions = tokio::task::spawn_blocking(move || {
+        let history = history::open_root(mode, &workspace, &app.state_dir)?;
+        document::revisions(&workspace.dir, history.as_ref(), &path)
+    })
+    .await?;
+    revisions
+        .map(Json)
+        .map_err(|error| file_error(&query.path, error))
+}
+
+#[derive(Deserialize)]
+struct RevisionQuery {
+    path: String,
+    id: String,
+}
+
+#[derive(Serialize)]
+struct RevisionText {
+    content: String,
+}
+
+async fn revision(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<RevisionQuery>, QueryRejection>,
+) -> Result<Json<RevisionText>, ApiError> {
+    let Query(query) = query?;
+    let workspace = app.workspace()?;
+    let mode = app.config.read().unwrap().history.unwrap_or_default();
+    let (path, id) = (query.path.clone(), query.id);
+    let content = tokio::task::spawn_blocking(move || {
+        let history = history::open_root(mode, &workspace, &app.state_dir)?;
+        document::revision(&workspace.dir, history.as_ref(), &path, &id)
+    })
+    .await?;
+    content
+        .map(|content| Json(RevisionText { content }))
+        .map_err(|error| file_error(&query.path, error))
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RenderRequest {
@@ -670,6 +717,8 @@ pub fn router(app_state: Arc<AppState>) -> Router {
                 .layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),
         )
         .route("/api/source", get(source))
+        .route("/api/history", get(revisions))
+        .route("/api/history/view", get(revision))
         .route(
             "/api/render",
             post(render).layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),

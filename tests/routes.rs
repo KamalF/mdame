@@ -10,7 +10,7 @@ use common::{HOST, JSON, etag, send_body, status_and_json};
 use mdame::app::AppState;
 use serde_json::json;
 
-const ROUTES: [(Method, &str); 17] = [
+const ROUTES: [(Method, &str); 19] = [
     (Method::GET, "/"),
     (Method::GET, "/view/a.md"),
     (Method::GET, "/edit/a.md"),
@@ -27,19 +27,26 @@ const ROUTES: [(Method, &str); 17] = [
     (Method::POST, "/api/file"),
     (Method::GET, "/api/source?path=a.md"),
     (Method::POST, "/api/render"),
+    (Method::GET, "/api/history?path=a.md"),
+    (Method::GET, "/api/history/view?path=a.md&id=1.md"),
     (Method::GET, "/ws"),
 ];
 
 /// Routes that take a workspace path, with `{}` where the path goes.
-const PATH_ROUTES: [(Method, &str); 4] = [
+const PATH_ROUTES: [(Method, &str); 6] = [
     (Method::GET, "/api/file?path={}"),
     (Method::GET, "/api/source?path={}"),
     (Method::PUT, "/api/file?path={}"),
     (Method::GET, "/raw/{}"),
+    (Method::GET, "/api/history?path={}"),
+    (Method::GET, "/api/history/view?path={}&id=1.md"),
 ];
 
 fn workspace(dir: &Path) -> AppState {
-    common::workspace(dir, &[("a.md", b"# A\n")])
+    common::workspace(
+        dir,
+        &[("a.md", b"# A\n"), (".mdame/history/a.md/1.md", b"# 0\n")],
+    )
 }
 
 #[tokio::test]

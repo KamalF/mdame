@@ -9,7 +9,7 @@ use cap_std::fs::{Dir, File, Metadata, MetadataExt, OpenOptions};
 use serde::Serialize;
 
 use crate::error::io_message;
-use crate::history;
+use crate::history::{self, Revision};
 use crate::render::{self, Family};
 use crate::workspace::{fd_path, is_hidden};
 
@@ -119,6 +119,23 @@ pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
         version,
         modified: modified_secs(&metadata).unwrap_or(0),
     })
+}
+
+/// The revisions of the file at `path`, newest first. `history` is `None`
+/// while no save has made the history folder.
+pub fn revisions(dir: &Dir, history: Option<&Dir>, path: &str) -> io::Result<Vec<Revision>> {
+    let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;
+    match history {
+        Some(history) => history::list(history, &real),
+        None => Ok(Vec::new()),
+    }
+}
+
+/// The text of the revision `id` of the file at `path`.
+pub fn revision(dir: &Dir, history: Option<&Dir>, path: &str, id: &str) -> io::Result<String> {
+    let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;
+    let history = history.ok_or_else(history::no_revision)?;
+    String::from_utf8(history::read(history, &real, id)?).map_err(|_| not_text())
 }
 
 pub fn version(bytes: &[u8]) -> String {

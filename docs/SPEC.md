@@ -315,8 +315,8 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first; 404 `not_viewable` for a file that the editor may not open; 413 over 8 MB | `{modified}` and the new `ETag`; 412 if the content changed on disk since, or if `If-Match` is anything but one strong `ETag` (`*` and lists included); 428 without `If-Match` |
 | `POST /api/file` | Create `{path}`, empty; 409 if it exists, 400 for a type that the editor cannot open or that the tree hides, 404 naming the folder when its folder is missing. Folders are never created | 201, `{modified}` and the `ETag` of the empty content |
 | `POST /api/render` | Editor preview `{path, content}` | `{html}` |
-| `GET /api/history?path=` | Snapshots, newest first: `id`, time, size | JSON |
-| `GET /api/history/view?path=&id=` | A snapshot's raw text, for the merge view | `{content}` |
+| `GET /api/history?path=` | Revisions of a file that the editor may open, newest first. The `id` is the snapshot's name, and `time` is the Unix milliseconds of that name. A file that mdame never saved over gives `[]`, and the request creates no folder | `[{id, time, size}]` |
+| `GET /api/history/view?path=&id=` | A revision's text, for the merge view. 404 `not_found` for an `id` that is not the name of a revision of this file; 404 `not_viewable` for a revision that is not UTF-8 | `{content}` |
 | `POST /api/history/restore` | `{path, id}`: snapshot current, write the old version | `{modified}` |
 | `GET /api/recents` | Recent workspaces, newest first; an unreadable file gives `[]` | `[{path, last_opened_secs}]` |
 | `POST /api/workspace` | Open `{path}`, a file or folder, when none is open (409 otherwise). `~` and `~/` name the home folder; a relative path gets 400 | new state |

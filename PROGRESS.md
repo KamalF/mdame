@@ -213,7 +213,7 @@ Rules, as test names, by commit:
 
 1. Revisions under the real path (done): `a_snapshot_goes_under_the_real_path_of_the_file`.
 2. Pruning (done): `prune_keeps_the_newest_snapshots` (by time, not by name: `999` is older than `1000`), `prune_deletes_no_other_file`, `save_prunes_to_snapshots_per_file` (20 by default), `a_save_succeeds_when_pruning_fails`.
-3. `GET /api/history` and `GET /api/history/view`: `history_lists_the_revisions_newest_first`, `history_of_a_file_never_saved_is_empty_and_creates_no_folder`, `history_view_returns_the_revision_text`, `an_id_names_a_revision_of_this_file_only` (`../`, `a/b`, `.x`, a missing one); rows in the routes matrix.
+3. `GET /api/history` and `GET /api/history/view` (done): `history_lists_the_revisions_newest_first` (through a link too), `history_of_a_file_never_saved_is_empty`, `listing_creates_no_history_folder` (both modes), `history_view_returns_the_revision_text`, `an_id_names_a_revision_of_this_file_only` (`/` in the `id`, a missing one, no history folder), `history_view_refuses_a_revision_that_is_not_utf8`; rows in the routes matrix.
 4. `POST /api/history/restore`: `restore_writes_the_revision_over_the_file`, `restore_keeps_the_current_content_as_a_revision`, `restore_of_a_deleted_file_is_refused`; rows in the routes matrix.
 5. Diff mode: the list, the merge view, `h`, `r`, the Revisions button, Esc. `revisions.ts`: `today shows the time`, `yesterday says so`, `an older day shows the date`, `counts the added and removed lines of the chunks`.
 6. Restore from the panel: the editor takes the restored text in one undo step, and the list refreshes.
@@ -221,7 +221,7 @@ Rules, as test names, by commit:
 
 ## Next
 
-1. Milestone 7, commit 3: `GET /api/history` and `GET /api/history/view`.
+1. Milestone 7, commit 4: `POST /api/history/restore`.
 
 ## Open points
 

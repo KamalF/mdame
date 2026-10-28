@@ -194,8 +194,9 @@ fn snapshots(history: &Dir, path: &Path) -> io::Result<Vec<(u64, String)>> {
     for entry in entries {
         let entry = entry?;
         // mdame makes snapshots as files: a folder may hold the revisions
-        // of a file that `path` was a folder of.
-        if entry.file_type()?.is_file()
+        // of a file that `path` was a folder of. A stat, since some file
+        // systems give no type in the listing.
+        if entry.metadata()?.is_file()
             && let Ok(name) = entry.file_name().into_string()
             && let Some(ms) = snapshot_ms(&name)
         {

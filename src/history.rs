@@ -352,4 +352,29 @@ mod tests {
 
         assert_eq!(names(tmp.path()), others);
     }
+
+    #[test]
+    fn prune_reports_a_snapshot_that_it_cannot_delete() {
+        let tmp = tempfile::tempdir().unwrap();
+        // A folder cannot be removed as a file.
+        fs::create_dir_all(tmp.path().join("a.md/1000.md")).unwrap();
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        let error = prune(&history, Path::new("a.md"), 0).unwrap_err();
+
+        assert_eq!(error.kind(), ErrorKind::IsADirectory);
+    }
+
+    #[test]
+    fn a_history_that_cannot_be_read_is_an_error_not_an_empty_list() {
+        let (tmp, workspace) = workspace();
+        fs::create_dir(tmp.path().join(".mdame")).unwrap();
+        fs::write(tmp.path().join(".mdame/history"), "").unwrap();
+        let opened = open_root(HistoryMode::Workspace, &workspace, Path::new("/unused"));
+        assert_eq!(opened.unwrap_err().kind(), ErrorKind::NotADirectory);
+
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        fs::write(tmp.path().join("a.md"), "").unwrap();
+        let listed = list(&history, Path::new("a.md"));
+        assert_eq!(listed.unwrap_err().kind(), ErrorKind::NotADirectory);
+    }
 }

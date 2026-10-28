@@ -219,9 +219,11 @@ Rules, as test names, by commit:
 6. Restore from the panel (done): the Restore button restores the revision on screen. The restore runs in the editor's queue, with the saves and disk checks. The editor then takes the text in one undo step, as Reload does, and the list refreshes. A revision's time is when mdame saved over its text: each row's tooltip says so. No unit test: all of it is wiring; the manual checklist covers it.
 7. Manual checklist, `cargo mutants`, review loop.
 
+- `cargo mutants` over the milestone 7 diff, on 28 October 2026: 63 mutants, 5 missed. Tests now catch 4 of them. A history that cannot be read gives an error, not an empty list. A prune reports a snapshot that it cannot delete. The 5th needs a race, and is excluded with its reason.
+
 ## Next
 
-1. Milestone 7, commit 7: manual checklist, `cargo mutants`, review loop.
+1. Milestone 7, commit 7: review loop, manual checklist.
 
 ## Open points
 

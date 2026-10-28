@@ -33,6 +33,9 @@ exclude_re = [
     "history.rs.*ErrorKind::AlreadyExists with true in snapshot",
     "history.rs.*replace == with != in snapshot",
     "history.rs.*replace \\+= with \\*= in snapshot",
+    # Needs another mdame to delete the snapshot between the listing and
+    # the delete: a race.
+    "history.rs.*ErrorKind::NotFound with false in prune",
     # The life of a code ends at one instant: < and <= differ there only.
     "replace < with <= in open_code",
 ]

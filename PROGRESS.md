@@ -237,6 +237,35 @@ Rules, as test names, by commit:
   - Follow-ups and deferred nits are under Open points.
 - `cargo mutants` over the milestone 7 diff after the review, on 28 October 2026: 64 mutants, 3 missed and 1 timeout. A test now catches the missed one in `open`. The FIFO test checks its link case first, so a mutant fails it rather than hanging it. The 2 others, in `list`, need a race, and are excluded with their reason.
 
+### Manual checklist
+
+Not run yet. These checks cover what no unit test covers: the DOM wiring of diff mode and Restore, and the warning in the terminal. Run mdame on a test folder, in Chrome and Firefox. First, save a markdown file three times from the editor, with a small change each time.
+
+Diff mode:
+
+1. In the view of that file, `h`, `r` and the Revisions button each open the editor in diff mode against the newest revision. In the editor, the Revisions button opens and closes the panel. While the focus is in the text, `h` and `r` type a letter.
+2. Each row shows a time ("Today 14:05", "Yesterday 09:12", or a date) and a size. Its tooltip says when mdame saved over that text. Only the chosen row shows its added and removed lines, and they change as you type.
+3. Click an older row: the inline diff follows it, and the Restore button names its time.
+4. While the panel is open, the status bar has no preview toggle. Esc closes the panel, the editor stays, and the preview comes back if it was on. A second Esc closes the editor.
+5. With the system in dark mode, the added and deleted lines of the diff are readable.
+6. On an image or a hidden file, the status bar has no Revisions button, and `h` does nothing. A file that mdame never saved says "No revisions yet", and Restore is off.
+
+Restore:
+
+7. Restore an older revision: the editor and the file on disk get its text, and the list gains a revision, the text from before. Ctrl+Z brings back that text, unsaved edits too.
+8. Restore the newest revision: the first restore is undone on disk.
+
+The list:
+
+9. Save the file in a second tab: the list of the first tab gains the revision.
+10. In the file's folder under `.mdame/history/`, run `printf '\xff' > 999999999999.md`, a revision that is not UTF-8. Click its row: the panel shows "not a UTF-8 text file". Click the revision on screen: it is chosen again, and Restore works.
+11. Stop mdame, then click another row: the panel says to try again once mdame is back. Start mdame again: that revision loads by itself.
+12. Add a revision named `99999999999999.md`: it shows last in the list, dated in the year 5138, and diff mode opens against the real newest.
+
+State mode:
+
+13. With `history = "state"` in `config.toml`, open a folder `my notes`, quit, then open a folder `my-notes` beside it: the terminal prints a warning that names both folders.
+
 ## Next
 
 1. Milestone 7, commit 7: manual checklist.

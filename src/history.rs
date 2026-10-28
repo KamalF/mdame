@@ -417,6 +417,23 @@ mod tests {
     }
 
     #[test]
+    fn a_history_folder_that_cannot_be_searched_is_an_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        let folder = tmp.path().join("a.md");
+        fs::create_dir(&folder).unwrap();
+        fs::write(folder.join("1000.md"), "").unwrap();
+        // Readable, but not searchable.
+        fs::set_permissions(&folder, fs::Permissions::from_mode(0o400)).unwrap();
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        let listed = list(&history, Path::new("a.md"));
+        let opened = open(&history, Path::new("a.md"), "1000.md");
+        fs::set_permissions(&folder, fs::Permissions::from_mode(0o700)).unwrap();
+
+        assert_eq!(listed.unwrap_err().kind(), ErrorKind::PermissionDenied);
+        assert_eq!(opened.unwrap_err().kind(), ErrorKind::PermissionDenied);
+    }
+
+    #[test]
     fn a_folder_or_a_link_is_no_snapshot() {
         let tmp = tempfile::tempdir().unwrap();
         let folder = tmp.path().join("a.md");

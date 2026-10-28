@@ -191,7 +191,8 @@ async fn history_view_opens_no_fifo_and_follows_no_link() {
             .success()
     );
     symlink("1000.md", folder.join("1002.md")).unwrap();
-    for id in ["1001.md", "1002.md"] {
+    // The link first: a FIFO opened by mistake would hang the test.
+    for id in ["1002.md", "1001.md"] {
         let state = common::workspace(dir.path(), &files);
         let uri = format!("/api/history/view?path=a.md&id={id}");
         let (status, body) = get_json(state, &uri).await;

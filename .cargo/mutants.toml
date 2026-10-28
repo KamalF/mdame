@@ -36,9 +36,10 @@ exclude_re = [
     # Needs another mdame to delete the snapshot between the listing and
     # the delete: a race.
     "history.rs.*ErrorKind::NotFound with false in prune",
-    # Needs another mdame to prune a snapshot between the listing and its
-    # stat.
-    "history.rs.*ErrorKind::NotFound with false in list",
+    # cap-std lists only a folder that it can search, so the stat of an
+    # entry fails only when another mdame pruned it since the listing. The
+    # column keeps the guard of read_dir, which a test catches.
+    "history.rs:\\d+:(27|40): .* in list$",
     # The life of a code ends at one instant: < and <= differ there only.
     "replace < with <= in open_code",
 ]

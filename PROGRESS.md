@@ -221,12 +221,33 @@ Rules, as test names, by commit:
 
 - `cargo mutants` over the milestone 7 diff, on 28 October 2026: 63 mutants, 5 missed. Tests now catch 4 of them. A history that cannot be read gives an error, not an empty list. A prune reports a snapshot that it cannot delete. The 5th needs a race, and is excluded with its reason.
 
+- Review loop over milestone 7: 6 rounds and a simplify pass, converged on 28 October 2026. Fixes in their own commits:
+  - A revision opens only if it is a regular file, not a link or a FIFO, and is read up to 8 MB.
+  - Only regular files count as revisions. Their type comes from a stat, since some file systems give none in a listing. A snapshot that another mdame prunes during a listing is skipped.
+  - A save always keeps the snapshot that it made, unless `snapshots_per_file` is 0.
+  - mdame refuses a link at `.mdame` or `.mdame/history`. Through such a link, pruning could delete notes of the workspace.
+  - In state mode, a restore makes the state folder private before its snapshot, as a save does.
+  - An `id` with a NUL byte gives 404.
+  - Page: a revision that failed to load can be chosen again, and so can the one on screen. A refresh loads the chosen revision again when it is not on screen.
+  - Follow-ups and deferred nits are under Open points.
+- `cargo mutants` over the milestone 7 diff after the review, on 28 October 2026: 64 mutants, 3 missed and 1 timeout. A test now catches the missed one in `open`. The FIFO test checks its link case first, so a mutant fails it rather than hanging it. The 2 others, in `list`, need a race, and are excluded with their reason.
+
 ## Next
 
-1. Milestone 7, commit 7: review loop, manual checklist.
+1. Milestone 7, commit 7: manual checklist.
 
 ## Open points
 
+- From the review of milestone 7, for later:
+  - Revision names dated in the future sort as the newest: diff mode opens against them, and pruning keeps them. Needs a decision.
+  - State mode: two workspaces whose roots encode to the same name, such as `/x/my notes` and `/x/my-notes`, share one history. Since milestone 7 it is listed, restored and pruned across both. Needs a spec decision.
+  - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check.
+  - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.
+- Nits deferred by the review of milestone 7:
+  - A link inside the history, such as `.mdame/history/a.md -> b.md`, joins the revisions of two files.
+  - Choosing a revision with the keyboard moves the focus to the page body.
+  - With `snapshots_per_file = 0`, a save in diff mode keeps the diff of a revision that it pruned.
+  - An `id` over 255 bytes gives 500 "File name too long", not 404.
 - From the review of milestone 6, for later:
   - No header-read or idle timeout: idle connections can hold every file descriptor, and keep the browser out after a theft.
   - Above about 55,000 distinct lines, or a changed middle of 160,000 lines, the silent reload replaces the whole text and the cursor jumps. A patience diff would lift the limit.
@@ -254,7 +275,7 @@ Rules, as test names, by commit:
   - A save that writes nothing still opens the file for writing, so inotify reports `IN_CLOSE_WRITE`.
   - A text full of control characters escapes past the 32 MB body limit.
   - `history::snapshot` keeps a branch for paths with no extension, which the editor's routes refuse.
-  - Tests: three permission tests fail as root; the picker tests fail when `TMPDIR` is in a hidden folder; `tests/source.rs` and `tests/save.rs` repeat one table.
+  - Tests: five permission tests fail as root; the picker tests fail when `TMPDIR` is in a hidden folder; `tests/source.rs` and `tests/save.rs` repeat one table.
 - The editor does not follow a rename of its file, as the view does: it shows the deleted notice.
 - Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
 - Backup branches, to delete once they are no longer needed: `backup/before-typescript` and `backup/m4-viewing-before-typescript` (the JavaScript history, before the rewrite of 18 October 2026), `backup/m4-before-dist-fix`, `backup/m6-before-import-fixup`, and `backup/m6-before-history-rewrite` (milestone 6 before its review commits were regrouped, 25 October 2026).

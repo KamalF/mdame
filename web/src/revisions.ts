@@ -111,10 +111,12 @@ export async function refresh() {
   if (shown !== current) return;
   current.revisions = revisions;
   current.error.textContent = "";
-  // The chosen revision may be gone: pruning removes the oldest.
+  // The chosen revision may be gone: pruning removes the oldest. Or it
+  // failed to load, maybe while mdame was away: it loads again.
   const chosen = revisions.find((revision) => revision.id === current.chosen) ?? revisions[0];
-  if (chosen && chosen.id !== current.chosen) choose(current, chosen.id);
-  else render(current);
+  if (chosen && (chosen.id !== current.chosen || chosen.id !== current.compared?.id)) {
+    choose(current, chosen.id);
+  } else render(current);
 }
 
 /** Shows the counts of the chosen revision again, after an edit. */

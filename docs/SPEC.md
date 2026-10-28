@@ -100,6 +100,8 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 ### Later, by cost
 
+The small items form milestone 9, after v1. The medium and large ones wait.
+
 | Item | Cost | Notes |
 | --- | --- | --- |
 | Shortcut help (`?`), About | Small | One dialog each |
@@ -400,7 +402,7 @@ Scroll sync maps the editor's top visible line to the rendered block whose `data
 
 ### Themes in rendered content
 
-A theme file sets the CSS variables used by `content.css` and the code colours, which apply to both the editor and rendered code. It also declares `--mermaid-theme: default` or `dark`, which the browser reads when it initialises Mermaid.
+A theme file sets the CSS variables used by `content.css` and the code colours, which apply to both the editor and rendered code. Its `color-scheme` also picks Mermaid's theme when the browser initialises Mermaid: `dark` for a dark scheme, `default` otherwise.
 
 ## Security
 
@@ -447,7 +449,6 @@ mdame keeps its own files and imports nothing from mdlive, so it starts with no 
 **Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. If the file is not valid, or has an unknown key such as a misspelled one, mdame stops at start with the error: a later save would otherwise replace the user's settings with the defaults. All fields are optional:
 
 ```toml
-theme = "dark"            # default theme name
 snapshots_per_file = 20
 history = "workspace"     # or "state"; asked on first start
 ```
@@ -514,9 +515,11 @@ A theme is one CSS file that sets variables on `:root` and nothing else. The app
 - **Meaning:** `--accent`, `--accent-fg`, `--danger`, `--warning`, `--success`.
 - **Type:** `--font-ui`, `--font-content`, `--font-mono`, `--content-width`, `--content-width-mono`. Mono mode sets the content in `--font-mono` at `--content-width-mono`.
 - **Code colours**, for the editor and rendered code alike through Lezer's `tok-*` classes: `--code-bg`, `--hl-keyword`, `--hl-string`, `--hl-number`, `--hl-comment`, `--hl-title`, `--hl-type`, `--hl-attr`, `--hl-meta`.
-- `--mermaid-theme`: `default` or `dark`.
+- `color-scheme: light` or `dark`, a standard CSS property. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. Browsers also draw scrollbars and form controls to match.
 
-The exact list is the owner's call during design; once fixed, document it in `web/themes/README.md` with a commented template, because that file is what issue #15 users will copy.
+The diff's added and removed lines mix `--success` and `--danger` into the background, so themes set no diff colours. Shadows and backdrops stay translucent black, outside the contract.
+
+The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/README.md` with a commented template, because that file is what issue #15 users will copy.
 
 ### Design decisions
 
@@ -536,7 +539,8 @@ The exact list is the owner's call during design; once fixed, document it in `we
   - No row is highlighted until you press ↑ or ↓, so Enter never opens a row you did not choose: Enter opens the highlighted row, or else the text in the field. Tab puts the highlighted row, or else the first row, in the field. Esc closes the list. Changed on 18 October 2026 from "the first row is highlighted": one open per launch makes a surprise open costly.
   - An error line under the field shows the API message until the next key press.
   - After an open, the page shows the workspace; with a starting file, the URL becomes `/view/<file>`.
-- Typography, provisional until the theme pass: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. A mono toggle sets the content in Plex Mono at 72ch. Fonts are bundled (OFL).
+- Typography: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. A mono toggle sets the content in Plex Mono at 72ch. Fonts are bundled as woff2 (OFL). Decided 28 October 2026.
+- Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The mono toggle sits beside it. Both choices live in `localStorage`, per browser. Decided 28 October 2026.
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.
 - Default theme: follow the system. Until the user picks a theme, the page uses the built-in light or dark theme according to `prefers-color-scheme`, and switches live when the OS does; a picked theme is stored and wins. Decided 15 October 2026.
@@ -612,7 +616,7 @@ Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on th
 
 ## Build order
 
-Eight milestones, each ending in something the owner can run, with a review before the next starts. The wireframes were signed off on 15 October 2026.
+Eight milestones for v1, then a ninth, each ending in something the owner can run, with a review before the next starts. The wireframes were signed off on 15 October 2026.
 
 1. **Skeleton.** clap flags, tracing, `AppState`, port fallback, security guard, rust-embed serving `web/dist`, `mise.toml` with tools and tasks, Bun install and the bundler reproducibility check (Bun, else esbuild), `open` on start, a page that shows `/api/state`.
    - Done when: guard tests pass (foreign Origin, wrong Host, missing token on 0.0.0.0), the bundler choice is settled, and `mdame` opens a page.
@@ -634,12 +638,14 @@ Eight milestones, each ending in something the owner can run, with a review befo
 8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, picker UI, status bar, toasts, dialogs, README with attribution and licence notes, CI.
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the picker without a restart.
 
-After v1, take Later items in the cost order of the Feature scope table; tabs need their own design round.
+9. **Small Later items.** Shortcut help and About, custom key bindings, content width presets, the Catppuccin and Minimal themes, new file with `n`, second-launch detection, side-by-side diff.
+
+After milestone 9, the medium and large Later items wait; tabs need their own design round.
 
 ## Open decisions
 
 - **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
-- **Theme details.** Exact Primer values per contract variable and the final theme-contract list, at the theme pass in milestone 8.
+- **Theme details.** The exact Primer value of each contract variable, at the theme pass in milestone 8. The list itself was fixed on 28 October 2026.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
 
@@ -671,6 +677,8 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Reviews count a program on this machine only when it lacks the token. A program built to attack mdame is out of scope: one that takes the port after mdame stops, or that serves a page on another port of the same host. Defending against it cost too much: tabs that die at each restart, preferences that reset, and URLs that cannot be typed or bookmarked | 25 October 2026 |
 | CI on GitHub Actions: fmt, clippy, tests and `check-dist` | 28 October 2026 |
 | Licence: MIT, as mdlive and mdserve. `LICENSE` keeps mdlive's copyright lines, for the parts that mdame ported | 28 October 2026 |
+| Milestone 9 takes the small Later items; the medium and large ones wait | 28 October 2026 |
+| Themes: the choice lives in `localStorage`, and `theme` leaves `config.toml`. A theme's `color-scheme` picks the built-in loaded under it and Mermaid's theme. Diff colours derive from `--success` and `--danger`. A status bar menu picks the theme. IBM Plex is bundled. Shadows stay outside the contract | 28 October 2026 |
 
 ### Review log, 14 October 2026
 

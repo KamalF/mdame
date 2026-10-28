@@ -18,6 +18,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | In progress on `m7-revisions` | about 7 |
 | 8 | Themes and polish | — | about 9 |
+| 9 | Small Later items | — | — |
 
 ## Milestone 1: skeleton
 
@@ -265,6 +266,17 @@ The list:
 State mode:
 
 13. With `history = "state"` in `config.toml`, open a folder `my notes`, quit, then open a folder `my-notes` beside it: the terminal prints a warning that names both folders.
+
+## Milestone 8: themes and polish
+
+Decided on 28 October 2026:
+
+- The theme choice lives in `localStorage`, per browser. The `theme` field leaves `Config`: an old `config.toml` that sets it stops mdame at start, as any unknown key does.
+- A theme sets `color-scheme: light` or `dark`. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. `color-scheme` also picks Mermaid's theme, and `--mermaid-theme` goes.
+- The diff's added and removed lines mix `--success` and `--danger` into the background: themes set no diff colours. Shadows and backdrops stay translucent black, outside the contract.
+- A theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The mono toggle sits beside it.
+- IBM Plex Sans and Mono are bundled as woff2 (OFL).
+- CI runs on GitHub Actions. The licence is MIT.
 
 ## Next
 

@@ -669,6 +669,8 @@ After v1, take Later items in the cost order of the Feature scope table; tabs ne
 | Testing rules: one home per rule, matrix tests for rules that hold for every route, property tests, mutation testing per milestone; no list of invariants beside the test names | 20 October 2026 |
 | A token on loopback too, kept in a 0600 file and a 400-day cookie: a sandboxed program that shares the network could otherwise write any file through mdame | 23 October 2026 |
 | Reviews count a program on this machine only when it lacks the token. A program built to attack mdame is out of scope: one that takes the port after mdame stops, or that serves a page on another port of the same host. Defending against it cost too much: tabs that die at each restart, preferences that reset, and URLs that cannot be typed or bookmarked | 25 October 2026 |
+| CI on GitHub Actions: fmt, clippy, tests and `check-dist` | 28 October 2026 |
+| Licence: MIT, as mdlive and mdserve. `LICENSE` keeps mdlive's copyright lines, for the parts that mdame ported | 28 October 2026 |
 
 ### Review log, 14 October 2026
 

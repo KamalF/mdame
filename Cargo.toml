@@ -2,6 +2,7 @@
 name = "mdame"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 ammonia = "4.2.4"

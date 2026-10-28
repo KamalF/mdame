@@ -207,9 +207,9 @@ fn snapshots(history: &Dir, path: &Path) -> io::Result<Vec<(u64, String)>> {
 }
 
 /// The time in a snapshot's name: digits, then an optional extension,
-/// with no `/`.
+/// with no `/` and no NUL.
 fn snapshot_ms(name: &str) -> Option<u64> {
-    if name.contains('/') {
+    if name.contains(['/', '\0']) {
         return None;
     }
     let digits = name.split_once('.').map_or(name, |(digits, _)| digits);

@@ -123,6 +123,7 @@ async fn an_id_names_a_revision_of_this_file_only() {
         "1.md/../../b.md/1000.md",
         "../b.md/1000.md",
         "1.md",
+        "1.%00md",
         "1001.md",
         "",
     ] {
@@ -257,6 +258,21 @@ async fn restore_in_state_mode_makes_the_state_folder_private() {
         .permissions()
         .mode();
     assert_eq!(mode & 0o777, 0o700);
+}
+
+#[tokio::test]
+async fn restore_refuses_a_file_that_is_not_utf8() {
+    let dir = tempfile::tempdir().unwrap();
+    let files: [(&str, &[u8]); 2] = [
+        ("a.md", b"\xff\n"),
+        (".mdame/history/a.md/999.md", b"# A\n"),
+    ];
+    let response = restore(common::workspace(dir.path(), &files), "a.md", "999.md").await;
+    let (status, body) = common::status_and_json(response).await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"]["code"], "not_viewable");
+    assert_eq!(fs::read(dir.path().join("ws/a.md")).unwrap(), b"\xff\n");
 }
 
 #[tokio::test]

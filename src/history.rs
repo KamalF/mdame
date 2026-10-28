@@ -87,6 +87,16 @@ fn state_history(workspace: &Workspace, state_dir: &Path) -> PathBuf {
     state_dir.join(encode_path(&workspace.root)).join("history")
 }
 
+/// The first of `others` whose revisions go in the same `state`-mode folder
+/// as those of `root`.
+pub fn shared_history<'a>(root: &Path, others: &'a [PathBuf]) -> Option<&'a Path> {
+    let encoded = encode_path(root);
+    others
+        .iter()
+        .find(|other| *other != root && encode_path(other) == encoded)
+        .map(PathBuf::as_path)
+}
+
 pub fn now_ms() -> u64 {
     let now = SystemTime::now().duration_since(UNIX_EPOCH);
     now.expect("the clock is after 1970").as_millis() as u64
@@ -305,6 +315,22 @@ mod tests {
         for (path, expected) in cases {
             assert_eq!(encode_path(Path::new(path)), expected, "{path}");
         }
+    }
+
+    #[test]
+    fn shared_history_finds_another_root_with_the_same_encoding() {
+        // The root itself is among the recents.
+        let others = [
+            PathBuf::from("/x/my-notes"),
+            PathBuf::from("/x/notes"),
+            PathBuf::from("/x/my notes"),
+        ];
+        let root = Path::new("/x/my-notes");
+        assert_eq!(
+            shared_history(root, &others),
+            Some(Path::new("/x/my notes"))
+        );
+        assert_eq!(shared_history(Path::new("/x/notes"), &others), None);
     }
 
     #[test]

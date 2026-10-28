@@ -212,6 +212,7 @@ Decided on 25 October 2026:
 Decided on 28 October 2026, after the review:
 
 - A revision name dated after now, from a clock that was ahead, counts as the oldest: the list shows it last, and pruning deletes it first.
+- In `state` mode, two workspaces whose paths encode to one name, such as `/x/my notes` and `/x/my-notes`, share one history. The layout stays. When a workspace opens in `state` mode, mdame warns in the terminal if a recent workspace encodes the same.
 
 Rules, as test names, by commit:
 
@@ -243,7 +244,6 @@ Rules, as test names, by commit:
 ## Open points
 
 - From the review of milestone 7, for later:
-  - State mode: two workspaces whose roots encode to the same name, such as `/x/my notes` and `/x/my-notes`, share one history. Since milestone 7 it is listed, restored and pruned across both. Needs a spec decision.
   - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check.
   - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.
 - Nits deferred by the review of milestone 7:

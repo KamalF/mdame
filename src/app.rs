@@ -10,8 +10,9 @@ use clap::Parser;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 
-use crate::config::{self, Config, Recents};
+use crate::config::{self, Config, HistoryMode, Recents};
 use crate::error::{ApiError, io_message};
+use crate::history;
 use crate::server;
 use crate::watch::{self, EVENT_CAPACITY, Event};
 use crate::workspace::{Workspace, is_hidden};
@@ -142,6 +143,7 @@ impl AppState {
             Err(error) => tracing::warn!("live updates are off: {error}"),
         }
         let opened = workspace.path();
+        self.warn_shared_history(&workspace.root);
         let root = workspace.root.display().to_string();
         let mut slot = self.workspace.write().unwrap();
         if slot.is_some() {
@@ -153,6 +155,35 @@ impl AppState {
         let _ = self.events.send(Event::Workspace { root });
         self.remember(opened);
         Ok(())
+    }
+
+    /// In `state` mode, two workspaces whose paths encode to one name keep
+    /// their revisions in one folder. The recents name the workspaces that
+    /// mdame opened on this machine.
+    fn warn_shared_history(&self, root: &Path) {
+        if self.config.read().unwrap().history.unwrap_or_default() != HistoryMode::State {
+            return;
+        }
+        let others: Vec<PathBuf> = self
+            .recents()
+            .entries
+            .into_iter()
+            // A recent is a workspace, or a file that opened one.
+            .filter_map(|recent| {
+                if recent.path.is_file() {
+                    recent.path.parent().map(Path::to_path_buf)
+                } else {
+                    Some(recent.path)
+                }
+            })
+            .collect();
+        if let Some(other) = history::shared_history(root, &others) {
+            tracing::warn!(
+                "set history = \"workspace\" in config.toml, or rename a folder: in state mode, {} and {} keep their revisions in one folder",
+                root.display(),
+                other.display()
+            );
+        }
     }
 
     /// Recents are a convenience: a file that cannot be read or saved only

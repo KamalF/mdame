@@ -108,6 +108,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 | Alternative built-in themes: Catppuccin (Latte, Frappé, Macchiato, Mocha) and Minimal | Small | Extra CSS files. Catppuccin from its official palette and style guide, with `subtext1` as muted text in Latte (5.53:1; `subtext0` fails at 4.37). Minimal from its default HSL formulas, with Primer's code colours since it has none; its default accent needs checking as link text. Both MIT |
 | New file with `n`, new-file editor | Small | Reuses the folder hover action |
 | Detect a second launch on the same workspace | Small | Advisory lock file in `.mdame/` holding the port (`std::fs::File::try_lock`, stable since Rust 1.89, released by the OS on exit); the second launch opens the first one's URL and exits. Design together with `-j` |
+| Side-by-side diff in diff mode | Small | `MergeView` from `@codemirror/merge`, already a dependency, as a toggle beside the inline diff, remembered in `localStorage`. It needs width: with the sidebar open, each pane gets about 370 px on a 1280 px window |
 | File operations: new folder, rename, move, delete with confirmation | Medium | Server side is simple with cap-std; UI needs a menu |
 | Right-click menu on tree and page | Medium | Do together with file operations |
 | Switch workspace without restarting (`o` key, `/open?path=`) | Medium | Swap the workspace under the write lock, drop the old watcher, tell every tab; the owner expects to want it |
@@ -503,7 +504,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | `/` | Focus the sidebar filter |
 | `h`, `r` | Revisions (diff in the editor) |
 
-Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the editor, unless a dialog or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
+Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the revisions panel first, then the editor, unless a dialog or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
 
 ### Theme contract
 

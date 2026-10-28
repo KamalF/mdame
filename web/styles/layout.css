@@ -52,12 +52,20 @@
   min-width: 0;
 }
 
-.mdame-split.preview-hidden .mdame-editor {
+.mdame-split:is(.preview-hidden, .diff-mode) .mdame-editor {
   flex: 1;
 }
 
-.mdame-split.preview-hidden :is(.mdame-divider, .mdame-preview) {
+.mdame-split:is(.preview-hidden, .diff-mode) :is(.mdame-divider, .mdame-preview) {
   display: none;
+}
+
+.mdame-revisions {
+  width: 280px;
+  flex: none;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--bg-sunken);
 }
 
 .mdame-editor .cm-editor {

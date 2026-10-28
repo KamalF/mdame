@@ -215,13 +215,13 @@ Rules, as test names, by commit:
 2. Pruning (done): `prune_keeps_the_newest_snapshots` (by time, not by name: `999` is older than `1000`), `prune_deletes_no_other_file`, `save_prunes_to_snapshots_per_file` (20 by default), `a_save_succeeds_when_pruning_fails`.
 3. `GET /api/history` and `GET /api/history/view` (done): `history_lists_the_revisions_newest_first` (through a link too), `history_of_a_file_never_saved_is_empty`, `listing_creates_no_history_folder` (both modes), `history_view_returns_the_revision_text`, `an_id_names_a_revision_of_this_file_only` (`/` in the `id`, a missing one, no history folder), `history_view_refuses_a_revision_that_is_not_utf8`; rows in the routes matrix.
 4. `POST /api/history/restore` (done): `restore_writes_the_revision_over_the_file`, `restore_keeps_the_current_content_as_a_revision` (a second restore undoes the first), `restore_of_a_deleted_file_is_refused`; a row in the routes matrix. The write is a save, so the save's tests cover the rest.
-5. Diff mode: the list, the merge view, `h`, `r`, the Revisions button, Esc. `revisions.ts`: `today shows the time`, `yesterday says so`, `an older day shows the date`, `counts the added and removed lines of the chunks`.
+5. Diff mode (done): the list, the merge view, `h`, `r`, the Revisions button in the view and in the editor, Esc. `revisions.ts`: `dayOf says today, yesterday, or neither, across midnight`, `sizeLabel gives bytes, then KB and MB with one decimal`, `lineCounts counts a changed line once as added and once as removed`. The list refreshes after a save and after a change on disk. The DOM wiring goes to the manual checklist.
 6. Restore from the panel: the editor takes the restored text in one undo step, and the list refreshes.
 7. Manual checklist, `cargo mutants`, review loop.
 
 ## Next
 
-1. Milestone 7, commit 5: diff mode in the editor.
+1. Milestone 7, commit 6: Restore from the panel.
 
 ## Open points
 

@@ -410,3 +410,66 @@
   width: 24px;
   height: 24px;
 }
+
+.mdame-revisions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 6px 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mdame-revisions-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mdame-revisions .mdame-status-error:empty {
+  display: none;
+}
+
+.mdame-revisions .mdame-status-error {
+  margin: 8px 14px 0;
+}
+
+.mdame-revisions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.mdame-revision {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mdame-revision:hover {
+  background: var(--selection);
+}
+
+.mdame-revision[aria-current="true"] {
+  border-color: var(--accent);
+  background: var(--bg-raised);
+  font-weight: 500;
+}
+
+.mdame-revision small {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 400;
+}

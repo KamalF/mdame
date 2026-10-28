@@ -34,7 +34,10 @@ function showFileStatus(path: string, file: view.FileView) {
   const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
   fileStatus.replaceChildren(name, modified, copyPath);
   if (file.editable) {
-    fileStatus.append(iconButton("Edit", "pencil", () => startEditing(path), "Edit (e)"));
+    fileStatus.append(
+      iconButton("Edit", "pencil", () => startEditing(path), "Edit (e)"),
+      iconButton("Revisions", "recent", () => startEditing(path, true), "Revisions (h)"),
+    );
   }
   if (file.family !== "image") {
     const content = async () => {
@@ -63,12 +66,17 @@ function showEditStatus(state: editor.EditorState) {
   const label = state.preview ? "Hide preview" : "Show preview";
   const preview = iconButton(label, "columns", editor.togglePreview);
   preview.setAttribute("aria-pressed", String(state.preview));
+  const revisions = iconButton("Revisions", "recent", editor.toggleRevisions, "Revisions (h)");
+  revisions.setAttribute("aria-pressed", String(state.revisions));
   const save = document.createElement("button");
   save.className = "mdame-status-button";
   save.title = "Save (Ctrl+S)";
   save.textContent = "Save";
   save.addEventListener("click", () => editor.save());
-  fileStatus.replaceChildren(name, dot, modified, error, preview, save);
+  fileStatus.replaceChildren(name, dot, modified, error);
+  // The revisions take the place of the preview.
+  if (!state.revisions) fileStatus.append(preview);
+  fileStatus.append(revisions, save);
 }
 
 const content = document.createElement("div");
@@ -87,14 +95,15 @@ function editUrl(path: string): string {
   return "/edit/" + sidebar.encodePath(path);
 }
 
-/** Shows what the address names: the editor or the view. */
-function showRoute() {
+/** Shows what the address names: the editor, in diff mode if
+ * `withRevisions`, or the view. */
+function showRoute(withRevisions = false) {
   const { path, editing } = route();
   sidebar.setCurrent(path);
   if (editing && path) {
     fileStatus.replaceChildren();
     view.forget();
-    editor.mount(content, path, showEditStatus);
+    editor.mount(content, path, showEditStatus, withRevisions);
   } else {
     editor.unmount();
     showContent(path);
@@ -110,10 +119,28 @@ async function mayLeaveEditor(): Promise<boolean> {
  * goes back to that view rather than adding to the history. */
 let editingFromView = false;
 
-function startEditing(path: string) {
+function startEditing(path: string, withRevisions = false) {
   history.pushState(null, "", editUrl(path));
   editingFromView = true;
-  showRoute();
+  showRoute(withRevisions);
+}
+
+/** The file that the view shows, if the editor may open it: as the Edit
+ * button. */
+function editableShown(): string | null {
+  const { path, editing } = route();
+  if (!path || editing || view.shownPath() !== path || !view.shownFile()?.editable) return null;
+  return path;
+}
+
+/** `h` and `r`: diff mode, from the view too. */
+function toggleRevisions() {
+  if (route().editing) {
+    editor.toggleRevisions();
+    return;
+  }
+  const path = editableShown();
+  if (path) startEditing(path, true);
 }
 
 async function stopEditing() {
@@ -277,13 +304,11 @@ async function showWorkspace(state: State) {
     b: sidebar.toggleSidebar,
     "/": sidebar.focusFilter,
     e: () => {
-      const { path, editing } = route();
-      const file = view.shownFile();
-      // As the Edit button.
-      if (path && !editing && view.shownPath() === path && file?.editable) {
-        startEditing(path);
-      }
+      const path = editableShown();
+      if (path) startEditing(path);
     },
+    h: toggleRevisions,
+    r: toggleRevisions,
   });
   const mounted = sidebar.mount(nav, { root, current, onOpen: openFile, onNewFile: newFile });
   // Only the empty-workspace page needs the tree: a file shows at once.
@@ -322,7 +347,8 @@ addEventListener("keydown", (event: KeyboardEvent) => {
   // Otherwise the browser applies this Esc to the dialog that it opens,
   // which closes at once.
   event.preventDefault();
-  stopEditing();
+  if (editor.revisionsShown()) editor.closeRevisions();
+  else stopEditing();
 });
 
 /** The root on screen: null on the picker, undefined before the first show. */

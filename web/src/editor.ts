@@ -10,6 +10,7 @@ import { type ApiError, isHeld, send } from "./api.ts";
 import { lineBreakOf, reactToDisk, reloadChanges } from "./disk.ts";
 import { tab, toggleMarker } from "./format.ts";
 import * as preview from "./preview.ts";
+import * as revisions from "./revisions.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
 import { type Queue, serial } from "./serial.ts";
 import { setupSplit } from "./split.ts";
@@ -30,6 +31,7 @@ export interface EditorState {
   dirty: boolean;
   error: string | null;
   preview: boolean;
+  revisions: boolean;
 }
 
 interface Open {
@@ -86,6 +88,7 @@ function report() {
     dirty: isDirty(),
     error: open.error,
     preview: previewOn,
+    revisions: revisions.isShown(),
   });
 }
 
@@ -109,11 +112,13 @@ export function mountFailed(): boolean {
   return failed;
 }
 
-/** Opens `path` in `el`. If it fails, `el` shows the reason. */
+/** Opens `path` in `el`, in diff mode if `withRevisions`. If it fails,
+ * `el` shows the reason. */
 export async function mount(
   el: HTMLElement,
   path: string,
   listener: (state: EditorState) => void,
+  withRevisions = false,
 ) {
   unmount();
   const id = ++request;
@@ -143,6 +148,7 @@ export async function mount(
       basicSetup,
       palette,
       notice.of([]),
+      revisions.diffMode.of([]),
       // GitHub-flavoured, as the view renders it.
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),
@@ -150,9 +156,10 @@ export async function mount(
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         report();
+        if (revisions.isShown()) revisions.textChanged();
         // While mdame is away, the last preview stays: a reconnection
         // renders it again.
-        if (!isHeld()) preview.update(path, () => update.state.doc.toString());
+        else if (!isHeld()) preview.update(path, () => update.state.doc.toString());
       }),
     ],
   });
@@ -188,6 +195,7 @@ export async function mount(
   };
   report();
   view.focus();
+  if (withRevisions) toggleRevisions();
 }
 
 /**
@@ -255,7 +263,8 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
 /** Renders the preview again, after a reconnection: a render that failed
  * while mdame was away left its error on screen. */
 export function refreshPreview() {
-  if (open && previewOn) preview.show(open.previewPane, open.path, open.view.state.doc.toString());
+  if (!open || !previewOn || revisions.isShown()) return;
+  preview.show(open.previewPane, open.path, open.view.state.doc.toString());
 }
 
 export function togglePreview() {
@@ -270,11 +279,41 @@ export function togglePreview() {
 
 export function unmount() {
   request++;
+  revisions.hide();
   preview.stop();
   // Its listener holds the closed editor and its whole text.
   preview.onRender(() => {});
   open?.view.destroy();
   open = null;
+}
+
+/** Diff mode: the text against a revision, with the list of revisions in
+ * the place of the preview. */
+export function toggleRevisions() {
+  const current = open;
+  if (!current) return;
+  if (revisions.isShown()) {
+    closeRevisions();
+    return;
+  }
+  preview.stop();
+  current.split.classList.add("diff-mode");
+  current.split.append(revisions.show(current.view, current.path, closeRevisions));
+  report();
+}
+
+export function closeRevisions() {
+  const current = open;
+  if (!current || !revisions.isShown()) return;
+  revisions.hide();
+  current.split.classList.remove("diff-mode");
+  if (!isHeld()) refreshPreview();
+  report();
+  current.view.focus();
+}
+
+export function revisionsShown(): boolean {
+  return revisions.isShown();
 }
 
 /** The path in the editor, or null when it is closed. */
@@ -308,7 +347,10 @@ export function save() {
       current.gone = false;
       current.modified = saved.modified;
       current.error = null;
-      if (open === current) setNotice(current, null);
+      if (open === current) {
+        setNotice(current, null);
+        revisions.refresh();
+      }
     } catch (error) {
       const { code, message } = error as ApiError;
       // The file changed or went away on disk: the notice tells which.
@@ -350,6 +392,8 @@ async function compare(current: Open, refused: boolean) {
   if (refused && reaction.kind === "ignore") {
     current.error = "Save again: the file was replaced on disk during the save.";
   }
+  // A save from another tab adds a revision.
+  revisions.refresh();
   report();
 }
 

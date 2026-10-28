@@ -201,7 +201,7 @@ Decided on 25 October 2026:
 - A revision goes under the real path of its file, relative to the workspace. A link or a `..` in the path asked does not split the revisions of one file.
 - `GET /api/history` creates no folder. A file that mdame never saved over has no revisions.
 - The `id` of a revision is its file name, such as `1771271566123.md`. The routes refuse any other form: digits, then an optional extension, with no `/`.
-- Pruning runs after the write. It keeps the newest `snapshots_per_file` revisions (20 by default), ordered by the time in their name. It deletes no file with another name. A failed prune gives a warning and does not fail the save.
+- Pruning runs after the write. It keeps the newest `snapshots_per_file` revisions (20 by default), ordered by the time in their name, and the snapshot that the save just made. It deletes no file with another name, and no folder or link. A failed prune gives a warning and does not fail the save.
 - Restore writes the bytes of the revision over the file, as a save does. It writes in place, after a snapshot of the current content, and one at a time with the saves. It needs no `If-Match`: the snapshot keeps the text that it replaces. If the revision equals the file, restore writes nothing. A deleted file gets 404. Restore refuses a revision or a file that is not UTF-8, as the editor does.
 - Diff mode follows the wireframe. The editor shows its text as an inline diff against the chosen revision, and stays editable. The list of revisions takes the place of the preview, with Restore below it. No revert per change: restore writes the whole file, since the spec dropped restoring into the editor.
 - With unsaved edits, Restore replaces them as Reload does, in one undo step: Ctrl+Z brings them back.

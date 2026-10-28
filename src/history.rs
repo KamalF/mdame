@@ -110,9 +110,14 @@ pub fn snapshot(history: &Dir, path: &Path, content: &[u8], now_ms: u64) -> io::
     }
 }
 
-/// Keeps the newest `keep` snapshots of the file at `path`.
-pub fn prune(history: &Dir, path: &Path, keep: usize) -> io::Result<()> {
+/// Keeps the newest `keep` snapshots of the file at `path`, and `made`,
+/// the snapshot that a save just made, unless `keep` is 0. Names dated
+/// later, from a clock that was ahead, must not prune it at once.
+pub fn prune(history: &Dir, path: &Path, keep: usize, made: &str) -> io::Result<()> {
     for (_, name) in snapshots(history, path)?.into_iter().skip(keep) {
+        if keep > 0 && name == made {
+            continue;
+        }
         match history.remove_file(path.join(name)) {
             // Another mdame on this workspace pruned it first.
             Err(error) if error.kind() == ErrorKind::NotFound => {}
@@ -344,7 +349,7 @@ mod tests {
             fs::write(tmp.path().join("a.md").join(name), "").unwrap();
         }
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
-        prune(&history, Path::new("a.md"), 2).unwrap();
+        prune(&history, Path::new("a.md"), 2, "").unwrap();
 
         assert_eq!(names(tmp.path()), ["1000.md", "1001.md"]);
     }
@@ -358,9 +363,24 @@ mod tests {
             fs::write(tmp.path().join("a.md").join(name), "").unwrap();
         }
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
-        prune(&history, Path::new("a.md"), 0).unwrap();
+        prune(&history, Path::new("a.md"), 0, "").unwrap();
 
         assert_eq!(names(tmp.path()), others);
+    }
+
+    #[test]
+    fn prune_keeps_the_snapshot_just_made_unless_keep_is_0() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("a.md")).unwrap();
+        for name in ["1000.md", "5000.md", "6000.md"] {
+            fs::write(tmp.path().join("a.md").join(name), "").unwrap();
+        }
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        prune(&history, Path::new("a.md"), 1, "1000.md").unwrap();
+        assert_eq!(names(tmp.path()), ["1000.md", "6000.md"]);
+
+        prune(&history, Path::new("a.md"), 0, "1000.md").unwrap();
+        assert!(names(tmp.path()).is_empty());
     }
 
     #[test]
@@ -371,7 +391,7 @@ mod tests {
         fs::write(folder.join("1000.md"), "").unwrap();
         fs::set_permissions(&folder, fs::Permissions::from_mode(0o500)).unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
-        let pruned = prune(&history, Path::new("a.md"), 0);
+        let pruned = prune(&history, Path::new("a.md"), 0, "");
         fs::set_permissions(&folder, fs::Permissions::from_mode(0o700)).unwrap();
 
         assert_eq!(pruned.unwrap_err().kind(), ErrorKind::PermissionDenied);
@@ -392,7 +412,7 @@ mod tests {
             .map(|revision| revision.id)
             .collect();
         assert_eq!(ids, ["1000.md"]);
-        prune(&history, Path::new("a.md"), 0).unwrap();
+        prune(&history, Path::new("a.md"), 0, "").unwrap();
         assert_eq!(names(tmp.path()), ["1.md", "1001.md"]);
     }
 

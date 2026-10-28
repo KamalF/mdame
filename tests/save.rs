@@ -114,6 +114,22 @@ async fn save_prunes_to_snapshots_per_file() {
 }
 
 #[tokio::test]
+async fn a_save_keeps_its_snapshot_when_later_names_fill_the_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = workspace(dir.path());
+    state.config.get_mut().unwrap().snapshots_per_file = Some(2);
+    let folder = dir.path().join("ws/.mdame/history/a.md");
+    fs::create_dir_all(&folder).unwrap();
+    // Made while the clock was ahead, by years.
+    for ms in [99999999999000_u64, 99999999999001] {
+        fs::write(folder.join(format!("{ms}.md")), "later\n").unwrap();
+    }
+    put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+
+    assert!(snapshots(dir.path(), "a.md").contains(&"old\n".to_owned()));
+}
+
+#[tokio::test]
 async fn a_save_succeeds_when_pruning_fails() {
     let dir = tempfile::tempdir().unwrap();
     let mut state = workspace(dir.path());

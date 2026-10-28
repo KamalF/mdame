@@ -215,8 +215,9 @@ pub fn save(
         None
     } else {
         let history = history().map_err(SaveError::Snapshot)?;
-        history::snapshot(&history, &real, &old, now_ms()).map_err(SaveError::Snapshot)?;
-        Some(history)
+        let made =
+            history::snapshot(&history, &real, &old, now_ms()).map_err(SaveError::Snapshot)?;
+        Some((history, made))
     };
     // A program that saves by renaming a new file over the path may have
     // done so during the snapshot: the text written to the old file would
@@ -229,8 +230,8 @@ pub fn save(
     file.write_all(content.as_bytes())?;
     // After the write: with `keep` at 0, the snapshot must still cover a
     // crash during the write.
-    if let Some(history) = history
-        && let Err(error) = history::prune(&history, &real, keep)
+    if let Some((history, made)) = history
+        && let Err(error) = history::prune(&history, &real, keep, &made)
     {
         // The file is saved: only old revisions are left over.
         let real = real.display();

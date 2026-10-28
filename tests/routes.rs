@@ -10,7 +10,7 @@ use common::{HOST, JSON, etag, send_body, status_and_json};
 use mdame::app::AppState;
 use serde_json::json;
 
-const ROUTES: [(Method, &str); 19] = [
+const ROUTES: [(Method, &str); 20] = [
     (Method::GET, "/"),
     (Method::GET, "/view/a.md"),
     (Method::GET, "/edit/a.md"),
@@ -29,6 +29,7 @@ const ROUTES: [(Method, &str); 19] = [
     (Method::POST, "/api/render"),
     (Method::GET, "/api/history?path=a.md"),
     (Method::GET, "/api/history/view?path=a.md&id=1.md"),
+    (Method::POST, "/api/history/restore"),
     (Method::GET, "/ws"),
 ];
 

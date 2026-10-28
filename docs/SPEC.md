@@ -317,7 +317,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `POST /api/render` | Editor preview `{path, content}` | `{html}` |
 | `GET /api/history?path=` | Revisions of a file that the editor may open, newest first. The `id` is the snapshot's name, and `time` is the Unix milliseconds of that name. A file that mdame never saved over gives `[]`, and the request creates no folder | `[{id, time, size}]` |
 | `GET /api/history/view?path=&id=` | A revision's text, for the merge view. 404 `not_found` for an `id` that is not the name of a revision of this file; 404 `not_viewable` for a revision that is not UTF-8 | `{content}` |
-| `POST /api/history/restore` | `{path, id}`: snapshot current, write the old version | `{modified}` |
+| `POST /api/history/restore` | `{path, id}`: saves the revision over the file, as `PUT /api/file` does. The current content becomes a revision first, so the restore can be undone. It needs no `If-Match`. 404 for a deleted file, or for an `id` that names no revision; 412 if another program writes the file during the restore | `{modified}` and the new `ETag` |
 | `GET /api/recents` | Recent workspaces, newest first; an unreadable file gives `[]` | `[{path, last_opened_secs}]` |
 | `POST /api/workspace` | Open `{path}`, a file or folder, when none is open (409 otherwise). `~` and `~/` name the home folder; a relative path gets 400 | new state |
 | `PUT /api/settings` | Save settings chosen in the page, such as `{history}` from the first-start dialog | new state |

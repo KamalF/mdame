@@ -592,12 +592,46 @@ async fn save(
         )
     })
     .await?;
-    let saved = saved.map_err(|error| match error {
-        SaveError::Changed => ApiError::PreconditionFailed(format!("{}: {error}", query.path)),
-        SaveError::Snapshot(_) => ApiError::Internal(format!("{}: {error}", query.path)),
-        SaveError::Io(error) => file_error(&query.path, error),
-    })?;
+    let saved = saved.map_err(|error| save_error(&query.path, error))?;
     Ok(([(header::ETAG, etag(&saved.version))], Json(saved)))
+}
+
+fn save_error(path: &str, error: SaveError) -> ApiError {
+    match error {
+        SaveError::Changed => ApiError::PreconditionFailed(format!("{path}: {error}")),
+        SaveError::Snapshot(_) => ApiError::Internal(format!("{path}: {error}")),
+        SaveError::Io(error) => file_error(path, error),
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RestoreRequest {
+    path: String,
+    id: String,
+}
+
+async fn restore(
+    State(app): State<Arc<AppState>>,
+    body: Result<Json<RestoreRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, ApiError> {
+    let Json(request) = body?;
+    let workspace = app.workspace()?;
+    let (mode, keep) = {
+        let config = app.config.read().unwrap();
+        (
+            config.history.unwrap_or_default(),
+            config.snapshots_per_file(),
+        )
+    };
+    let (path, id) = (request.path.clone(), request.id);
+    let restored = tokio::task::spawn_blocking(move || {
+        let history = history::open_root(mode, &workspace, &app.state_dir)?;
+        document::restore(&workspace.dir, history.as_ref(), keep, &path, &id)
+    })
+    .await?;
+    let restored = restored.map_err(|error| save_error(&request.path, error))?;
+    Ok(([(header::ETAG, etag(&restored.version))], Json(restored)))
 }
 
 /// The version that a save's `If-Match` names. Any other form than one
@@ -719,6 +753,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/api/source", get(source))
         .route("/api/history", get(revisions))
         .route("/api/history/view", get(revision))
+        .route("/api/history/restore", post(restore))
         .route(
             "/api/render",
             post(render).layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),

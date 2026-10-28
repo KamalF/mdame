@@ -238,6 +238,22 @@ pub fn save(
     Ok(saved(version(content.as_bytes()), &file)?)
 }
 
+/// Saves the revision `id` over the file at `path`. The save keeps the
+/// current content as a revision, so the restore can be undone.
+pub fn restore(
+    dir: &Dir,
+    history: Option<&Dir>,
+    keep: usize,
+    path: &str,
+    id: &str,
+) -> Result<Saved, SaveError> {
+    let history = history.ok_or_else(history::no_revision)?;
+    let text = revision(dir, Some(history), path, id)?;
+    // A write by another program after this read makes the save refuse.
+    let current = source(dir, path)?.version;
+    save(dir, || history.try_clone(), keep, path, &text, &current)
+}
+
 /// Creates an empty file at `path`. An existing file gives `AlreadyExists`.
 /// A type that the editor cannot open, or that the tree hides, gives
 /// `Unsupported`.

@@ -1,10 +1,12 @@
 mod common;
 
+use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
-use axum::http::StatusCode;
-use common::get_json;
+use axum::http::{Method, StatusCode};
+use axum::response::Response;
+use common::{HOST, JSON, etag, etag_of, get_json, send_body};
 use mdame::app::AppState;
 use mdame::config::HistoryMode;
 use serde_json::json;
@@ -115,4 +117,49 @@ async fn history_view_refuses_a_revision_that_is_not_utf8() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], "not_viewable");
+}
+
+async fn restore(state: AppState, path: &str, id: &str) -> Response {
+    let body = json!({ "path": path, "id": id }).to_string();
+    let uri = "/api/history/restore";
+    send_body(state, Method::POST, uri, &[HOST, JSON], &body).await
+}
+
+fn read(dir: &Path) -> String {
+    fs::read_to_string(dir.join("ws/a.md")).unwrap()
+}
+
+#[tokio::test]
+async fn restore_writes_the_revision_over_the_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let response = restore(workspace(dir.path()), "a.md", "999.md").await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(etag_of(&response), etag(b"# A\n"));
+    assert_eq!(read(dir.path()), "# A\n");
+}
+
+#[tokio::test]
+async fn restore_keeps_the_current_content_as_a_revision() {
+    let dir = tempfile::tempdir().unwrap();
+    restore(workspace(dir.path()), "a.md", "999.md").await;
+    // No files given: the workspace keeps what the restore wrote.
+    let state = common::workspace(dir.path(), &[]);
+    let (_, revisions) = get_json(state, "/api/history?path=a.md").await;
+    let newest = revisions[0]["id"].as_str().unwrap();
+    let response = restore(common::workspace(dir.path(), &[]), "a.md", newest).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(read(dir.path()), "# C\n");
+}
+
+#[tokio::test]
+async fn restore_of_a_deleted_file_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = workspace(dir.path());
+    fs::remove_file(dir.path().join("ws/a.md")).unwrap();
+    let response = restore(state, "a.md", "999.md").await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert!(!dir.path().join("ws/a.md").exists());
 }

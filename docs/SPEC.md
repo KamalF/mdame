@@ -111,12 +111,18 @@ The small items form milestone 9, after v1. The medium and large ones wait.
 | New file with `n`, new-file editor | Small | Reuses the folder hover action |
 | Detect a second launch on the same workspace | Small | Advisory lock file in `.mdame/` holding the port (`std::fs::File::try_lock`, stable since Rust 1.89, released by the OS on exit); the second launch opens the first one's URL and exits. Design together with `-j` |
 | Side-by-side diff in diff mode | Small | `MergeView` from `@codemirror/merge`, already a dependency, as a toggle beside the inline diff, remembered in `localStorage`. It needs width: with the sidebar open, each pane gets about 370 px on a 1280 px window |
+| Vim key bindings in the editor, as a toggle | Small | `@replit/codemirror-vim`; the choice lives in `localStorage` |
+| Print stylesheet | Small | Ctrl+P prints the content alone, without the sidebar and the status bar; the browser can print to PDF |
+| Word count and reading time in the status bar | Small | For the open file |
+| Read-only mode, `--read-only` | Small | The write routes (save, create, restore) answer 403, and `/api/state` tells the page to hide the editor. For a LAN share, or a folder that you only watch |
 | File operations: new folder, rename, move, delete with confirmation | Medium | Server side is simple with cap-std; UI needs a menu |
 | Right-click menu on tree and page | Medium | Do together with file operations |
 | Switch workspace without restarting (`o` key, `/open?path=`) | Medium | Swap the workspace under the write lock, drop the old watcher, tell every tab; the owner expects to want it |
 | `-j` hand off to a running instance | Medium | Probe the default port, POST a workspace switch; needs workspace switching first |
 | launchd service (`mdame service …`) | Medium | macOS only, a plist template |
 | Homebrew formula, release binaries | Medium | CI work, not app code; `cargo install` works from day one |
+| Highlight what changed on disk | Medium | After a change, the blocks that changed glow for a moment, so you see where an agent wrote: a diff of the source lines, mapped to blocks through `data-sourcepos` |
+| Paste or drop an image into the editor | Medium | The image is saved in the workspace and linked at the cursor. A new upload route, with the limits of the other writes; where the image goes is decided then |
 | Tabs: open files, reorder, close, overflow, unsaved markers, restore per workspace | Large | The most tangled part of the old UI; needs a design first |
 
 ### Dropped
@@ -638,7 +644,7 @@ Eight milestones for v1, then a ninth, each ending in something the owner can ru
 8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, picker UI, status bar, toasts, dialogs, README with attribution and licence notes, CI.
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the picker without a restart.
 
-9. **Small Later items.** Shortcut help and About, custom key bindings, content width presets, the Catppuccin and Minimal themes, new file with `n`, second-launch detection, side-by-side diff.
+9. **Small Later items.** Shortcut help and About, custom key bindings, content width presets, the Catppuccin and Minimal themes, new file with `n`, second-launch detection, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode.
 
 After milestone 9, the medium and large Later items wait; tabs need their own design round.
 

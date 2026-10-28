@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
@@ -130,11 +131,11 @@ pub fn snapshot(history: &Dir, path: &Path, content: &[u8], now_ms: u64) -> io::
 /// the snapshot that a save just made, unless `keep` is 0. Names dated
 /// later, from a clock that was ahead, must not prune it at once.
 pub fn prune(history: &Dir, path: &Path, keep: usize, made: &str) -> io::Result<()> {
-    for (_, name) in snapshots(history, path)?.into_iter().skip(keep) {
-        if keep > 0 && name == made {
+    for Revision { id, .. } in list(history, path)?.into_iter().skip(keep) {
+        if keep > 0 && id == made {
             continue;
         }
-        match history.remove_file(path.join(name)) {
+        match history.remove_file(path.join(id)) {
             // Another mdame on this workspace pruned it first.
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             removed => removed?,
@@ -151,13 +152,40 @@ pub struct Revision {
     pub size: u64,
 }
 
-/// The revisions of the file at `path`, newest first.
+/// The revisions of the file at `path`, newest first. A name that mdame
+/// does not give a snapshot is left out: mdame did not make that file.
 pub fn list(history: &Dir, path: &Path) -> io::Result<Vec<Revision>> {
+    let entries = match history.read_dir(path) {
+        // No save has made a snapshot of this file yet.
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+        entries => entries?,
+    };
     let mut revisions = Vec::new();
-    for (time, id) in snapshots(history, path)? {
-        let size = history.metadata(path.join(&id))?.len();
-        revisions.push(Revision { id, time, size });
+    for entry in entries {
+        let entry = entry?;
+        let Ok(id) = entry.file_name().into_string() else {
+            continue;
+        };
+        let Some(time) = snapshot_ms(&id) else {
+            continue;
+        };
+        let metadata = match entry.metadata() {
+            // Another mdame on this workspace pruned it since the listing.
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            metadata => metadata?,
+        };
+        // mdame makes snapshots as files: a folder may hold the revisions
+        // of a file that `path` was a folder of. A stat, since some file
+        // systems give no type in the listing.
+        if metadata.is_file() {
+            revisions.push(Revision {
+                id,
+                time,
+                size: metadata.len(),
+            });
+        }
     }
+    revisions.sort_unstable_by_key(|revision| Reverse(revision.time));
     Ok(revisions)
 }
 
@@ -179,32 +207,6 @@ pub fn open(history: &Dir, path: &Path, id: &str) -> io::Result<File> {
 
 pub fn no_revision() -> io::Error {
     io::Error::new(ErrorKind::NotFound, "no such revision")
-}
-
-/// The snapshots of the file at `path`, newest first, as their time and
-/// name. A name that mdame does not give a snapshot is left out: mdame did
-/// not make that file.
-fn snapshots(history: &Dir, path: &Path) -> io::Result<Vec<(u64, String)>> {
-    let entries = match history.read_dir(path) {
-        // No save has made a snapshot of this file yet.
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
-        entries => entries?,
-    };
-    let mut snapshots = Vec::new();
-    for entry in entries {
-        let entry = entry?;
-        // mdame makes snapshots as files: a folder may hold the revisions
-        // of a file that `path` was a folder of. A stat, since some file
-        // systems give no type in the listing.
-        if entry.metadata()?.is_file()
-            && let Ok(name) = entry.file_name().into_string()
-            && let Some(ms) = snapshot_ms(&name)
-        {
-            snapshots.push((ms, name));
-        }
-    }
-    snapshots.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
-    Ok(snapshots)
 }
 
 /// The time in a snapshot's name: digits, then an optional extension,

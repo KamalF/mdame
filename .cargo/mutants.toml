@@ -36,6 +36,9 @@ exclude_re = [
     # Needs another mdame to delete the snapshot between the listing and
     # the delete: a race.
     "history.rs.*ErrorKind::NotFound with false in prune",
+    # Needs another mdame to prune a snapshot between the listing and its
+    # stat.
+    "history.rs.*ErrorKind::NotFound with false in list",
     # The life of a code ends at one instant: < and <= differ there only.
     "replace < with <= in open_code",
 ]

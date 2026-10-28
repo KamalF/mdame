@@ -185,8 +185,9 @@ function render(current: Shown) {
       }
       button.append(time, detail);
       button.addEventListener("click", () => {
-        // A chosen revision that failed to load can be asked again.
-        if (revision.id !== current.compared?.id) choose(current, revision.id);
+        // A chosen revision that failed to load can be asked again, and the
+        // one on screen chosen back while another loads or failed.
+        if (!chosen || revision.id !== current.compared?.id) choose(current, revision.id);
       });
       const row = document.createElement("li");
       row.append(button);

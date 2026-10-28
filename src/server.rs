@@ -573,13 +573,8 @@ async fn save(
     let Json(request) = body?;
     let base_version = if_match(&headers)?;
     let workspace = app.workspace()?;
-    let (mode, keep) = {
-        let config = app.config.read().unwrap();
-        (
-            config.history.unwrap_or_default(),
-            config.snapshots_per_file(),
-        )
-    };
+    let mode = app.config.read().unwrap().history.unwrap_or_default();
+    let keep = app.config.read().unwrap().snapshots_per_file();
     let path = query.path.clone();
     let saved = tokio::task::spawn_blocking(move || {
         document::save(
@@ -617,13 +612,8 @@ async fn restore(
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
     let workspace = app.workspace()?;
-    let (mode, keep) = {
-        let config = app.config.read().unwrap();
-        (
-            config.history.unwrap_or_default(),
-            config.snapshots_per_file(),
-        )
-    };
+    let mode = app.config.read().unwrap().history.unwrap_or_default();
+    let keep = app.config.read().unwrap().snapshots_per_file();
     let (path, id) = (request.path.clone(), request.id);
     let restored = tokio::task::spawn_blocking(move || {
         let history = history::open_root(mode, &workspace, &app.state_dir)?;

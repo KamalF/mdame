@@ -1,5 +1,5 @@
 import { type Chunk, getChunks, getOriginalDoc, unifiedMergeView } from "@codemirror/merge";
-import { Compartment, Text } from "@codemirror/state";
+import { Compartment, type Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { api, type ApiError } from "./api.ts";
 import { iconButton } from "./icons.ts";
@@ -141,7 +141,7 @@ async function choose(current: Shown, id: string) {
   // A merge view that stays across a reconfigure keeps the deleted lines
   // of the old revision: it goes first.
   view.dispatch({ effects: diffMode.reconfigure([]) });
-  const original = Text.of(content.split(/\r\n?|\n/));
+  const original = view.state.toText(content);
   view.dispatch({
     effects: diffMode.reconfigure(unifiedMergeView({ original, mergeControls: false })),
   });
@@ -207,18 +207,16 @@ function detailOf(current: Shown, size: number): string {
 function timeLabel(time: number, now: Date): string {
   const date = new Date(time);
   const clock = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const day = dayOf(date, now);
-  if (day === "today") return `Today ${clock}`;
-  if (day === "yesterday") return `Yesterday ${clock}`;
-  return `${date.toLocaleDateString(undefined, { dateStyle: "medium" })} ${clock}`;
+  const day = dayOf(date, now) ?? date.toLocaleDateString(undefined, { dateStyle: "medium" });
+  return `${day} ${clock}`;
 }
 
 /** Whether `date` falls on the day of `now` or the day before, in local time. */
-export function dayOf(date: Date, now: Date): "today" | "yesterday" | null {
-  if (date.toDateString() === now.toDateString()) return "today";
+export function dayOf(date: Date, now: Date): "Today" | "Yesterday" | null {
+  if (date.toDateString() === now.toDateString()) return "Today";
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  return date.toDateString() === yesterday.toDateString() ? "yesterday" : null;
+  return date.toDateString() === yesterday.toDateString() ? "Yesterday" : null;
 }
 
 export function sizeLabel(size: number): string {

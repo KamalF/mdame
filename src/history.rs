@@ -143,7 +143,7 @@ pub fn list(history: &Dir, path: &Path) -> io::Result<Vec<Revision>> {
 /// The bytes of the revision `id` of the file at `path`. Only the name of
 /// a snapshot is an `id`: `../b.md/1.md` would lead to another file's.
 pub fn read(history: &Dir, path: &Path, id: &str) -> io::Result<Vec<u8>> {
-    if id.contains('/') || snapshot_ms(id).is_none() {
+    if snapshot_ms(id).is_none() {
         return Err(no_revision());
     }
     history
@@ -179,11 +179,15 @@ fn snapshots(history: &Dir, path: &Path) -> io::Result<Vec<(u64, String)>> {
     Ok(snapshots)
 }
 
-/// The time in a snapshot's name: digits, then an optional extension.
+/// The time in a snapshot's name: digits, then an optional extension,
+/// with no `/`.
 fn snapshot_ms(name: &str) -> Option<u64> {
+    if name.contains('/') {
+        return None;
+    }
     let digits = name.split_once('.').map_or(name, |(digits, _)| digits);
     // parse alone would also take a leading `+`.
-    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+    if !digits.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
     digits.parse().ok()

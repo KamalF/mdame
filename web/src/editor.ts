@@ -156,10 +156,10 @@ export async function mount(
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         report();
-        if (revisions.isShown()) revisions.textChanged();
+        revisions.textChanged();
         // While mdame is away, the last preview stays: a reconnection
         // renders it again.
-        else if (!isHeld()) preview.update(path, () => update.state.doc.toString());
+        if (!isHeld()) preview.update(path, () => update.state.doc.toString());
       }),
     ],
   });

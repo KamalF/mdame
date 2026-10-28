@@ -5,8 +5,8 @@ import { dayOf, lineCounts, sizeLabel } from "./revisions.ts";
 
 test("dayOf says today, yesterday, or neither, across midnight", () => {
   const now = new Date(2026, 9, 1, 0, 30);
-  expect(dayOf(new Date(2026, 9, 1, 0, 5), now)).toBe("today");
-  expect(dayOf(new Date(2026, 8, 30, 23, 55), now)).toBe("yesterday");
+  expect(dayOf(new Date(2026, 9, 1, 0, 5), now)).toBe("Today");
+  expect(dayOf(new Date(2026, 8, 30, 23, 55), now)).toBe("Yesterday");
   expect(dayOf(new Date(2026, 8, 29, 23, 55), now)).toBe(null);
 });
 

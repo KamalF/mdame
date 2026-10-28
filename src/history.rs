@@ -33,7 +33,9 @@ pub fn root(mode: HistoryMode, workspace: &Workspace, state_dir: &Path) -> io::R
                 }
             }
             let history = format!("{OWN_DIR}/history");
+            refuse_link(&workspace.dir, OWN_DIR)?;
             workspace.dir.create_dir_all(&history)?;
+            refuse_link(&workspace.dir, &history)?;
             workspace.dir.open_dir(&history)
         }
         HistoryMode::State => {
@@ -54,7 +56,12 @@ pub fn open_root(
     state_dir: &Path,
 ) -> io::Result<Option<Dir>> {
     let opened = match mode {
-        HistoryMode::Workspace => workspace.dir.open_dir(format!("{OWN_DIR}/history")),
+        HistoryMode::Workspace => {
+            let history = format!("{OWN_DIR}/history");
+            refuse_link(&workspace.dir, OWN_DIR)
+                .and_then(|()| refuse_link(&workspace.dir, &history))
+                .and_then(|()| workspace.dir.open_dir(&history))
+        }
         HistoryMode::State => {
             Dir::open_ambient_dir(state_history(workspace, state_dir), ambient_authority())
         }
@@ -63,6 +70,15 @@ pub fn open_root(
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         opened => opened.map(Some),
     }
+}
+
+/// A crafted repository may hold a link there to a folder of notes, which
+/// pruning would then delete.
+fn refuse_link(dir: &Dir, path: &str) -> io::Result<()> {
+    if dir.symlink_metadata(path)?.is_symlink() {
+        return Err(io::Error::other(format!("{path} is a link")));
+    }
+    Ok(())
 }
 
 fn state_history(workspace: &Workspace, state_dir: &Path) -> PathBuf {

@@ -71,6 +71,34 @@ async fn listing_creates_no_history_folder() {
 }
 
 #[tokio::test]
+async fn a_history_folder_that_is_a_link_is_refused() {
+    // A crafted repository: pruning would delete the notes there.
+    for (link, target) in [(".mdame", "notes"), (".mdame/history", "../notes")] {
+        let dir = tempfile::tempdir().unwrap();
+        let files: [(&str, &[u8]); 2] = [("a.md", b"old\n"), ("notes/1000.md", b"note\n")];
+        common::workspace(dir.path(), &files);
+        let link = dir.path().join("ws").join(link);
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        symlink(target, &link).unwrap();
+        let headers = [HOST, JSON, ("if-match", &etag(b"old\n"))];
+        let body = json!({ "content": "new\n" }).to_string();
+        let state = common::workspace(dir.path(), &files);
+        let saved = send_body(state, Method::PUT, "/api/file?path=a.md", &headers, &body).await;
+        let state = common::workspace(dir.path(), &files);
+        let (listed, _) = get_json(state, "/api/history?path=a.md").await;
+
+        assert_eq!(
+            saved.status(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "{target}"
+        );
+        assert_eq!(listed, StatusCode::INTERNAL_SERVER_ERROR, "{target}");
+        assert!(!dir.path().join("ws/notes/a.md").exists(), "{target}");
+        assert!(!dir.path().join("ws/notes/history").exists(), "{target}");
+    }
+}
+
+#[tokio::test]
 async fn history_view_returns_the_revision_text() {
     let dir = tempfile::tempdir().unwrap();
     let uri = "/api/history/view?path=a.md&id=999.md";

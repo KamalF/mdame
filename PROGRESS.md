@@ -250,7 +250,6 @@ Rules, as test names, by commit:
   - Ctrl+S on non-Latin keyboard layouts (not checked).
   - The scroll sync reads one rect per `[data-sourcepos]` element at each scroll frame.
   - A file swapped for a FIFO between the type check and the open hangs the save, and the saves after it: the `O_NONBLOCK` fix of milestone 4's open point must cover the save's open too.
-  - A symbolic link `.mdame` or `.mdame/history` that resolves inside the workspace receives the snapshots.
   - mdame writes `.mdame/.gitignore` only when it creates `.mdame`.
   - A save that writes nothing still opens the file for writing, so inotify reports `IN_CLOSE_WRITE`.
   - A text full of control characters escapes past the 32 MB body limit.

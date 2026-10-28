@@ -135,7 +135,8 @@ pub fn revisions(dir: &Dir, history: Option<&Dir>, path: &str) -> io::Result<Vec
 pub fn revision(dir: &Dir, history: Option<&Dir>, path: &str, id: &str) -> io::Result<String> {
     let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;
     let history = history.ok_or_else(history::no_revision)?;
-    String::from_utf8(history::read(history, &real, id)?).map_err(|_| not_text())
+    let bytes = read_at_most(&history::open(history, &real, id)?, EDIT_LIMIT)?;
+    String::from_utf8(bytes).map_err(|_| not_text())
 }
 
 pub fn version(bytes: &[u8]) -> String {

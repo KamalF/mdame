@@ -2,7 +2,7 @@ use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 use cap_std::ambient_authority;
-use cap_std::fs::{Dir, DirBuilder, DirBuilderExt, OpenOptions, OpenOptionsExt};
+use cap_std::fs::{Dir, DirBuilder, DirBuilderExt, File, OpenOptions, OpenOptionsExt};
 use serde::Serialize;
 
 use crate::config::{self, HistoryMode};
@@ -140,18 +140,20 @@ pub fn list(history: &Dir, path: &Path) -> io::Result<Vec<Revision>> {
     Ok(revisions)
 }
 
-/// The bytes of the revision `id` of the file at `path`. Only the name of
-/// a snapshot is an `id`: `../b.md/1.md` would lead to another file's.
-pub fn read(history: &Dir, path: &Path, id: &str) -> io::Result<Vec<u8>> {
+/// Opens the revision `id` of the file at `path`. Only the name of a
+/// snapshot is an `id`: `../b.md/1.md` would lead to another file's.
+pub fn open(history: &Dir, path: &Path, id: &str) -> io::Result<File> {
     if snapshot_ms(id).is_none() {
         return Err(no_revision());
     }
-    history
-        .read(path.join(id))
-        .map_err(|error| match error.kind() {
-            ErrorKind::NotFound => no_revision(),
-            _ => error,
-        })
+    let snapshot = path.join(id);
+    // The type is checked before the open: opening a FIFO blocks until a
+    // writer comes. mdame makes no link either.
+    match history.symlink_metadata(&snapshot) {
+        Ok(metadata) if metadata.is_file() => history.open(&snapshot),
+        Err(error) if error.kind() != ErrorKind::NotFound => Err(error),
+        _ => Err(no_revision()),
+    }
 }
 
 pub fn no_revision() -> io::Error {

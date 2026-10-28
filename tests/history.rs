@@ -90,7 +90,13 @@ async fn an_id_names_a_revision_of_this_file_only() {
         (".mdame/history/a.md/1.md/1000.md", b"# 1\n"),
         (".mdame/history/a.md/1000.md", b"# A0\n"),
     ];
-    for id in ["1.md/../../b.md/1000.md", "../b.md/1000.md", "1001.md", ""] {
+    for id in [
+        "1.md/../../b.md/1000.md",
+        "../b.md/1000.md",
+        "1.md",
+        "1001.md",
+        "",
+    ] {
         let state = common::workspace(dir.path(), &files);
         let uri = format!("/api/history/view?path=a.md&id={id}");
         let (status, body) = get_json(state, &uri).await;
@@ -117,6 +123,52 @@ async fn history_view_refuses_a_revision_that_is_not_utf8() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], "not_viewable");
+}
+
+#[tokio::test]
+async fn history_view_refuses_a_revision_over_the_edit_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    // The spec's limit, not the constant: a test must fail if the constant moves.
+    let limit = 8 * 1024 * 1024;
+    let files: [(&str, &[u8]); 3] = [
+        ("a.md", b"# A\n"),
+        (".mdame/history/a.md/1000.md", &vec![b'a'; limit]),
+        (".mdame/history/a.md/1001.md", &vec![b'a'; limit + 1]),
+    ];
+    for (id, expected) in [
+        ("1000.md", StatusCode::OK),
+        ("1001.md", StatusCode::PAYLOAD_TOO_LARGE),
+    ] {
+        let state = common::workspace(dir.path(), &files);
+        let uri = format!("/api/history/view?path=a.md&id={id}");
+        let (status, _) = get_json(state, &uri).await;
+        assert_eq!(status, expected, "{id}");
+    }
+}
+
+#[tokio::test]
+async fn history_view_opens_no_fifo_and_follows_no_link() {
+    let dir = tempfile::tempdir().unwrap();
+    let files: [(&str, &[u8]); 2] = [("a.md", b"# A\n"), (".mdame/history/a.md/1000.md", b"")];
+    common::workspace(dir.path(), &files);
+    let folder = dir.path().join("ws/.mdame/history/a.md");
+    let fifo = folder.join("1001.md");
+    assert!(
+        std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .unwrap()
+            .success()
+    );
+    symlink("1000.md", folder.join("1002.md")).unwrap();
+    for id in ["1001.md", "1002.md"] {
+        let state = common::workspace(dir.path(), &files);
+        let uri = format!("/api/history/view?path=a.md&id={id}");
+        let (status, body) = get_json(state, &uri).await;
+
+        assert_eq!(status, StatusCode::NOT_FOUND, "{id}");
+        assert_eq!(body["error"]["message"], "a.md: no such revision", "{id}");
+    }
 }
 
 async fn restore(state: AppState, path: &str, id: &str) -> Response {

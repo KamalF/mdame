@@ -209,6 +209,10 @@ Decided on 25 October 2026:
 - `h`, `r` and a Revisions button in the status bar open diff mode against the newest revision.
 - Esc closes the revisions panel first, and the editor stays open. A second Esc closes the editor, as with the sidebar overlay.
 
+Decided on 28 October 2026, after the review:
+
+- A revision name dated after now, from a clock that was ahead, counts as the oldest: the list shows it last, and pruning deletes it first.
+
 Rules, as test names, by commit:
 
 1. Revisions under the real path (done): `a_snapshot_goes_under_the_real_path_of_the_file`.
@@ -239,7 +243,6 @@ Rules, as test names, by commit:
 ## Open points
 
 - From the review of milestone 7, for later:
-  - Revision names dated in the future sort as the newest: diff mode opens against them, and pruning keeps them. Needs a decision.
   - State mode: two workspaces whose roots encode to the same name, such as `/x/my notes` and `/x/my-notes`, share one history. Since milestone 7 it is listed, restored and pruned across both. Needs a spec decision.
   - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check.
   - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.

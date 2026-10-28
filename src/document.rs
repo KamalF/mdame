@@ -3,7 +3,7 @@ use std::io::{self, ErrorKind, Read, Seek, Write};
 use std::os::fd::AsFd;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use cap_std::fs::{Dir, File, Metadata, MetadataExt, OpenOptions};
 use serde::Serialize;
@@ -215,8 +215,8 @@ pub fn save(
         None
     } else {
         let history = history().map_err(SaveError::Snapshot)?;
-        let made =
-            history::snapshot(&history, &real, &old, now_ms()).map_err(SaveError::Snapshot)?;
+        let made = history::snapshot(&history, &real, &old, history::now_ms())
+            .map_err(SaveError::Snapshot)?;
         Some((history, made))
     };
     // A program that saves by renaming a new file over the path may have
@@ -280,11 +280,6 @@ pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
 fn saved(version: String, file: &File) -> io::Result<Saved> {
     let modified = modified_secs(&file.metadata()?).unwrap_or(0);
     Ok(Saved { version, modified })
-}
-
-fn now_ms() -> u64 {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    now.expect("the clock is after 1970").as_millis() as u64
 }
 
 /// The editor opens, saves and creates the text types that the view shows,

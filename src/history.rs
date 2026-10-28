@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, DirBuilder, DirBuilderExt, File, OpenOptions, OpenOptionsExt};
@@ -86,6 +87,11 @@ fn state_history(workspace: &Workspace, state_dir: &Path) -> PathBuf {
     state_dir.join(encode_path(&workspace.root)).join("history")
 }
 
+pub fn now_ms() -> u64 {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+    now.expect("the clock is after 1970").as_millis() as u64
+}
+
 pub fn encode_path(path: &Path) -> String {
     path.to_string_lossy()
         .chars()
@@ -128,8 +134,8 @@ pub fn snapshot(history: &Dir, path: &Path, content: &[u8], now_ms: u64) -> io::
 }
 
 /// Keeps the newest `keep` snapshots of the file at `path`, and `made`,
-/// the snapshot that a save just made, unless `keep` is 0. Names dated
-/// later, from a clock that was ahead, must not prune it at once.
+/// the snapshot that a save just made, unless `keep` is 0: after a
+/// collision, its name can be ahead of the clock.
 pub fn prune(history: &Dir, path: &Path, keep: usize, made: &str) -> io::Result<()> {
     for Revision { id, .. } in list(history, path)?.into_iter().skip(keep) {
         if keep > 0 && id == made {
@@ -185,7 +191,10 @@ pub fn list(history: &Dir, path: &Path) -> io::Result<Vec<Revision>> {
             });
         }
     }
-    revisions.sort_unstable_by_key(|revision| Reverse(revision.time));
+    // A name dated after now, from a clock that was ahead, counts as the
+    // oldest.
+    let now = now_ms();
+    revisions.sort_unstable_by_key(|revision| Reverse((revision.time <= now, revision.time)));
     Ok(revisions)
 }
 
@@ -400,6 +409,25 @@ mod tests {
 
         prune(&history, Path::new("a.md"), 0, "1000.md").unwrap();
         assert!(names(tmp.path()).is_empty());
+    }
+
+    #[test]
+    fn a_name_dated_after_now_counts_as_the_oldest() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("a.md")).unwrap();
+        for name in ["1000.md", "2000.md", "99999999999999.md"] {
+            fs::write(tmp.path().join("a.md").join(name), "").unwrap();
+        }
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+        let ids: Vec<String> = list(&history, Path::new("a.md"))
+            .unwrap()
+            .into_iter()
+            .map(|revision| revision.id)
+            .collect();
+        assert_eq!(ids, ["2000.md", "1000.md", "99999999999999.md"]);
+
+        prune(&history, Path::new("a.md"), 2, "").unwrap();
+        assert_eq!(names(tmp.path()), ["1000.md", "2000.md"]);
     }
 
     #[test]

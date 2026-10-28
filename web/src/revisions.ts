@@ -15,6 +15,12 @@ export interface Revision {
 /** The editor's merge view: empty outside diff mode. */
 export const diffMode = new Compartment();
 
+export interface Actions {
+  close: () => void;
+  /** Writes the revision `id`, whose text is `content`, over the file. */
+  restore: (id: string, content: string) => void;
+}
+
 interface Shown {
   view: EditorView;
   path: string;
@@ -24,8 +30,9 @@ interface Shown {
   revisions: Revision[] | null;
   /** The revision that the text is compared with, or is about to be. */
   chosen: string | null;
-  /** The revision in the merge view. */
-  compared: string | null;
+  /** The revision in the merge view, and its text. */
+  compared: { id: string; content: string } | null;
+  restore: HTMLButtonElement;
   /** The size and counts of the chosen revision, which edits change. */
   detail: { el: HTMLElement; size: number } | null;
 }
@@ -34,7 +41,7 @@ let shown: Shown | null = null;
 
 /** Returns the list of the revisions of `path`, for the place of the
  * preview, and compares the text of `view` with the newest. */
-export function show(view: EditorView, path: string, onClose: () => void): HTMLElement {
+export function show(view: EditorView, path: string, actions: Actions): HTMLElement {
   const aside = document.createElement("aside");
   aside.className = "mdame-revisions";
   aside.setAttribute("aria-label", "Revisions");
@@ -42,14 +49,23 @@ export function show(view: EditorView, path: string, onClose: () => void): HTMLE
   header.className = "mdame-revisions-header";
   const title = document.createElement("h2");
   title.textContent = "Revisions";
-  header.append(title, iconButton("Close revisions", "cross", onClose, "Close (Esc)"));
+  header.append(title, iconButton("Close revisions", "cross", actions.close, "Close (Esc)"));
   const error = document.createElement("p");
   error.className = "mdame-status-error";
   error.setAttribute("role", "alert");
   const list = document.createElement("ul");
   list.className = "mdame-revisions-list";
-  aside.append(header, error, list);
-  shown = {
+  const restore = document.createElement("button");
+  restore.className = "mdame-restore";
+  restore.disabled = true;
+  restore.textContent = "Restore";
+  const note = document.createElement("p");
+  note.textContent = "The text on disk becomes a revision first, so you can undo a restore.";
+  const footer = document.createElement("div");
+  footer.className = "mdame-revisions-footer";
+  footer.append(restore, note);
+  aside.append(header, error, list, footer);
+  const current: Shown = {
     view,
     path,
     aside,
@@ -58,8 +74,14 @@ export function show(view: EditorView, path: string, onClose: () => void): HTMLE
     revisions: null,
     chosen: null,
     compared: null,
+    restore,
     detail: null,
   };
+  // The revision on screen, not the one that is loading.
+  restore.addEventListener("click", () => {
+    if (current.compared) actions.restore(current.compared.id, current.compared.content);
+  });
+  shown = current;
   refresh();
   return aside;
 }
@@ -123,7 +145,7 @@ async function choose(current: Shown, id: string) {
   view.dispatch({
     effects: diffMode.reconfigure(unifiedMergeView({ original, mergeControls: false })),
   });
-  current.compared = id;
+  current.compared = { id, content };
   current.error.textContent = "";
   render(current);
 }
@@ -131,6 +153,11 @@ async function choose(current: Shown, id: string) {
 function render(current: Shown) {
   const { list, revisions } = current;
   current.detail = null;
+  const onScreen = revisions?.find((revision) => revision.id === current.compared?.id);
+  current.restore.disabled = !onScreen || current.compared?.id !== current.chosen;
+  current.restore.textContent = onScreen
+    ? `Restore ${timeLabel(onScreen.time, new Date())}`
+    : "Restore";
   if (!revisions) return;
   if (revisions.length === 0) {
     const empty = document.createElement("li");
@@ -145,6 +172,8 @@ function render(current: Shown) {
       const chosen = revision.id === current.chosen;
       const button = document.createElement("button");
       button.className = "mdame-revision";
+      const replaced = new Date(revision.time).toLocaleString();
+      button.title = `The file as it was until mdame saved over it, on ${replaced}`;
       const time = document.createElement("span");
       time.textContent = timeLabel(revision.time, now);
       const detail = document.createElement("small");
@@ -169,7 +198,7 @@ function render(current: Shown) {
  * The other revisions show no counts: each would need a request. */
 function detailOf(current: Shown, size: number): string {
   const { view } = current;
-  const chunks = current.compared === current.chosen ? getChunks(view.state) : null;
+  const chunks = current.compared?.id === current.chosen ? getChunks(view.state) : null;
   if (!chunks) return sizeLabel(size);
   const counts = lineCounts(chunks.chunks, getOriginalDoc(view.state), view.state.doc);
   return `${sizeLabel(size)} · +${counts.added} −${counts.removed} lines`;

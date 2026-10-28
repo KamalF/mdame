@@ -298,7 +298,11 @@ export function toggleRevisions() {
   }
   preview.stop();
   current.split.classList.add("diff-mode");
-  current.split.append(revisions.show(current.view, current.path, closeRevisions));
+  const actions = {
+    close: closeRevisions,
+    restore: (id: string, content: string) => restore(current, id, content),
+  };
+  current.split.append(revisions.show(current.view, current.path, actions));
   report();
 }
 
@@ -358,6 +362,28 @@ export function save() {
       else current.error = message;
     }
     if (open === current) report();
+  });
+}
+
+/** Writes the revision `id` over the file, then takes its text as Reload
+ * does: Ctrl+Z brings back the text from before, unsaved edits too. */
+function restore(current: Open, id: string, content: string) {
+  // Per revision: the queue drops a waiting task asked for again.
+  current.queue(`restore ${id}`, async () => {
+    try {
+      const response = await send("POST", "/api/history/restore", { path: current.path, id });
+      const restored: { modified: number } = await response.json();
+      if (open !== current) return;
+      reload(current, { content, version: etagOf(response), modified: restored.modified });
+      setNotice(current, null);
+      current.error = null;
+    } catch (error) {
+      current.error = (error as ApiError).message;
+    }
+    if (open !== current) return;
+    // The text from before the restore is now the newest revision.
+    revisions.refresh();
+    report();
   });
 }
 

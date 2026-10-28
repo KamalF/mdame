@@ -436,8 +436,11 @@
 
 .mdame-revisions-list {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
   margin: 0;
   padding: 8px;
   list-style: none;
@@ -472,4 +475,36 @@
   color: var(--fg-muted);
   font-size: 12px;
   font-weight: 400;
+}
+
+.mdame-revisions-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.mdame-revisions-footer p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.mdame-restore {
+  height: 32px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--bg-raised);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mdame-restore:disabled {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: default;
 }

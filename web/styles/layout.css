@@ -61,9 +61,10 @@
 }
 
 .mdame-revisions {
+  display: flex;
   width: 280px;
   flex: none;
-  overflow-y: auto;
+  flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--bg-sunken);
 }

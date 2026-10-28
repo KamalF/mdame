@@ -216,12 +216,12 @@ Rules, as test names, by commit:
 3. `GET /api/history` and `GET /api/history/view` (done): `history_lists_the_revisions_newest_first` (through a link too), `history_of_a_file_never_saved_is_empty`, `listing_creates_no_history_folder` (both modes), `history_view_returns_the_revision_text`, `an_id_names_a_revision_of_this_file_only` (`/` in the `id`, a missing one, no history folder), `history_view_refuses_a_revision_that_is_not_utf8`; rows in the routes matrix.
 4. `POST /api/history/restore` (done): `restore_writes_the_revision_over_the_file`, `restore_keeps_the_current_content_as_a_revision` (a second restore undoes the first), `restore_of_a_deleted_file_is_refused`; a row in the routes matrix. The write is a save, so the save's tests cover the rest.
 5. Diff mode (done): the list, the merge view, `h`, `r`, the Revisions button in the view and in the editor, Esc. `revisions.ts`: `dayOf says today, yesterday, or neither, across midnight`, `sizeLabel gives bytes, then KB and MB with one decimal`, `lineCounts counts a changed line once as added and once as removed`. The list refreshes after a save and after a change on disk. The DOM wiring goes to the manual checklist.
-6. Restore from the panel: the editor takes the restored text in one undo step, and the list refreshes.
+6. Restore from the panel (done): the Restore button restores the revision on screen. The restore runs in the editor's queue, with the saves and disk checks. The editor then takes the text in one undo step, as Reload does, and the list refreshes. A revision's time is when mdame saved over its text: each row's tooltip says so. No unit test: all of it is wiring; the manual checklist covers it.
 7. Manual checklist, `cargo mutants`, review loop.
 
 ## Next
 
-1. Milestone 7, commit 6: Restore from the panel.
+1. Milestone 7, commit 7: manual checklist, `cargo mutants`, review loop.
 
 ## Open points
 

@@ -245,15 +245,17 @@ pub fn save(
 pub fn restore(
     dir: &Dir,
     history: Option<&Dir>,
+    // As for a save: in state mode, opening it makes the state folder
+    // private.
+    root: impl FnOnce() -> io::Result<Dir>,
     keep: usize,
     path: &str,
     id: &str,
 ) -> Result<Saved, SaveError> {
-    let history = history.ok_or_else(history::no_revision)?;
-    let text = revision(dir, Some(history), path, id)?;
+    let text = revision(dir, history, path, id)?;
     // A write by another program after this read makes the save refuse.
     let current = source(dir, path)?.version;
-    save(dir, || history.try_clone(), keep, path, &text, &current)
+    save(dir, root, keep, path, &text, &current)
 }
 
 /// Creates an empty file at `path`. An existing file gives `AlreadyExists`.

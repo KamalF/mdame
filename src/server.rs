@@ -617,7 +617,14 @@ async fn restore(
     let (path, id) = (request.path.clone(), request.id);
     let restored = tokio::task::spawn_blocking(move || {
         let history = history::open_root(mode, &workspace, &app.state_dir)?;
-        document::restore(&workspace.dir, history.as_ref(), keep, &path, &id)
+        document::restore(
+            &workspace.dir,
+            history.as_ref(),
+            || history::root(mode, &workspace, &app.state_dir),
+            keep,
+            &path,
+            &id,
+        )
     })
     .await?;
     let restored = restored.map_err(|error| save_error(&request.path, error))?;

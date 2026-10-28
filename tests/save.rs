@@ -118,9 +118,12 @@ async fn a_save_succeeds_when_pruning_fails() {
     let dir = tempfile::tempdir().unwrap();
     let mut state = workspace(dir.path());
     state.config.get_mut().unwrap().snapshots_per_file = Some(1);
-    // A folder cannot be removed as a file: the prune fails on it.
-    fs::create_dir_all(dir.path().join("ws/.mdame/history/a.md/1.md")).unwrap();
+    // The snapshot can go in, but the prune cannot list the folder.
+    let folder = dir.path().join("ws/.mdame/history/a.md");
+    fs::create_dir_all(&folder).unwrap();
+    fs::set_permissions(&folder, Permissions::from_mode(0o300)).unwrap();
     let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+    fs::set_permissions(&folder, Permissions::from_mode(0o700)).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(read(dir.path(), "a.md"), "new\n");

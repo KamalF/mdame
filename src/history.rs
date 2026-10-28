@@ -171,7 +171,11 @@ fn snapshots(history: &Dir, path: &Path) -> io::Result<Vec<(u64, String)>> {
     };
     let mut snapshots = Vec::new();
     for entry in entries {
-        if let Ok(name) = entry?.file_name().into_string()
+        let entry = entry?;
+        // mdame makes snapshots as files: a folder may hold the revisions
+        // of a file that `path` was a folder of.
+        if entry.file_type()?.is_file()
+            && let Ok(name) = entry.file_name().into_string()
             && let Some(ms) = snapshot_ms(&name)
         {
             snapshots.push((ms, name));
@@ -362,12 +366,34 @@ mod tests {
     #[test]
     fn prune_reports_a_snapshot_that_it_cannot_delete() {
         let tmp = tempfile::tempdir().unwrap();
-        // A folder cannot be removed as a file.
-        fs::create_dir_all(tmp.path().join("a.md/1000.md")).unwrap();
+        let folder = tmp.path().join("a.md");
+        fs::create_dir(&folder).unwrap();
+        fs::write(folder.join("1000.md"), "").unwrap();
+        fs::set_permissions(&folder, fs::Permissions::from_mode(0o500)).unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
-        let error = prune(&history, Path::new("a.md"), 0).unwrap_err();
+        let pruned = prune(&history, Path::new("a.md"), 0);
+        fs::set_permissions(&folder, fs::Permissions::from_mode(0o700)).unwrap();
 
-        assert_eq!(error.kind(), ErrorKind::IsADirectory);
+        assert_eq!(pruned.unwrap_err().kind(), ErrorKind::PermissionDenied);
+    }
+
+    #[test]
+    fn a_folder_or_a_link_is_no_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let folder = tmp.path().join("a.md");
+        fs::create_dir_all(folder.join("1.md")).unwrap();
+        fs::write(folder.join("1000.md"), "").unwrap();
+        std::os::unix::fs::symlink("1000.md", folder.join("1001.md")).unwrap();
+        let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
+
+        let ids: Vec<String> = list(&history, Path::new("a.md"))
+            .unwrap()
+            .into_iter()
+            .map(|revision| revision.id)
+            .collect();
+        assert_eq!(ids, ["1000.md"]);
+        prune(&history, Path::new("a.md"), 0).unwrap();
+        assert_eq!(names(tmp.path()), ["1.md", "1001.md"]);
     }
 
     #[test]

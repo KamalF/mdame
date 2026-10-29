@@ -239,6 +239,7 @@ Rules, as test names, by commit:
   - Page: a revision that failed to load can be chosen again, and so can the one on screen. A refresh loads the chosen revision again when it is not on screen.
   - Follow-ups and deferred nits are under Open points.
 - `cargo mutants` over the milestone 7 diff after the review, on 28 October 2026: 64 mutants, 3 missed and 1 timeout. A test now catches the missed one in `open`. The FIFO test checks its link case first, so a mutant fails it rather than hanging it. The 2 others, in `list`, need a race, and are excluded with their reason.
+- After the manual checklist, on 29 October 2026: the counts of the chosen revision show the added lines in green and the removed lines in red. The colour is `--success`, the name that milestone 8 decided, added to the provisional theme values.
 
 ### Manual checklist
 

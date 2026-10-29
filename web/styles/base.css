@@ -9,6 +9,7 @@
   --selection: #e3e9f8;
   --accent: #1d3f99;
   --danger: #b42318;
+  --success: #1a7f37;
   --code-bg: #f4f4f2;
   --hl-keyword: #a0207a;
   --hl-string: #1a7f37;
@@ -34,6 +35,7 @@
     --selection: #26355e;
     --accent: #a8c0ff;
     --danger: #ff8a7a;
+    --success: #7ee08f;
     --code-bg: #111112;
     --hl-keyword: #ff7ac6;
     --hl-string: #7ee08f;

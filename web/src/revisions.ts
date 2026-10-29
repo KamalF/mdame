@@ -121,7 +121,7 @@ export async function refresh() {
 
 /** Shows the counts of the chosen revision again, after an edit. */
 export function textChanged() {
-  if (shown?.detail) shown.detail.el.textContent = detailOf(shown, shown.detail.size);
+  if (shown?.detail) shown.detail.el.replaceChildren(...detailOf(shown, shown.detail.size));
 }
 
 async function choose(current: Shown, id: string) {
@@ -183,7 +183,7 @@ function render(current: Shown) {
       if (chosen) {
         button.setAttribute("aria-current", "true");
         current.detail = { el: detail, size: revision.size };
-        detail.textContent = detailOf(current, revision.size);
+        detail.replaceChildren(...detailOf(current, revision.size));
       }
       button.append(time, detail);
       button.addEventListener("click", () => {
@@ -200,12 +200,25 @@ function render(current: Shown) {
 
 /** The size of the chosen revision, then its counts once it is on screen.
  * The other revisions show no counts: each would need a request. */
-function detailOf(current: Shown, size: number): string {
+function detailOf(current: Shown, size: number): (string | Node)[] {
   const { view } = current;
   const chunks = current.compared?.id === current.chosen ? getChunks(view.state) : null;
-  if (!chunks) return sizeLabel(size);
+  if (!chunks) return [sizeLabel(size)];
   const counts = lineCounts(chunks.chunks, getOriginalDoc(view.state), view.state.doc);
-  return `${sizeLabel(size)} · +${counts.added} −${counts.removed} lines`;
+  return [
+    `${sizeLabel(size)} · `,
+    countSpan("mdame-lines-added", `+${counts.added}`),
+    " ",
+    countSpan("mdame-lines-removed", `−${counts.removed}`),
+    " lines",
+  ];
+}
+
+function countSpan(className: string, text: string): HTMLElement {
+  const span = document.createElement("span");
+  span.className = className;
+  span.textContent = text;
+  return span;
 }
 
 function timeLabel(time: number, now: Date): string {

@@ -477,6 +477,14 @@
   font-weight: 400;
 }
 
+.mdame-lines-added {
+  color: var(--success);
+}
+
+.mdame-lines-removed {
+  color: var(--danger);
+}
+
 .mdame-revisions-footer {
   display: flex;
   flex-direction: column;

@@ -298,10 +298,11 @@ Decided on 29 October 2026, before milestone 8:
 - The package holds `src/`, `web/dist/`, `LICENSE` and `README.md` only. `LICENSE` now carries the notices of Lucide and Feather.
 - `mise run web` writes `web/dist/THIRD-PARTY-LICENSES.txt`, with the licence texts of the 111 npm packages in the bundle: MIT, ISC, BSD-3-Clause, Apache-2.0, EPL-2.0 (elkjs, through Mermaid) and others. It comes before the push, since the crate's 0.0.1 is permanent.
 
+Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.io has `mdame` 0.0.1.
+
 ## Next
 
-1. Push `main` to GitHub as `KamalF/mdame`, and publish `mdame` 0.0.1 on crates.io.
-2. Start milestone 8 (themes and polish) on a new branch, `m8-themes`.
+1. Start milestone 8 (themes and polish) on a new branch, `m8-themes`.
 
 ## Open points
 

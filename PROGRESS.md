@@ -296,6 +296,7 @@ Decided on 29 October 2026, before milestone 8:
 - Every commit uses the GitHub noreply address, `8170277+KamalF@users.noreply.github.com`. `git filter-repo` rewrote the history before the first push, so the hashes of older commits changed.
 - crates.io gets the current code as `mdame` 0.0.1, to hold the name. 0.1.0 stays for the release.
 - The package holds `src/`, `web/dist/`, `LICENSE` and `README.md` only. `LICENSE` now carries the notices of Lucide and Feather.
+- `mise run web` writes `web/dist/THIRD-PARTY-LICENSES.txt`, with the licence texts of the 111 npm packages in the bundle: MIT, ISC, BSD-3-Clause, Apache-2.0, EPL-2.0 (elkjs, through Mermaid) and others. It comes before the push, since the crate's 0.0.1 is permanent.
 
 ## Next
 

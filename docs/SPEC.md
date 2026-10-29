@@ -283,6 +283,7 @@ mdame/
     api/                files.rs, history.rs, workspace.rs: one per route group
   web/
     index.html
+    notices.ts          writes the licence texts of the bundled packages
     src/                main.ts, api.ts, live.ts, sidebar.ts, view.ts,
                         editor.ts, revisions.ts, picker.ts, dialogs.ts,
                         toast.ts, theme.ts, keys.ts, codehl.ts
@@ -571,7 +572,7 @@ mise manages the repo. `mise.toml` pins the tools (Rust toolchain, Bun) and defi
 
 | Task | Does |
 | --- | --- |
-| `web` | `bun ci` (frozen lockfile), then bundle `web/src` into `web/dist` |
+| `web` | `bun ci` (frozen lockfile), then bundle `web/src` into `web/dist`. `web/notices.ts` then writes `web/dist/THIRD-PARTY-LICENSES.txt` from the bundle's metafile: for each npm package in the bundle, its licence files, its NOTICE file, and its source URL. A package with no licence file stops the task |
 | `dev` | The bundler in watch mode in the background, plus `cargo run`. The Rust server is restarted by hand and the browser refreshed by hand; in debug builds rust-embed reads `web/dist` from disk on each request |
 | `fmt` | `cargo fmt` |
 | `lint` | `cargo clippy -- -D warnings` |

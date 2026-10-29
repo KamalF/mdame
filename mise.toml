@@ -9,12 +9,14 @@ rust = { version = "1.99.0", components = "rust-analyzer,clippy,rustfmt" }
 bundle = "bun build web/src/main.ts --outdir web/dist/assets --splitting --minify --format esm"
 
 [tasks.web]
-description = "Install the browser packages and bundle web/ into web/dist"
+description = "Install the browser packages and bundle web/ into web/dist, with their licence texts"
 run = [
   "bun ci",
   "rm -rf web/dist",
-  "{{vars.bundle}}",
+  "mkdir -p target",
+  "{{vars.bundle}} --metafile=target/web-meta.json",
   "cp web/index.html web/dist/index.html",
+  "bun web/notices.ts target/web-meta.json web/dist/THIRD-PARTY-LICENSES.txt",
 ]
 
 [tasks.dev]

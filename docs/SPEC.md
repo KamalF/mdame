@@ -64,7 +64,7 @@ The goal is a local markdown workspace in the browser that the owner fully under
 - Tabs for several open files.
 - Multi-user editing or conflict resolution beyond a "changed on disk" notice.
 - A documentation-site generator, plugins or extensions.
-- Windows and macOS support is welcome but not a target; Linux is.
+- Windows support is welcome but not a target. Linux and macOS are, with CI on both (macOS since 29 October 2026).
 
 **Principles**
 
@@ -96,21 +96,33 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 **Workspaces.** Picker page, shown when `mdame` starts without a path: a path field that autocompletes folders, with recent workspaces as suggestions.
 
-**Look and feel.** Theme picker with built-in light and dark themes plus any user theme in `~/.config/mdame/themes/`, a mono toggle for content, status bar (workspace, file, edit mode, version, file actions), toasts, dialogs on the native `<dialog>` element. A one-time dialog on first start asks where to keep revision history (see On-disk formats).
+**Look and feel.** Theme picker with built-in light and dark themes plus any user theme in `~/.config/mdame/themes/`, content width and font size presets, a shortcut help dialog (`?`), status bar (workspace, file, edit mode, version, file actions), dialogs on the native `<dialog>` element. A one-time dialog on first start asks where to keep revision history (see On-disk formats).
+
+**Agent workflow.** Added on 29 October 2026, so that v1 is ready for a Show HN:
+
+- The tree shows the markdown in the folders where agents write: `.claude`, `.kiro`, `.cursor` and `.github`. They are view-only: the editor still refuses hidden files, and `.git` and `.mdame` stay out.
+- Handoff: `mdame <file>` in a workspace that a running mdame already serves opens that file in its tab and exits, so an agent or a second terminal reuses one tab. An advisory lock file that holds the port (`File::try_lock`, released by the OS on exit) finds the running mdame; where it lives is decided in milestone 9.
+- What changed: after a change on disk, the blocks that changed glow for a moment, and diff mode can compare the text with the version shown when the file was opened. The glow comes from a diff of the source lines, mapped to blocks through `data-sourcepos`.
+- Full-text search: the sidebar filter also searches the contents of the files.
+- Copy as quote: a selection in the view copies as a markdown quote with `path:line`, ready to paste into the agent.
+- Clickable task lists: a click on a checkbox in the view ticks it in the file, through the same save and `If-Match`.
+- A `CLAUDE.md` / `AGENTS.md` snippet and a one-file skill tell an agent to run `mdame <file>` after it writes a plan.
+
+**Distribution.** Release binaries for Linux and macOS through cargo-dist: an install script, a Homebrew tap and an npm wrapper. A public GitHub repository, and the crate on crates.io.
 
 ### Later, by cost
 
-The small items form milestone 9, after v1. The medium and large ones wait.
+The small items form milestone 11, after v1. The medium and large ones wait.
 
 | Item | Cost | Notes |
 | --- | --- | --- |
-| Shortcut help (`?`), About | Small | One dialog each |
+| About dialog | Small | One dialog; the shortcut help moved to v1 |
 | Custom key bindings | Small | A `[keys]` table in `config.toml` mapping action names to keys, sent in `/api/state`; `keys.ts` builds its map from it with the defaults as fallback. Two actions on one key stop mdame at start |
-| Content width presets, Shift+W | Small | A CSS variable and a key |
 | Alternative built-in themes: Catppuccin (Latte, Frappé, Macchiato, Mocha) and Minimal | Small | Extra CSS files. Catppuccin from its official palette and style guide, with `subtext1` as muted text in Latte (5.53:1; `subtext0` fails at 4.37). Minimal from its default HSL formulas, with Primer's code colours since it has none; its default accent needs checking as link text. Both MIT |
 | New file with `n`, new-file editor | Small | Reuses the folder hover action |
-| Detect a second launch on the same workspace | Small | Advisory lock file in `.mdame/` holding the port (`std::fs::File::try_lock`, stable since Rust 1.89, released by the OS on exit); the second launch opens the first one's URL and exits. Design together with `-j` |
 | Side-by-side diff in diff mode | Small | `MergeView` from `@codemirror/merge`, already a dependency, as a toggle beside the inline diff, remembered in `localStorage`. It needs width: with the sidebar open, each pane gets about 370 px on a 1280 px window |
+| Mono toggle | Small | Content in `--font-mono` at `--content-width-mono`; out of v1 on 29 October 2026 |
+| Toasts | Small | At the bottom of the page, once a feature needs them; out of v1 on 29 October 2026 |
 | Vim key bindings in the editor, as a toggle | Small | `@replit/codemirror-vim`; the choice lives in `localStorage` |
 | Print stylesheet | Small | Ctrl+P prints the content alone, without the sidebar and the status bar; the browser can print to PDF |
 | Word count and reading time in the status bar | Small | For the open file |
@@ -120,8 +132,6 @@ The small items form milestone 9, after v1. The medium and large ones wait.
 | Switch workspace without restarting (`o` key, `/open?path=`) | Medium | Swap the workspace under the write lock, drop the old watcher, tell every tab; the owner expects to want it |
 | `-j` hand off to a running instance | Medium | Probe the default port, POST a workspace switch; needs workspace switching first |
 | launchd service (`mdame service …`) | Medium | macOS only, a plist template |
-| Homebrew formula, release binaries | Medium | CI work, not app code; `cargo install` works from day one |
-| Highlight what changed on disk | Medium | After a change, the blocks that changed glow for a moment, so you see where an agent wrote: a diff of the source lines, mapped to blocks through `data-sourcepos` |
 | Paste or drop an image into the editor | Medium | The image is saved in the workspace and linked at the cursor. A new upload route, with the limits of the other writes; where the image goes is decided then |
 | Tabs: open files, reorder, close, overflow, unsaved markers, restore per workspace | Large | The most tangled part of the old UI; needs a design first |
 
@@ -484,7 +494,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 - `main.ts` reads `/api/state`, routes on the URL (`/` picker, `/view/<path>`, `/edit/<path>`), wires the WebSocket, and shows the first-start dialog when `needs_setup` is true.
 - `api.ts` is the only module that calls `fetch`; it turns error bodies into exceptions with a code.
 - Each screen module exports `mount(el, params)` and `unmount()`; state lives in plain objects, and changes re-render or morph only the affected region.
-- Preferences that belong to one browser (sidebar width, open folders, preview visibility, split position, theme, mono toggle) go in `localStorage`, wrapped in try/catch, with every key prefixed `mdame:` so they never meet mdlive's keys on the same port.
+- Preferences that belong to one browser (sidebar width, open folders, preview visibility, split position, theme) go in `localStorage`, wrapped in try/catch, with every key prefixed `mdame:` so they never meet mdlive's keys on the same port.
 - App element ids start with `mdame-`; no code reads elements through `window.<id>` globals.
 - Logic with no DOM access (scroll-sync mapping, key rules, error mapping) lives in its own functions so `bun test` can cover it.
 
@@ -497,7 +507,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | Editor | Same frame; content area splits into CodeMirror and preview, with a divider; status bar gains unsaved dot and Save |
 | Revisions | Inline diff in the editor (CodeMirror merge view) against a revision picked from a list, with Restore |
 | Empty and not found | One line saying what happened and one action |
-| Dialogs and toasts | Native `<dialog>` for confirm, name input and the first-start history choice; toasts at the bottom |
+| Dialogs | Native `<dialog>` for confirm, name input, the first-start history choice and the shortcut help. Toasts are a Later item |
 
 ### Keyboard
 
@@ -519,7 +529,7 @@ A theme is one CSS file that sets variables on `:root` and nothing else. The app
 
 - **Surfaces and text:** `--bg`, `--bg-raised`, `--bg-sunken`, `--fg`, `--fg-muted`, `--border`, `--selection`.
 - **Meaning:** `--accent`, `--accent-fg`, `--danger`, `--warning`, `--success`.
-- **Type:** `--font-ui`, `--font-content`, `--font-mono`, `--content-width`, `--content-width-mono`. Mono mode sets the content in `--font-mono` at `--content-width-mono`.
+- **Type:** `--font-ui`, `--font-content`, `--font-mono`, `--content-width`, `--content-width-mono`. `--content-width-mono` is for the mono toggle, a Later item.
 - **Code colours**, for the editor and rendered code alike through Lezer's `tok-*` classes: `--code-bg`, `--hl-keyword`, `--hl-string`, `--hl-number`, `--hl-comment`, `--hl-title`, `--hl-type`, `--hl-attr`, `--hl-meta`.
 - `color-scheme: light` or `dark`, a standard CSS property. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. Browsers also draw scrollbars and form controls to match.
 
@@ -545,8 +555,8 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
   - No row is highlighted until you press ↑ or ↓, so Enter never opens a row you did not choose: Enter opens the highlighted row, or else the text in the field. Tab puts the highlighted row, or else the first row, in the field. Esc closes the list. Changed on 18 October 2026 from "the first row is highlighted": one open per launch makes a surprise open costly.
   - An error line under the field shows the API message until the next key press.
   - After an open, the page shows the workspace; with a starting file, the URL becomes `/view/<file>`.
-- Typography: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. A mono toggle sets the content in Plex Mono at 72ch. Fonts are bundled as woff2 (OFL). Decided 28 October 2026.
-- Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The mono toggle sits beside it. Both choices live in `localStorage`, per browser. Decided 28 October 2026.
+- Typography: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. The mono toggle (Later) will set the content in Plex Mono at 72ch. Fonts are bundled as woff2 (OFL). Decided 28 October 2026.
+- Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The choice lives in `localStorage`, per browser. Decided 28 October 2026.
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.
 - Default theme: follow the system. Until the user picks a theme, the page uses the built-in light or dark theme according to `prefers-color-scheme`, and switches live when the OS does; a picked theme is stored and wins. Decided 15 October 2026.
@@ -622,7 +632,7 @@ Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on th
 
 ## Build order
 
-Eight milestones for v1, then a ninth, each ending in something the owner can run, with a review before the next starts. The wireframes were signed off on 15 October 2026.
+Ten milestones for v1, the version for a Show HN, then an eleventh, each ending in something the owner can run, with a review before the next starts. The wireframes were signed off on 15 October 2026.
 
 1. **Skeleton.** clap flags, tracing, `AppState`, port fallback, security guard, rust-embed serving `web/dist`, `mise.toml` with tools and tasks, Bun install and the bundler reproducibility check (Bun, else esbuild), `open` on start, a page that shows `/api/state`.
    - Done when: guard tests pass (foreign Origin, wrong Host, missing token on 0.0.0.0), the bundler choice is settled, and `mdame` opens a page.
@@ -641,12 +651,15 @@ Eight milestones for v1, then a ninth, each ending in something the owner can ru
    - Done when: a save made while the file changed on disk shows the notice instead of overwriting, first with JSON version fields and 409, then refactored to `ETag`, `If-Match` and 412.
 7. **Revisions.** History list, merge view against a snapshot, restore, pruning; opened from view and editor.
    - Done when: restore is undoable from the panel.
-8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, picker UI, status bar, toasts, dialogs, README with attribution and licence notes, CI.
+8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, picker UI, status bar, dialogs, `--no-open`, a first README with attribution and licence notes, CI on GitHub Actions.
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the picker without a restart.
+9. **Agent workflow.** Agent folders in the tree, handoff, what changed, full-text search, copy as quote, clickable task lists, content width and font size, shortcut help, the agent snippet and skill.
+   - Done when: a plan that an agent writes under `.claude/plans` shows in the tree, `mdame <that file>` from another terminal opens it in the running tab, and the blocks that the agent rewrites glow.
+10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, the public repository, the crate on crates.io, and the README with a demo of the agent loop and an honest comparison. Then the Show HN.
+   - Done when: the install script and `brew install` give a working mdame on Linux and macOS.
+11. **Small Later items.** About, custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
 
-9. **Small Later items.** Shortcut help and About, custom key bindings, content width presets, the Catppuccin and Minimal themes, new file with `n`, second-launch detection, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode.
-
-After milestone 9, the medium and large Later items wait; tabs need their own design round.
+After milestone 11, the medium and large Later items wait; tabs need their own design round.
 
 ## Open decisions
 
@@ -684,6 +697,7 @@ After milestone 9, the medium and large Later items wait; tabs need their own de
 | CI on GitHub Actions: fmt, clippy, tests and `check-dist` | 28 October 2026 |
 | Licence: MIT, as mdlive and mdserve. `LICENSE` keeps mdlive's copyright lines, for the parts that mdame ported | 28 October 2026 |
 | Milestone 9 takes the small Later items; the medium and large ones wait | 28 October 2026 |
+| v1 is the version for a Show HN. It gains agent folders (view-only), handoff, what changed, full-text search, copy as quote, clickable task lists, width and font size, shortcut help, an agent snippet, macOS support and release binaries. Toasts and the mono toggle move to Later. Milestones 9 and 10 are new; the small Later items become milestone 11 | 29 October 2026 |
 | Themes: the choice lives in `localStorage`, and `theme` leaves `config.toml`. A theme's `color-scheme` picks the built-in loaded under it and Mermaid's theme. Diff colours derive from `--success` and `--danger`. A status bar menu picks the theme. IBM Plex is bundled. Shadows stay outside the contract | 28 October 2026 |
 
 ### Review log, 14 October 2026

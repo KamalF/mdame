@@ -18,7 +18,9 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | In progress on `m7-revisions` | about 7 |
 | 8 | Themes and polish | — | about 9 |
-| 9 | Small Later items | — | — |
+| 9 | Agent workflow | — | — |
+| 10 | Release, then Show HN | — | — |
+| 11 | Small Later items | — | — |
 
 ## Milestone 1: skeleton
 
@@ -274,9 +276,16 @@ Decided on 28 October 2026:
 - The theme choice lives in `localStorage`, per browser. The `theme` field leaves `Config`: an old `config.toml` that sets it stops mdame at start, as any unknown key does.
 - A theme sets `color-scheme: light` or `dark`. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. `color-scheme` also picks Mermaid's theme, and `--mermaid-theme` goes.
 - The diff's added and removed lines mix `--success` and `--danger` into the background: themes set no diff colours. Shadows and backdrops stay translucent black, outside the contract.
-- A theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The mono toggle sits beside it.
+- A theme button in the status bar opens a menu: System, Light, Dark, then the user themes.
 - IBM Plex Sans and Mono are bundled as woff2 (OFL).
 - CI runs on GitHub Actions. The licence is MIT.
+
+Decided on 29 October 2026, after a market study (kept outside the repo, in `~/dev/claude/mdame-market-2026-10-28/`): v1 becomes the version for a Show HN.
+
+- Toasts and the mono toggle leave milestone 8 for Later.
+- Milestone 9, agent workflow: agent folders in the tree (view-only), handoff to the running instance, what changed, full-text search, copy as quote, clickable task lists, content width and font size, shortcut help, an agent snippet and skill.
+- Milestone 10, release: macOS editing and a macOS CI runner, release binaries through cargo-dist, the public repository and the crate, the README with a demo. Then the Show HN.
+- The small Later items become milestone 11.
 
 ## Next
 

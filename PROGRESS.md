@@ -16,7 +16,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 4 | Viewing | Done 18 October 2026, merged into `main` the same day | 16, with the review fixes |
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
-| 7 | Revisions | In progress on `m7-revisions` | about 7 |
+| 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
 | 8 | Themes and polish | — | about 9 |
 | 9 | Agent workflow | — | — |
 | 10 | Release, then Show HN | — | — |
@@ -243,7 +243,7 @@ Rules, as test names, by commit:
 
 ### Manual checklist
 
-Not run yet. These checks cover what no unit test covers: the DOM wiring of diff mode and Restore, and the warning in the terminal. Run mdame on a test folder, in Chrome and Firefox. First, save a markdown file three times from the editor, with a small change each time.
+Run by hand on 29 October 2026: all 13 checks passed. These checks cover what no unit test covers: the DOM wiring of diff mode and Restore, and the warning in the terminal. Run mdame on a test folder, in Chrome and Firefox. First, save a markdown file three times from the editor, with a small change each time.
 
 Diff mode:
 
@@ -290,7 +290,8 @@ Decided on 29 October 2026, after a market study (kept outside the repo, in `~/d
 
 ## Next
 
-1. Milestone 7, commit 7: manual checklist.
+1. Prepare the repository, then reserve the crate name on crates.io and push to GitHub.
+2. Start milestone 8 (themes and polish) on a new branch, `m8-themes`.
 
 ## Open points
 

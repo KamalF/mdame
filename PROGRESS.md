@@ -153,7 +153,7 @@ Rules, as test names, by commit:
 11. Switch to `ETag`, `If-Match`, 412, and 428 without `If-Match` (done): `GET /api/source`, `PUT` and `POST /api/file` send the version as an `ETag` header and no longer in the body. `save_with_a_stale_version_is_refused_and_writes_nothing` (now 412), `save_without_if_match_is_refused` (428), `if_match_must_be_one_strong_etag`; the source, create and routes tests read the header. In the client, `send` in `api.ts` gives the response, for its headers.
 12. Manual checklist, `cargo mutants`, review loop.
 
-- Review loop over milestone 6: 29 rounds and a simplify pass, converged on 24 October 2026. On 25 October, Kamal chose a simpler access design than the one that the review had reached (see the SPEC's Decided table), and the review's fixes were regrouped by topic: they are the commits after 20c1f2b.
+- Review loop over milestone 6: 29 rounds and a simplify pass, converged on 24 October 2026. On 25 October, Kamal chose a simpler access design than the one that the review had reached (see the SPEC's Decided table), and the review's fixes were regrouped by topic: they are the commits after 849e238.
   - Access: the token is required on loopback too, and kept in a 0600 file. The URLs that mdame opens and prints carry one-time codes; a code used twice gives a new token. Programs built to attack mdame from this machine are out of scope.
   - Saving: a failed save leaves the file and the history as they were. A save of the text on disk writes nothing. A file renamed over the path during a save gets 412. Saves and disk checks run one at a time, and none is dropped.
   - Limits: the editor opens only visible text files that the view shows, through links too, and the picker refuses hidden folders. Snapshots, `.mdame` and the state folder are private.
@@ -285,12 +285,21 @@ Decided on 29 October 2026, after a market study (kept outside the repo, in `~/d
 
 - Toasts and the mono toggle leave milestone 8 for Later.
 - Milestone 9, agent workflow: agent folders in the tree (view-only), handoff to the running instance, what changed, full-text search, copy as quote, clickable task lists, content width and font size, shortcut help, an agent snippet and skill.
-- Milestone 10, release: macOS editing and a macOS CI runner, release binaries through cargo-dist, the public repository and the crate, the README with a demo. Then the Show HN.
+- Milestone 10, release: macOS editing and a macOS CI runner, release binaries through cargo-dist, release 0.1.0 of the crate, the README with a demo. Then the Show HN.
 - The small Later items become milestone 11.
+
+## Public repository and crate
+
+Decided on 29 October 2026, before milestone 8:
+
+- The repository goes public on GitHub as `KamalF/mdame`, with `main` only. The `backup/*` branches stay local.
+- Every commit uses the GitHub noreply address, `8170277+KamalF@users.noreply.github.com`. `git filter-repo` rewrote the history before the first push, so the hashes of older commits changed.
+- crates.io gets the current code as `mdame` 0.0.1, to hold the name. 0.1.0 stays for the release.
+- The package holds `src/`, `web/dist/`, `LICENSE` and `README.md` only. `LICENSE` now carries the notices of Lucide and Feather.
 
 ## Next
 
-1. Prepare the repository, then reserve the crate name on crates.io and push to GitHub.
+1. Push `main` to GitHub as `KamalF/mdame`, and publish `mdame` 0.0.1 on crates.io.
 2. Start milestone 8 (themes and polish) on a new branch, `m8-themes`.
 
 ## Open points

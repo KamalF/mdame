@@ -655,7 +655,7 @@ Ten milestones for v1, the version for a Show HN, then an eleventh, each ending 
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the picker without a restart.
 9. **Agent workflow.** Agent folders in the tree, handoff, what changed, full-text search, copy as quote, clickable task lists, content width and font size, shortcut help, the agent snippet and skill.
    - Done when: a plan that an agent writes under `.claude/plans` shows in the tree, `mdame <that file>` from another terminal opens it in the running tab, and the blocks that the agent rewrites glow.
-10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, the public repository, the crate on crates.io, and the README with a demo of the agent loop and an honest comparison. Then the Show HN.
+10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, release 0.1.0 of the crate on crates.io, and the README with a demo of the agent loop and an honest comparison. Then the Show HN.
    - Done when: the install script and `brew install` give a working mdame on Linux and macOS.
 11. **Small Later items.** About, custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
 

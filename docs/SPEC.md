@@ -80,7 +80,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 ### v1
 
-**Launching.** `mdame` with no path starts at the workspace picker. `mdame <file>` and `mdame <folder>` start the same server with that workspace already open; a file opens its folder, with that file shown first. One workspace per launch. Flags: `-H` bind address, `-p` port with fallback to the next free one, `--no-open`, `-v` verbose logging. Opens the browser on start. Ships as a single binary with all assets embedded.
+**Launching.** `mdame <folder>` opens that folder, and `mdame <file>` opens its folder with that file shown first. `mdame` with no path opens the current folder. One workspace per launch. Flags: `-H` bind address, `-p` port with fallback to the next free one, `--no-open`, `-v` verbose logging. Opens the browser on start. Ships as a single binary with all assets embedded.
 
 **Viewing.** GitHub-flavoured markdown, raw HTML (sanitized), front matter hidden, highlighted code blocks with a copy button, Mermaid in fenced blocks and `.mmd` files, images from the workspace, text, JSON, YAML and TOML shown highlighted, GraphQL as plain text, CSV as a table, a 1 MB render guard, a not-found page and an empty-workspace page. Find in page uses the browser's own Cmd/Ctrl+F.
 
@@ -94,9 +94,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 **Revisions.** Snapshot on every save that changes the file. `h` or `r` from view or editor opens the editor in diff mode: an inline diff against a revision picked from a list, then restore (snapshots the current version first, so it is undoable). Automatic pruning to the last N snapshots per file.
 
-**Workspaces.** Picker page, shown when `mdame` starts without a path: a path field that autocompletes folders, with recent workspaces as suggestions.
-
-**Look and feel.** Theme picker with built-in light and dark themes plus any user theme in `~/.config/mdame/themes/`, content width and font size presets, a shortcut help dialog (`?`), status bar (workspace, file, edit mode, version, file actions), dialogs on the native `<dialog>` element. A one-time dialog on first start asks where to keep revision history (see On-disk formats).
+**Look and feel.** Theme picker with built-in light and dark themes plus any user theme in `~/.config/mdame/themes/`, content width and font size presets, a shortcut help dialog (`?`), status bar (workspace, file, edit mode, version, file actions), dialogs on the native `<dialog>` element.
 
 **Agent workflow.** Added on 29 October 2026, so that v1 is ready for a Show HN:
 
@@ -129,8 +127,6 @@ The small items form milestone 11, after v1. The medium and large ones wait.
 | Read-only mode, `--read-only` | Small | The write routes (save, create, restore) answer 403, and `/api/state` tells the page to hide the editor. For a LAN share, or a folder that you only watch |
 | File operations: new folder, rename, move, delete with confirmation | Medium | Server side is simple with cap-std; UI needs a menu |
 | Right-click menu on tree and page | Medium | Do together with file operations |
-| Switch workspace without restarting (`o` key, `/open?path=`) | Medium | Swap the workspace under the write lock, drop the old watcher, tell every tab; the owner expects to want it |
-| `-j` hand off to a running instance | Medium | Probe the default port, POST a workspace switch; needs workspace switching first |
 | launchd service (`mdame service …`) | Medium | macOS only, a plist template |
 | Paste or drop an image into the editor | Medium | The image is saved in the workspace and linked at the cursor. A new upload route, with the limits of the other writes; where the image goes is decided then |
 | Tabs: open files, reorder, close, overflow, unsaved markers, restore per workspace | Large | The most tangled part of the old UI; needs a design first |
@@ -145,6 +141,8 @@ The small items form milestone 11, after v1. The medium and large ones wait.
 - Deleting a single revision; replaced by pruning.
 - Restoring a revision into the editor; restore writes the file.
 - The custom find bar; the browser's find and CodeMirror search cover it.
+- The workspace picker, the recent workspaces, and workspace switching: mdame starts from a terminal, where `mdame` opens the current folder. Another folder needs another launch.
+- The choice of history location, and the first-start dialog that asked it: revisions live in the workspace.
 
 ### Inconsistencies resolved
 
@@ -179,9 +177,9 @@ browser tabs ──HTTP /api, /raw, /assets──►┌────────�
 
 Every request passes the guard before reaching a handler. Handlers stay thin and call core modules, and every file access goes through the workspace's cap-std `Dir`. File changes travel the other way: notify events go through the debouncer in `watch.rs`, then out to every tab over the WebSocket.
 
-**Process model.** `mdame` with no path starts at the picker; with a path, it starts with that workspace open. There is no daemon handoff, port file, launchd service or desktop app in v1. If the port is busy, try the next ones and print the URL actually used; the browser opens on that URL once the port is bound.
+**Process model.** `mdame` opens its workspace at start, before it answers any request. There is no daemon handoff, port file, launchd service or desktop app in v1. If the port is busy, try the next ones and print the URL actually used; the browser opens on that URL once the port is bound.
 
-**Two launches on one workspace.** Allowed in v1. Each runs on its own port and sees the other's saves as changes on disk, and the save check works across them because it compares content, not process state. Shared writes are made safe instead of locked: `config.toml` and `recents.toml` are written to a temporary file and renamed over the original, snapshots are created with `create_new`, and pruning ignores snapshots that are already gone. A lost recent entry is acceptable. Detecting the second launch is a Later item.
+**Two launches on one workspace.** Allowed in v1. Each runs on its own port and sees the other's saves as changes on disk, and the save check works across them because it compares content, not process state. Shared writes are made safe instead of locked: snapshots are created with `create_new`, and pruning ignores snapshots that are already gone. Detecting the second launch is a Later item.
 
 **Viewing a file.** The browser asks `GET /api/file?path=…`; the server reads the file through the `Dir`, renders it with comrak, sanitizes it with ammonia and returns HTML with source positions. The browser morphs it into the content area, highlights new code blocks with Lezer and runs Mermaid on new diagrams.
 
@@ -271,9 +269,9 @@ mdame/
     app.rs              AppState, startup, port fallback, open browser
     server.rs           router, security guard layer, static assets
     error.rs            ApiError (thiserror) → status code + JSON body
-    config.rs           config.toml (settings), recents.toml; config, state and themes dirs
+    config.rs           config.toml (settings, read only); config, state and themes dirs
     workspace.rs        Workspace: root, cap-std Dir, starting file; open
-    tree.rs             ignore walker → tree JSON; folder autocomplete
+    tree.rs             ignore walker → tree JSON
     watch.rs            debouncer → relative-path events → broadcast
     render.rs           comrak, ammonia, per-type rendering, size guard
     document.rs         read, save (with snapshot), raw bytes for images
@@ -285,7 +283,7 @@ mdame/
     index.html
     notices.ts          writes the licence texts of the bundled packages
     src/                main.ts, api.ts, live.ts, sidebar.ts, view.ts,
-                        editor.ts, revisions.ts, picker.ts, dialogs.ts,
+                        editor.ts, revisions.ts, dialogs.ts,
                         toast.ts, theme.ts, keys.ts, codehl.ts
     styles/             base.css, layout.css, components.css, content.css
     themes/             light.css, dark.css
@@ -300,15 +298,15 @@ mdame/
 
 **Naming.** The core file module is `document.rs`, so it never collides with the handler file `api/files.rs`. Module folders use the `api.rs` + `api/` form, not `mod.rs`.
 
-**Shared state.** The router holds `Arc<AppState>`, and axum hands every handler a clone of that `Arc`: one pointer copy, no data copied. `AppState` itself cannot be cloned, because `RwLock` is not `Clone`. It holds:
+**Shared state.** The router holds `Arc<AppState>`, and axum hands every handler a clone of that `Arc`: one pointer copy, no data copied. `AppState` itself cannot be cloned, because `Mutex` is not `Clone`. It holds:
 
-- `config: RwLock<Config>`.
-- `workspace: RwLock<Option<Arc<Workspace>>>`; `None` means the picker is shown. It is a `std::sync` lock, read only through `AppState::workspace() -> Result<Arc<Workspace>, ApiError>`, which clones the `Arc` out and drops the guard at once, never across an `.await`. Chosen over `OnceLock` and `tokio::sync::watch` because it supports Later workspace switching unchanged.
+- `config: Config`, read at start.
+- `workspace: Arc<Workspace>`, opened at start. It never changes while mdame runs, so it needs no lock.
 - `events: broadcast::Sender<Event>` for WebSocket clients.
 - `access: Mutex<Access>`: the token and its open codes (the opened and the printed one), under one lock, so that a request decides from one view of them. A `None` token turns the check off for tests of other rules.
 - `token_file: Option<PathBuf>`: where the token is kept, on loopback (see Token).
 
-**Opening a workspace.** Once per launch: from the command line at start, or from the picker. Build the `Workspace` (open the `Dir`, start the watcher), store it, and send `workspace` to all clients. A second `POST /api/workspace` gets 409. Switching to another workspace is a Later item; it will reuse the same route, lock and event.
+**Opening a workspace.** Once per launch, at start: the path given on the command line, or the current folder. mdame builds the `Workspace` (opens the `Dir`, starts the watcher) before it answers any request.
 
 **No render cache.** Render on each request; comrak is fast enough for files under the 1 MB guard, and this removes the old app's global mutex problem. Render time is logged at debug level (`-v`), and milestone 4 times the 1 MB fixture. The editor preview is the heavier load, and a cache cannot help it. Add a cache keyed by path and content only if the numbers ask for it.
 
@@ -328,8 +326,8 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /assets/*` | Bundled JS and CSS | embedded files, with ETag |
 | `GET /themes/{name}.css` | Built-in or user theme | CSS |
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security); 413 over 64 MB, since the file is read whole |
-| `GET /api/state` | Workspace as `{root, start}` (or none), version, theme list, `needs_setup`, `home` (to show paths as `~/…`) | JSON |
-| `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file; a file has a `family` (`markdown`, `text`, `data`, `table`, `diagram`, `image`) that picks its icon and its rendering. 409 when no workspace is open | `{name, path, kind, family, modified, children}` |
+| `GET /api/state` | Workspace as `{root, start}`, version, theme list | JSON |
+| `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file; a file has a `family` (`markdown`, `text`, `data`, `table`, `diagram`, `image`) that picks its icon and its rendering | `{name, path, kind, family, modified, children}` |
 | `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`, and `editable`, whether the page offers the editor. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together; 413 over 8 MB, and 404 `not_viewable` for a file that the editor may not open (below) or that is not UTF-8 | `{content, modified}` with `ETag: "<content hash>"` |
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first; 404 `not_viewable` for a file that the editor may not open; 413 over 8 MB | `{modified}` and the new `ETag`; 412 if the content changed on disk since, or if `If-Match` is anything but one strong `ETag` (`*` and lists included); 428 without `If-Match` |
@@ -338,10 +336,6 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /api/history?path=` | Revisions of a file that the editor may open, newest first. The `id` is the snapshot's name, and `time` is the Unix milliseconds of that name. A file that mdame never saved over gives `[]`, and the request creates no folder | `[{id, time, size}]` |
 | `GET /api/history/view?path=&id=` | A revision's text, for the merge view. 404 `not_found` for an `id` that is not the name of a revision of this file; 404 `not_viewable` for a revision that is not UTF-8 | `{content}` |
 | `POST /api/history/restore` | `{path, id}`: saves the revision over the file, as `PUT /api/file` does. The current content becomes a revision first, so the restore can be undone. It needs no `If-Match`. 404 for a deleted file, or for an `id` that names no revision; 412 if another program writes the file during the restore | `{modified}` and the new `ETag` |
-| `GET /api/recents` | Recent workspaces, newest first; an unreadable file gives `[]` | `[{path, last_opened_secs}]` |
-| `POST /api/workspace` | Open `{path}`, a file or folder, when none is open (409 otherwise). `~` and `~/` name the home folder; a relative path gets 400 | new state |
-| `PUT /api/settings` | Save settings chosen in the page, such as `{history}` from the first-start dialog | new state |
-| `GET /api/complete?prefix=` | Folder and file suggestions for the picker: entries of the typed folder that start with the last part, in any case; folders first, ending with `/`; hidden ones once the last part starts with `.`; at most 50 | `[{path, dir}]` |
 | `GET /ws` | WebSocket upgrade | events |
 
 Errors share one shape, `{"error":{"code":"not_found","message":"…"}}`, with status 400, 403, 404, 409, 412, 413, 428 or 500. `ApiError` in `error.rs` maps each variant to one status.
@@ -358,7 +352,6 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 | `created` | `path` | Refetch the tree; if it is the open file or a folder holding it, refetch the file too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, refetch the file, which shows not-found unless it is already back |
 | `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again); if `to` is the open file or a folder holding it, refetch the file |
-| `workspace` | `root` | Sent when a workspace opens: a tab still at the picker reloads the state and shows the workspace, at its start file when mdame was given one |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
 
 Events go out as the watcher reports them, with no merging: a file deleted and written again arrives as `removed` then `created`, and an Emacs save as `renamed` to the backup then `created`. These can also be a folder swapped for another, so the browser tells them apart itself: on `removed` it asks for the open file again, and it follows a rename only when the open file is gone. The watcher does not follow symlinked folders: one that points out of the workspace would leak outside names in its events. notify still watches a folder that is replaced by a link right after its creation, so outside names can come through in that rare case. mdame accepts this: the names reach only your own page. Events carry no folder flag: notify reports a move out of the workspace with no file or folder kind, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.
@@ -441,9 +434,7 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 | Further defence for the page | `Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'` (Mermaid needs inline styles; `default-src` does not cover framing, so another site could otherwise load the page in an iframe and trick clicks; the page itself needs no frame and no object), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. Remote `https:` images are allowed so README badges show, as on GitHub; scripts, styles and connections stay `'self'`. `/api` and `/raw` answers carry `Cache-Control: no-store`: a file may be private, and the browser's cache outlives the tab. |
 | JSON endpoints called by plain HTML forms | Handlers that change state accept only `application/json`, which a form cannot send without triggering the Origin check. |
 
-The workspace picker and `/api/complete` list paths outside the workspace by design. They sit behind the same guard and only reveal names, not contents.
-
-**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame, and open any folder while the picker shows. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too. Also give it a PID namespace of its own, which hides your other processes from it. The code in the URL that mdame opens is on the browser launcher's command line for a moment, and `hidepid` hides only the processes of other accounts. The editor's routes also open, save and create only the text types that the view shows, and no hidden file or file in a hidden folder, such as `.git`, `.mdame` or `.claude`, through a symbolic link either (a hard link is the same file under a second name, which mdame cannot tell from the first): a leaked token cannot rewrite `.git/config`, an agent's settings, a `Makefile` or a snapshot. It can still rewrite a data file that runs commands, such as `package.json` or `mise.toml`. The picker also refuses to open a hidden folder as the workspace; the command line still may.
+**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too. Also give it a PID namespace of its own, which hides your other processes from it. The code in the URL that mdame opens is on the browser launcher's command line for a moment, and `hidepid` hides only the processes of other accounts. The editor's routes also open, save and create only the text types that the view shows, and no hidden file or file in a hidden folder, such as `.git`, `.mdame` or `.claude`, through a symbolic link either (a hard link is the same file under a second name, which mdame cannot tell from the first): a leaked token cannot rewrite `.git/config`, an agent's settings, a `Makefile` or a snapshot. It can still rewrite a data file that runs commands, such as `package.json` or `mise.toml`.
 
 Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missing token, on loopback too, a `../` path, a symlink pointing out of the workspace, an in-workspace symlinked file, and an `.html` and an `.svg` under `/raw` returning `sandbox` (and `text/plain` for the `.html`). The guard rows land in milestone 1, the rest with their routes.
 
@@ -453,34 +444,17 @@ mdame keeps its own files and imports nothing from mdlive, so it starts with no 
 
 **Revision snapshots.** Before a save overwrites a file, its previous content is copied to `<history root>/<relative path>/<unix milliseconds>.<original extension>`. Example: saving `api/rate-limiting.md` writes `api/rate-limiting.md/1771271566123.md` under the history root. The relative path is where the file really is: a link or a `..` in the path asked does not split the revisions of one file. The snapshot is opened with `OpenOptions::create_new`, so it never overwrites one that exists; on `AlreadyExists`, add 1 ms and retry. Its mode is 0600, since the file it copies may be private. After the save writes the file, mdame keeps the newest 20 snapshots of that file (`snapshots_per_file`), by the time in their name, and deletes the rest. A name dated after now, from a clock that was ahead, counts as the oldest: the list shows it last, and pruning deletes it first. Pruning always keeps the snapshot that the save just made, unless `snapshots_per_file` is 0: after a collision, its name can be ahead of the clock. Pruning waits for the write: with `snapshots_per_file = 0`, the snapshot still covers a crash during the write. It ignores snapshots already gone, and deletes no folder, no link, and no file whose name is not a snapshot's. A link at `.mdame` or `.mdame/history` stops the save: pruning through it could delete files of the workspace. If it fails, mdame logs a warning, and the save still succeeds. A test checks that two quick saves give two snapshots. An empty file gets no snapshot: writing over it loses nothing. A save of the text already on disk writes nothing and makes no snapshot, so a habit of pressing Ctrl+S does not push the real revisions out.
 
-**History location.** The global `history` setting in `config.toml` picks the history root:
-
-- `workspace` (default): `<workspace>/.mdame/history/`. When mdame creates `.mdame/`, it makes it 0700, since its folders follow the workspace's file names, and it writes `.mdame/.gitignore` containing `*`, so git, the `ignore` walker, ripgrep and agents skip it with no change to the user's own `.gitignore`.
-- `state`: `~/.local/state/mdame/<encoded path>/history/`, where the encoded path is the workspace's absolute path with every non-alphanumeric character replaced by `-` (Claude Code's convention, for example `-home-kamal-dev-github-mdame`). Nothing is created in the workspace. Two paths can encode the same (`/a/b-c`, `/a-b/c`); accepted, and they share one history. When a workspace opens in `state` mode, mdame warns if a recent workspace encodes the same. Renaming a folder orphans its history.
-- Switching mode does not move old snapshots; the README says so.
-
-**First start.** While `history` is missing from `config.toml`, `GET /api/state` returns `needs_setup: true` and the page shows a native `<dialog>` explaining both choices, with `workspace` preselected. Continue or Esc saves the choice through `PUT /api/settings`, which takes the write lock on `config` and writes `config.toml` with a temporary file and a rename. The server treats a missing field as `workspace`.
+**History location.** The history root is `<workspace>/.mdame/history/`. When mdame creates `.mdame/`, it makes it 0700, since its folders follow the workspace's file names. It also writes `.mdame/.gitignore` containing `*`, so git, the `ignore` walker, ripgrep and agents skip it with no change to the user's own `.gitignore`. Revisions move with the workspace when it is renamed or moved.
 
 **Watcher and tree.** `.mdame/` is never shown in the tree and its events are ignored, so snapshots never trigger `changed`.
 
-**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame writes it only when a setting is saved from the page, with a temporary file and a rename. If the file is not valid, or has an unknown key such as a misspelled one, mdame stops at start with the error: a later save would otherwise replace the user's settings with the defaults. All fields are optional:
+**Config.** `~/.config/mdame/config.toml` (or under `$XDG_CONFIG_HOME`) holds what the user chooses. mdame reads it at start and never writes it. If the file is not valid, or has an unknown key such as a misspelled one, mdame stops at start with the error, so that a misspelled setting is never ignored in silence. All fields are optional:
 
 ```toml
 snapshots_per_file = 20
-history = "workspace"     # or "state"; asked on first start
 ```
 
-**Recents.** `~/.local/state/mdame/recents.toml` (or under `$XDG_STATE_HOME`) holds what mdame remembers: up to 25 workspaces, written with a temporary file and a rename. They are state, not config: opening a workspace never rewrites `config.toml`, so a dotfiles repo that tracks `~/.config` stays clean.
-
-```toml
-[[recent]]
-path = "/Users/me/notes"
-last_opened_secs = 1771273728
-```
-
-mdlive's `last_workspaces` and `last_browse_dir` are not carried over.
-
-**Token.** On loopback, mdame keeps the token in `<state folder>/token`, mode 0600, so that the cookie of a tab or a bookmark still works after a restart. The first start makes the file. A token file that others can read, or that holds no token, gives a warning, and the token then lasts one run: delete the file to fix it. Deleting the file also locks every browser out, from the next start on. Beyond loopback, the token is new at each start, since its URL goes to other devices. mdame makes the state folder 0700 before it writes the token, the recents or a `state`-mode snapshot there: the token opens mdame, the recents name the opened folders, and the history follows the workspace's file names. If it cannot, the token lasts one run, the recents are not saved, and a `state`-mode save fails.
+**Token.** On loopback, mdame keeps the token in `<state folder>/token`, mode 0600, so that the cookie of a tab or a bookmark still works after a restart. The first start makes the file. A token file that others can read, or that holds no token, gives a warning, and the token then lasts one run: delete the file to fix it. Deleting the file also locks every browser out, from the next start on. Beyond loopback, the token is new at each start, since its URL goes to other devices. mdame makes the state folder 0700 before it writes the token there. If it cannot, the token lasts one run.
 
 **User themes.** Any `~/.config/mdame/themes/<name>.css` appears in the theme picker as `<name>`, after the built-ins. A user file with a built-in's name overrides it.
 
@@ -492,7 +466,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 
 ### Structure
 
-- `main.ts` reads `/api/state`, routes on the URL (`/` picker, `/view/<path>`, `/edit/<path>`), wires the WebSocket, and shows the first-start dialog when `needs_setup` is true.
+- `main.ts` reads `/api/state`, routes on the URL (`/view/<path>`, `/edit/<path>`), and wires the WebSocket.
 - `api.ts` is the only module that calls `fetch`; it turns error bodies into exceptions with a code.
 - Each screen module exports `mount(el, params)` and `unmount()`; state lives in plain objects, and changes re-render or morph only the affected region.
 - Preferences that belong to one browser (sidebar width, open folders, preview visibility, split position, theme) go in `localStorage`, wrapped in try/catch, with every key prefixed `mdame:` so they never meet mdlive's keys on the same port.
@@ -503,12 +477,11 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 
 | Screen | Contents |
 | --- | --- |
-| Picker | Path field with autocomplete, recent workspaces with a filter, error line |
 | View | Sidebar (filter, sort, tree), rendered content, status bar (path, modified time, actions) |
 | Editor | Same frame; content area splits into CodeMirror and preview, with a divider; status bar gains unsaved dot and Save |
 | Revisions | Inline diff in the editor (CodeMirror merge view) against a revision picked from a list, with Restore |
 | Empty and not found | One line saying what happened and one action |
-| Dialogs | Native `<dialog>` for confirm, name input, the first-start history choice and the shortcut help. Toasts are a Later item |
+| Dialogs | Native `<dialog>` for confirm, name input and the shortcut help. Toasts are a Later item |
 
 ### Keyboard
 
@@ -545,17 +518,11 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
   - At first load, only the folders on the path to the current file are open. Open folders are remembered per workspace (the `localStorage` key holds the root).
   - One sort button cycles name A→Z, name Z→A, newest first, oldest first; its icon shows the current order. Folders always come first, and a folder's date is its newest file. The choice is remembered.
   - Clicking a file goes to `/view/<path>`. Icons: one per family (markdown and text, image, CSV, data files, Mermaid).
-  - The filter matches file names with `@leeoniya/ufuzzy` and shows a flat list, matched letters in bold, folder in grey. ↑↓ choose (no row is highlighted until then), Enter opens the chosen result or else the first one (unlike the picker, a wrong open here costs one click), Esc clears the field and then leaves it.
+  - The filter matches file names with `@leeoniya/ufuzzy` and shows a flat list, matched letters in bold, folder in grey. ↑↓ choose (no row is highlighted until then), Enter opens the chosen result or else the first one (a wrong open here costs one click), Esc clears the field and then leaves it.
   - Hover action in milestone 3: copy path. "New file in this folder" comes in milestone 6, with `POST /api/file`.
 - File header: none. Path, modified time and the actions (edit, copy raw, copy path, revisions) live in the status bar; content starts at the top edge.
 - Editor: preview on the right, 50/50 by default, draggable divider, scroll sync.
 - Revisions: inline diff in the editor (CodeMirror merge view) against a revision picked from a list. `h` or `r` in view mode opens the editor in diff mode.
-- Picker: one centred path field with autocomplete; recents appear as suggestions in its dropdown. Details decided on 18 October 2026:
-  - An empty field lists the recents, newest first. While you type, the recents that contain the typed text come first, tagged "recent", then the `/api/complete` results; a path shows once.
-  - Paths under the home folder show as `~/…`. Each row has an icon: folder, file, or recent.
-  - No row is highlighted until you press ↑ or ↓, so Enter never opens a row you did not choose: Enter opens the highlighted row, or else the text in the field. Tab puts the highlighted row, or else the first row, in the field. Esc closes the list. Changed on 18 October 2026 from "the first row is highlighted": one open per launch makes a surprise open costly.
-  - An error line under the field shows the API message until the next key press.
-  - After an open, the page shows the workspace; with a starting file, the URL becomes `/view/<file>`.
 - Typography: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. The mono toggle (Later) will set the content in Plex Mono at 72ch. Fonts are bundled as woff2 (OFL). Decided 28 October 2026.
 - Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The choice lives in `localStorage`, per browser. Decided 28 October 2026.
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
@@ -594,8 +561,6 @@ Reuse mdlive's tests, formats and a few small functions; replace everything else
 | `tests/websocket_test.rs` | Specification for the watcher: vim-style rename saves, delete-then-create, folder moves | `tests/watch.rs`, ported to the new events |
 | `tests/api_test.rs`, `tests/workspace_test.rs` | Cases for path validation, create and save, switching | route tests |
 | `.mdlive/history` layout, prune-to-20 | Same layout under the history root, millisecond names, same default | `history.rs` |
-| `config.toml` recents | `[[recent]]` entries with `path` and `last_opened_secs`, in `recents.toml` in the state folder | `config.rs` |
-| `expand_path` in `handlers/workspace.rs` | `~` expansion for the picker | `workspace.rs` |
 | `csv_to_html` in `state.rs` | Starting point for CSV tables | `render.rs` |
 | The 1 MB guard and its message | Same limit | `render.rs` |
 | Catppuccin and light/dark variables in `templates/main.html` | Not needed: the built-ins come from current Primer and Catppuccin from its official palette. mdlive's light and dark were an earlier Primer palette | — |
@@ -621,10 +586,10 @@ Each test states one rule, and its name is that rule. The rules are:
 
 | Layer | How | Covers |
 | --- | --- | --- |
-| Unit | `#[cfg(test)]` modules | tree building, path expansion, path encoding for the state folder, pruning, front matter stripping, port fallback |
+| Unit | `#[cfg(test)]` modules | tree building, pruning, front matter stripping, port fallback |
 | Rendering | insta snapshots of fixture files in `tests/fixtures/`, plus explicit checks for sanitizing | every file type, alerts, footnotes and in-page links, heading ids, task lists, sanitizing (a fixture full of hostile HTML), relative URL rewriting |
 | Routes | build the router with a tempdir workspace, call it with `tower::ServiceExt::oneshot` | every route's success and error codes, the security rows as matrix tests, 412 on a stale save and 428 without `If-Match`, `/raw` headers |
-| History | tempdir workspace and state folder | two quick saves give two snapshots, pruning, both history locations, `.mdame/.gitignore` |
+| History | tempdir workspace | two quick saves give two snapshots, pruning, `.mdame/.gitignore` |
 | Watcher | real files in a tempdir, wait for events with a timeout | the cases ported from mdlive's `websocket_test.rs`, the burst rule |
 | WebSocket | a test client against a bound server | events arrive with relative paths; `resync` after lag |
 | Front-end unit | `bun test` on modules with no DOM | scroll-sync line-to-block mapping and interpolation, the key-map rules (ignore while typing, modifiers), API error mapping, what the page does for each live event |
@@ -652,8 +617,8 @@ Ten milestones for v1, the version for a Show HN, then an eleventh, each ending 
    - Done when: a save made while the file changed on disk shows the notice instead of overwriting, first with JSON version fields and 409, then refactored to `ETag`, `If-Match` and 412.
 7. **Revisions.** History list, merge view against a snapshot, restore, pruning; opened from view and editor.
    - Done when: restore is undoable from the panel.
-8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, picker UI, status bar, dialogs, `--no-open`, a first README with attribution and licence notes, CI on GitHub Actions.
-   - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the picker without a restart.
+8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, theme picker, status bar, dialogs, `--no-open`, a first README with attribution and licence notes, CI on GitHub Actions. The workspace picker and the choice of history location go.
+   - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
 9. **Agent workflow.** Agent folders in the tree, handoff, what changed, full-text search, copy as quote, clickable task lists, content width and font size, shortcut help, the agent snippet and skill.
    - Done when: a plan that an agent writes under `.claude/plans` shows in the tree, `mdame <that file>` from another terminal opens it in the running tab, and the blocks that the agent rewrites glow.
 10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, release 0.1.0 of the crate on crates.io, and the README with a demo of the agent loop and an honest comparison. Then the Show HN.
@@ -665,6 +630,13 @@ After milestone 11, the medium and large Later items wait; tabs need their own d
 ## Open decisions
 
 - **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
+- **Scope of milestones 9 and 10.** Proposed on 29 October 2026, after a comparison with mo and VS Code. Settle it before milestone 9 starts.
+  - A principle: if the browser or the terminal already does something, mdame does not rebuild it. Browser tabs are the tabs, and browser zoom is the font size. Find and print come from the browser. Renames, deletes and git happen in the terminal, and mdame follows them.
+  - Milestone 9 keeps handoff, full-text search, what changed, agent folders, shortcut help and the agent snippet. Clickable task lists, copy as quote and the font size move to Later. The content width stays: zoom does not widen the column.
+  - Optional additions to milestone 9: an outline of the headings of the open file, and the browser's spellcheck in the editor.
+  - The README of milestone 10 leads with the owner's reason: a markdown viewer and editor in the browser beside the terminal, lighter than VS Code. Its comparison starts with VS Code.
+  - Before the release, milestone 10 measures the memory of mdame and of its tab, idle and on a large repo, against VS Code. It also stops the watcher from watching gitignored folders.
+  - Later loses file operations, the right-click menu and tabs.
 - **Theme details.** The exact Primer value of each contract variable, at the theme pass in milestone 8. The list itself was fixed on 28 October 2026.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
@@ -700,6 +672,7 @@ After milestone 11, the medium and large Later items wait; tabs need their own d
 | Milestone 9 takes the small Later items; the medium and large ones wait | 28 October 2026 |
 | v1 is the version for a Show HN. It gains agent folders (view-only), handoff, what changed, full-text search, copy as quote, clickable task lists, width and font size, shortcut help, an agent snippet, macOS support and release binaries. Toasts and the mono toggle move to Later. Milestones 9 and 10 are new; the small Later items become milestone 11 | 29 October 2026 |
 | Themes: the choice lives in `localStorage`, and `theme` leaves `config.toml`. A theme's `color-scheme` picks the built-in loaded under it and Mermaid's theme. Diff colours derive from `--success` and `--danger`. A status bar menu picks the theme. IBM Plex is bundled. Shadows stay outside the contract | 28 October 2026 |
+| The workspace picker, the recents and workspace switching go: `mdame` with no path opens the current folder. Revisions live in the workspace only: the `state` mode and the first-start dialog go. mdame never writes `config.toml` | 29 October 2026 |
 
 ### Review log, 14 October 2026
 

@@ -17,7 +17,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
-| 8 | Themes and polish | In progress on `m8-themes` | about 9 |
+| 8 | Themes and polish | In progress on `m8-themes` | about 11 |
 | 9 | Agent workflow | — | — |
 | 10 | Release, then Show HN | — | — |
 | 11 | Small Later items | — | — |
@@ -288,17 +288,25 @@ Decided on 29 October 2026, after a market study (kept outside the repo, in `~/d
 - Milestone 10, release: macOS editing and a macOS CI runner, release binaries through cargo-dist, release 0.1.0 of the crate, the README with a demo. Then the Show HN.
 - The small Later items become milestone 11.
 
-Rules, as test names, by commit. Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the picker without a restart.
+Decided on 29 October 2026, after a comparison with mo: mdame does one job, and does it completely, with as little code as it can.
+
+- The workspace picker goes, with the recents and workspace switching. mdame starts from a terminal, where `mdame` with no path opens the current folder.
+- The choice of history location goes, with the first-start dialog. Revisions live in `<workspace>/.mdame/history/`. mdame never writes `config.toml`.
+- Proposed, to settle before milestone 9: a smaller milestone 9, and a milestone 10 that measures the footprint against VS Code. See Open decisions in `docs/SPEC.md`.
+
+Rules, as test names, by commit. Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
 
 1. CI on GitHub Actions: on each push and pull request, a Linux runner checks the format, then runs `lint`, `test` and `check-dist`. First, because the repository is public now: CI checks each push from here on. No test: done when a push of `m8-themes` gets a green run.
-2. `--no-open`: mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`. It closes the open point on `--no-open`.
-3. Built-in themes: `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 4, the page follows the system.
-4. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
-5. User themes: each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_theme_outside_the_folder_is_refused` (a link, `..`).
-6. IBM Plex Sans and Mono, bundled as woff2. The OFL notice goes in `LICENSE`, and the credit in the README.
-7. `web/themes/README.md`: the contract, with a commented template. The README gains a themes section and the Primer credit.
-8. Theme pass: each screen in light and dark (picker, view, editor, revisions, dialogs, status bar), with contrast checks.
-9. Manual checklist, `cargo mutants`, review loop.
+2. No picker: `mdame` with no path opens the current folder. `picker.ts`, `GET /api/complete`, `GET /api/recents`, `POST /api/workspace`, `recents.toml`, `home` in `/api/state` and the `workspace` event go, with the page's code for a tab on the picker and the refusal of a hidden folder. `AppState` holds the workspace with no lock and no `Option`, so the 409 "no workspace is open" goes. The tests of the removed code go, and so do their rows in the routes matrix. The README's usage follows. No new test: the path defaults to `.`.
+3. No history choice: revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the warning about shared histories, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
+4. `--no-open`: mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`. It closes the open point on `--no-open`.
+5. Built-in themes: `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 6, the page follows the system.
+6. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
+7. User themes: each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_theme_outside_the_folder_is_refused` (a link, `..`).
+8. IBM Plex Sans and Mono, bundled as woff2. The OFL notice goes in `LICENSE`, and the credit in the README.
+9. `web/themes/README.md`: the contract, with a commented template. The README gains a themes section and the Primer credit.
+10. Theme pass: each screen in light and dark (view, editor, revisions, dialogs, status bar), with contrast checks.
+11. Manual checklist, `cargo mutants`, review loop.
 
 ## Public repository and crate
 

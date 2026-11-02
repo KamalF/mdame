@@ -496,7 +496,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | `/` | Focus the sidebar filter |
 | `h`, `r` | Revisions (diff in the editor) |
 
-Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the revisions panel first, then the editor, unless a dialog or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
+Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the revisions panel first, then the editor, unless a dialog, the theme menu or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
 
 ### Theme contract
 
@@ -525,7 +525,7 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
 - Editor: preview on the right, 50/50 by default, draggable divider, scroll sync.
 - Revisions: inline diff in the editor (CodeMirror merge view) against a revision picked from a list. `h` or `r` in view mode opens the editor in diff mode.
 - Typography: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. The mono toggle (Later) will set the content in Plex Mono at 72ch. Fonts are bundled as woff2 (OFL). Decided 28 October 2026.
-- Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The choice lives in `localStorage`, per browser. Decided 28 October 2026.
+- Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The choice lives in `localStorage`, per browser and per port. Decided 28 October 2026.
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.
 - Default theme: follow the system. Until the user picks a theme, the page uses the built-in light or dark theme according to `prefers-color-scheme`, and switches live when the OS does; a picked theme is stored and wins. Decided 15 October 2026.

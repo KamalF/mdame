@@ -11,7 +11,8 @@ opens the theme menu, which lists the file by its name without `.css`. The menu
 reads the folder each time it opens, so a new theme shows without a restart. A
 symbolic link counts too, so a dotfile manager can keep the file elsewhere.
 
-Each browser keeps its own choice.
+Each browser keeps its own choice for each port: a second mdame, on the next
+port, starts from System.
 
 ## How a theme loads
 

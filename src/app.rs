@@ -157,11 +157,13 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     print_urls(addr, &printed, &token);
     let linux = cfg!(target_os = "linux");
-    if opens_browser(args.no_open, linux, |name| std::env::var_os(name).is_some()) {
+    if args.no_open {
+        // The printed URL is enough.
+    } else if has_display(linux, |name| std::env::var_os(name).is_some()) {
         if let Err(error) = open::that_detached(code_url(addr, &opened)) {
             tracing::warn!("could not open the browser: {error}");
         }
-    } else if !args.no_open {
+    } else {
         tracing::info!("no display: open the URL above in a browser");
     }
     axum::serve(listener, server::router(state)).await?;
@@ -185,8 +187,8 @@ async fn bind_first_free(ip: IpAddr, first: u16, attempts: usize) -> io::Result<
 /// Without a display, as over SSH, no browser comes: the opened code would
 /// only wait on a command line that other accounts can read. Only Linux
 /// tells it by these variables.
-fn opens_browser(no_open: bool, linux: bool, is_set: impl Fn(&str) -> bool) -> bool {
-    !no_open && (!linux || is_set("DISPLAY") || is_set("WAYLAND_DISPLAY"))
+fn has_display(linux: bool, is_set: impl Fn(&str) -> bool) -> bool {
+    !linux || is_set("DISPLAY") || is_set("WAYLAND_DISPLAY")
 }
 
 /// The URL with an open code, for the browser on this machine.
@@ -441,15 +443,8 @@ mod tests {
             (false, &[][..], true),
         ];
         for (linux, set, expected) in cases {
-            let opens = opens_browser(false, linux, |name| set.contains(&name));
-            assert_eq!(opens, expected, "linux {linux}, {set:?}");
-        }
-    }
-
-    #[test]
-    fn no_open_opens_no_browser() {
-        for linux in [true, false] {
-            assert!(!opens_browser(true, linux, |_| true), "linux {linux}");
+            let display = has_display(linux, |name| set.contains(&name));
+            assert_eq!(display, expected, "linux {linux}, {set:?}");
         }
     }
 

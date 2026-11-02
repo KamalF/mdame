@@ -6,7 +6,6 @@ exclude_re = [
     # Start-up wiring: the manual checklist covers it.
     "replace main -> ExitCode",
     "replace run -> Result",
-    "app.rs.*delete ! in run$",
     "replace (config_dir|state_dir) ->",
     "replace print_urls with \\(\\)",
     # Lookup tables: a test would only repeat them.

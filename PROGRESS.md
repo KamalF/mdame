@@ -337,6 +337,7 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
   - The theme template gives `--content-width` the 60ch of `base.css`.
   - With the theme menu open, Esc closes the menu, not the editor.
   - The editor's panels, buttons, search fields and selection matches take the theme's colours. In Dark, the notice of a change on disk measured 2.7:1.
+  - `run` decides `--no-open` once, and `has_display` checks only the display again, as before commit 4. `no_open_opens_no_browser` and the mutants exclusion of the second check go: manual check 16 covers the flag.
   - Follow-ups and deferred nits are under Open points.
 - `cargo mutants` over the milestone 8 diff after the review, on 2 November 2026: 60 mutants, none missed.
 

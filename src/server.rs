@@ -4,6 +4,7 @@ use crate::app::{
 use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history::{self, Revision};
+use crate::themes;
 use crate::tree;
 use crate::watch::Event;
 use crate::ws;
@@ -29,6 +30,7 @@ use std::sync::{Arc, PoisonError};
 struct StateResponse {
     version: &'static str,
     workspace: WorkspaceResponse,
+    themes: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -37,18 +39,19 @@ struct WorkspaceResponse {
     start: Option<String>,
 }
 
-fn state_response(app: &AppState) -> StateResponse {
-    StateResponse {
+/// Reads the themes folder at each request: a theme dropped there shows
+/// without a restart.
+async fn state(State(app): State<Arc<AppState>>) -> Result<Json<StateResponse>, ApiError> {
+    let dir = app.themes_dir.clone();
+    let themes = tokio::task::spawn_blocking(move || themes::list(&dir)).await?;
+    Ok(Json(StateResponse {
         version: env!("CARGO_PKG_VERSION"),
         workspace: WorkspaceResponse {
             root: app.workspace.root.display().to_string(),
             start: app.workspace.start.clone(),
         },
-    }
-}
-
-async fn state(State(app): State<Arc<AppState>>) -> Json<StateResponse> {
-    Json(state_response(&app))
+        themes,
+    }))
 }
 
 /// Refuses requests that do not come from the mdame page itself.
@@ -324,19 +327,23 @@ async fn asset(Path(path): Path<String>, headers: HeaderMap) -> Response {
     embedded(&format!("assets/{path}"), &headers)
 }
 
-async fn theme(Path(file): Path<String>, headers: HeaderMap) -> Response {
-    if theme_name(&file).is_none() {
-        return StatusCode::NOT_FOUND.into_response();
+/// A user theme, else the built-in of that name.
+async fn theme(
+    State(app): State<Arc<AppState>>,
+    Path(file): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    if themes::theme_name(&file).is_none() {
+        return Ok(StatusCode::NOT_FOUND.into_response());
     }
-    embedded(&format!("themes/{file}"), &headers)
-}
-
-/// The name in `<name>.css`, if it names a file of the themes folder: a `/`,
-/// which the address can carry as `%2F`, or a leading dot names another one.
-fn theme_name(file: &str) -> Option<&str> {
-    let name = file.strip_suffix(".css")?;
-    let plain = !name.is_empty() && !name.starts_with('.') && !name.contains('/');
-    plain.then_some(name)
+    let (dir, name) = (app.themes_dir.clone(), file.clone());
+    let user = tokio::task::spawn_blocking(move || themes::read(&dir, &name))
+        .await?
+        .map_err(|error| ApiError::Internal(format!("{file}: {}", io_message(&error))))?;
+    Ok(match user {
+        Some(css) => ([(header::CONTENT_TYPE, content_type(&file))], css).into_response(),
+        None => embedded(&format!("themes/{file}"), &headers),
+    })
 }
 
 fn embedded(path: &str, request_headers: &HeaderMap) -> Response {

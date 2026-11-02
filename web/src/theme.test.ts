@@ -8,6 +8,7 @@ test("system follows prefers-color-scheme", () => {
 
 test("a stored choice wins", () => {
   expect(chosen("light", BUILT_INS)).toBe("light");
+  expect(chosen("nord", [...BUILT_INS, "nord"])).toBe("nord");
   expect(media("light", "light")).toBe("all");
   expect(media("dark", "light")).toBe("not all");
 });

@@ -49,13 +49,13 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
     })
 }
 
-pub fn config_file() -> Option<PathBuf> {
-    let dir = app_dir(
+/// Holds `config.toml` and the `themes` folder.
+pub fn config_dir() -> Option<PathBuf> {
+    app_dir(
         std::env::var_os("XDG_CONFIG_HOME"),
         std::env::home_dir(),
         ".config",
-    )?;
-    Some(dir.join("config.toml"))
+    )
 }
 
 /// Makes `path` a folder that only the owner can list, even if it was not.

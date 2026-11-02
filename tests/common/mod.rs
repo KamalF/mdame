@@ -68,6 +68,8 @@ pub fn on(workspace: Workspace, events: broadcast::Sender<Event>) -> AppState {
         access: Mutex::new(Access::default()),
         token_file: None,
         config: Config::default(),
+        // Missing: no user theme.
+        themes_dir: Path::new(env!("CARGO_TARGET_TMPDIR")).join("no-themes"),
         events,
     }
 }

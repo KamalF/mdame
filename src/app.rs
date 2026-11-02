@@ -86,6 +86,7 @@ pub struct AppState {
     /// Where the token is kept, on loopback: a new one goes there too.
     pub token_file: Option<PathBuf>,
     pub config: Config,
+    pub themes_dir: PathBuf,
     pub events: broadcast::Sender<Event>,
 }
 
@@ -109,8 +110,8 @@ pub fn open_workspace(path: &Path, events: broadcast::Sender<Event>) -> io::Resu
 }
 
 pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
-    let config_path = config::config_file().ok_or("set HOME or XDG_CONFIG_HOME: no home folder")?;
-    let config = config::load(&config_path)?;
+    let config_dir = config::config_dir().ok_or("set HOME or XDG_CONFIG_HOME: no home folder")?;
+    let config = config::load(&config_dir.join("config.toml"))?;
     let state_dir = config::state_dir().ok_or("set HOME or XDG_STATE_HOME: no home folder")?;
     let listener = bind_first_free(args.host, args.port, PORT_ATTEMPTS).await?;
     let addr = listener.local_addr()?;
@@ -142,6 +143,7 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         }),
         token_file,
         config,
+        themes_dir: config_dir.join("themes"),
         events,
     };
     // After the open: the watcher's first walk of a large folder can take

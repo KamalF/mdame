@@ -310,7 +310,10 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
 6. Theme choice (done): `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
    - The two `<link>`s of commit 5 stay, with an `id`: under System, their media queries follow the system with no script. A stored choice sets their `media` to `all` and `not all`.
    - The menu is a popover above the button, built when it opens. Mermaid takes the theme at each render, so a new choice shows in the next diagrams drawn.
-7. User themes: each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_theme_outside_the_folder_is_refused` (a link, `..`).
+7. User themes (done): each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_link_in_the_folder_is_a_theme`, `a_theme_outside_the_folder_is_refused` (`..`).
+   - Decided on 2 November 2026: a link in the folder is a theme, wherever it points, since dotfile managers make such links. The plan refused a link that leaves the folder.
+   - `/api/state` lists the themes, and the menu asks for it each time it opens. The page loads a stored user theme without the list: if the theme is gone, its link fails and the page shows the system's theme.
+   - A user file named like a built-in replaces it whole, so it must set every variable. The README of commit 9 says so.
 8. IBM Plex Sans and Mono, bundled as woff2. The OFL notice goes in `LICENSE`, and the credit in the README.
 9. `web/themes/README.md`: the contract, with a commented template. The README gains a themes section and the Primer credit.
 10. Theme pass: each screen in light and dark (view, editor, revisions, dialogs, status bar), with contrast checks.
@@ -331,7 +334,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 7: user themes.
+1. Milestone 8, commit 8: IBM Plex fonts.
 
 ## Open points
 

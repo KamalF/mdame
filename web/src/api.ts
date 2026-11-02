@@ -2,6 +2,8 @@
 export interface State {
   version: string;
   workspace: Workspace;
+  /** The built-ins, then the user themes. */
+  themes: string[];
 }
 
 export interface Workspace {

@@ -268,6 +268,7 @@ mdame/
     lib.rs              declares the modules, so tests/ can use them
     app.rs              AppState, startup, port fallback, open browser
     server.rs           router, security guard layer, static assets
+    themes.rs           theme names; list and read the user themes
     error.rs            ApiError (thiserror) → status code + JSON body
     config.rs           config.toml (settings, read only); config, state and themes dirs
     workspace.rs        Workspace: root, cap-std Dir, starting file; open
@@ -324,9 +325,9 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | --- | --- | --- |
 | `GET /`, `/view/*`, `/edit/*` | The single page; the browser routes from the URL | `index.html` |
 | `GET /assets/*` | Bundled JS and CSS | embedded files, with ETag |
-| `GET /themes/{name}.css` | Built-in or user theme | CSS |
+| `GET /themes/{name}.css` | The user theme of that name, else the built-in | CSS |
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security); 413 over 64 MB, since the file is read whole |
-| `GET /api/state` | Workspace as `{root, start}`, version, theme list | JSON |
+| `GET /api/state` | Workspace as `{root, start}`, version, and `themes`: the built-ins, then the user themes by name. The themes folder is read at each request | JSON |
 | `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file; a file has a `family` (`markdown`, `text`, `data`, `table`, `diagram`, `image`) that picks its icon and its rendering | `{name, path, kind, family, modified, children}` |
 | `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`, and `editable`, whether the page offers the editor. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together; 413 over 8 MB, and 404 `not_viewable` for a file that the editor may not open (below) or that is not UTF-8 | `{content, modified}` with `ETag: "<content hash>"` |
@@ -456,7 +457,7 @@ snapshots_per_file = 20
 
 **Token.** On loopback, mdame keeps the token in `<state folder>/token`, mode 0600, so that the cookie of a tab or a bookmark still works after a restart. The first start makes the file. A token file that others can read, or that holds no token, gives a warning, and the token then lasts one run: delete the file to fix it. Deleting the file also locks every browser out, from the next start on. Beyond loopback, the token is new at each start, since its URL goes to other devices. mdame makes the state folder 0700 before it writes the token there. If it cannot, the token lasts one run.
 
-**User themes.** Any `~/.config/mdame/themes/<name>.css` appears in the theme picker as `<name>`, after the built-ins. A user file with a built-in's name overrides it.
+**User themes.** Any `~/.config/mdame/themes/<name>.css` appears in the theme picker as `<name>`, after the built-ins. A user file with a built-in's name overrides it. A link there counts too, wherever it points, since dotfile managers make such links. A theme name has no `/` and no leading dot, so a request names only a file of the folder.
 
 **Browser-only preferences** such as sidebar width and open folders live in `localStorage` (see Front end). `.mdlive/tabs.json` belongs to the Later tabs feature.
 
@@ -673,6 +674,7 @@ After milestone 11, the medium and large Later items wait; tabs need their own d
 | v1 is the version for a Show HN. It gains agent folders (view-only), handoff, what changed, full-text search, copy as quote, clickable task lists, width and font size, shortcut help, an agent snippet, macOS support and release binaries. Toasts and the mono toggle move to Later. Milestones 9 and 10 are new; the small Later items become milestone 11 | 29 October 2026 |
 | Themes: the choice lives in `localStorage`, and `theme` leaves `config.toml`. A theme's `color-scheme` picks the built-in loaded under it and Mermaid's theme. Diff colours derive from `--success` and `--danger`. A status bar menu picks the theme. IBM Plex is bundled. Shadows stay outside the contract | 28 October 2026 |
 | The workspace picker, the recents and workspace switching go: `mdame` with no path opens the current folder. Revisions live in the workspace only: the `state` mode and the first-start dialog go. mdame never writes `config.toml` | 29 October 2026 |
+| A link in the themes folder is a theme, wherever it points: dotfile managers make them. Changed from refusing a link that leaves the folder | 2 November 2026 |
 
 ### Review log, 14 October 2026
 

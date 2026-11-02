@@ -1,17 +1,18 @@
-import type { Mermaid, MermaidConfig } from "mermaid";
+import type { Mermaid } from "mermaid";
 
 let ready: Promise<Mermaid> | undefined;
 
 // Loaded on the first diagram only: Mermaid is most of the bundle.
 function loadMermaid() {
   ready ??= import("mermaid").then(({ default: mermaid }) => {
-    // The CSS sets the variable to one of Mermaid's theme names.
-    const theme = getComputedStyle(document.documentElement)
-      .getPropertyValue("--mermaid-theme")
-      .trim() as MermaidConfig["theme"];
+    const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
     // Diagram text can be agent-written: 'strict' encodes HTML in labels
     // and disables click handlers. Never 'loose'.
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: theme || "default" });
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: dark ? "dark" : "default",
+    });
     return mermaid;
   });
   return ready;

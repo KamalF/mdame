@@ -55,6 +55,11 @@ interface Open {
   error: string | null;
 }
 
+/** A theme colour mixed into the background, so the selection below shows. */
+function tint(name: string, percent: number): string {
+  return `color-mix(in srgb, var(${name}) ${percent}%, transparent)`;
+}
+
 /** CodeMirror's base theme is light: these follow the page's palette, dark too. */
 const palette = EditorView.theme({
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--fg)" },
@@ -72,6 +77,17 @@ const palette = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: "var(--bg-raised)" },
   // The completion list: its text has the page's colour.
   ".cm-tooltip": { backgroundColor: "var(--bg-raised)", border: "1px solid var(--border)" },
+  // Diff mode.
+  "&.cm-merge-b .cm-changedLine, .cm-inlineChangedLine": { backgroundColor: tint("--success", 12) },
+  "&.cm-merge-b .cm-changedText": { background: tint("--success", 30) },
+  ".cm-deletedChunk": { backgroundColor: tint("--danger", 12) },
+  "&.cm-merge-b .cm-deletedText, .cm-deletedChunk .cm-deletedText": {
+    background: tint("--danger", 30),
+  },
+  "&.cm-merge-b .cm-changedLineGutter, .cm-inlineChangedLineGutter": {
+    background: "var(--success)",
+  },
+  ".cm-deletedLineGutter": { background: "var(--danger)" },
 });
 
 let open: Open | null = null;

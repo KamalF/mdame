@@ -637,7 +637,7 @@ After milestone 11, the medium and large Later items wait; tabs need their own d
   - The README of milestone 10 leads with the owner's reason: a markdown viewer and editor in the browser beside the terminal, lighter than VS Code. Its comparison starts with VS Code.
   - Before the release, milestone 10 measures the memory of mdame and of its tab, idle and on a large repo, against VS Code. It also stops the watcher from watching gitignored folders.
   - Later loses file operations, the right-click menu and tabs.
-- **Theme details.** The exact Primer value of each contract variable, at the theme pass in milestone 8. The list itself was fixed on 28 October 2026.
+- **Theme details.** The built-in themes map each contract variable to a Primer variable (milestone 8, commit 5). The theme pass checks their contrast and may change the mapping. The list itself was fixed on 28 October 2026.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
 

@@ -1,0 +1,26 @@
+/* GitHub Primer light, from @primer/primitives 11.10.0 (MIT). Each comment
+   names the Primer variable. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff; /* bgColor-default */
+  --bg-raised: #ffffff; /* overlay-bgColor */
+  --bg-sunken: #f6f8fa; /* bgColor-inset */
+  --fg: #1f2328; /* fgColor-default */
+  --fg-muted: #59636e; /* fgColor-muted */
+  --border: #d1d9e0; /* borderColor-default */
+  --selection: #0969da33; /* selection-bgColor */
+  --accent: #0969da; /* fgColor-accent */
+  --accent-fg: #ffffff; /* fgColor-onEmphasis */
+  --danger: #d1242f; /* fgColor-danger */
+  --warning: #9a6700; /* fgColor-attention */
+  --success: #1a7f37; /* fgColor-success */
+  --code-bg: #f6f8fa; /* bgColor-muted */
+  --hl-keyword: #cf222e; /* prettylights-syntax-keyword */
+  --hl-string: #0a3069; /* prettylights-syntax-string */
+  --hl-number: #0550ae; /* prettylights-syntax-constant */
+  --hl-comment: #59636e; /* prettylights-syntax-comment */
+  --hl-title: #6639ba; /* prettylights-syntax-entity */
+  --hl-type: #953800; /* prettylights-syntax-variable */
+  --hl-attr: #0550ae; /* prettylights-syntax-entityTag */
+  --hl-meta: #953800; /* prettylights-syntax-variable */
+}

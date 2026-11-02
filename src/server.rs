@@ -324,6 +324,21 @@ async fn asset(Path(path): Path<String>, headers: HeaderMap) -> Response {
     embedded(&format!("assets/{path}"), &headers)
 }
 
+async fn theme(Path(file): Path<String>, headers: HeaderMap) -> Response {
+    if theme_name(&file).is_none() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    embedded(&format!("themes/{file}"), &headers)
+}
+
+/// The name in `<name>.css`, if it names a file of the themes folder: a `/`,
+/// which the address can carry as `%2F`, or a leading dot names another one.
+fn theme_name(file: &str) -> Option<&str> {
+    let name = file.strip_suffix(".css")?;
+    let plain = !name.is_empty() && !name.starts_with('.') && !name.contains('/');
+    plain.then_some(name)
+}
+
 fn embedded(path: &str, request_headers: &HeaderMap) -> Response {
     let Some(file) = Dist::get(path) else {
         return StatusCode::NOT_FOUND.into_response();
@@ -638,6 +653,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/view/{*path}", get(page))
         .route("/edit/{*path}", get(page))
         .route("/assets/{*path}", get(asset))
+        .route("/themes/{file}", get(theme))
         .route("/raw/{*path}", get(raw))
         .route("/api/state", get(state))
         .route("/api/tree", get(tree))

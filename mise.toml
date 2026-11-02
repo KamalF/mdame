@@ -16,6 +16,8 @@ run = [
   "mkdir -p target",
   "{{vars.bundle}} --metafile=target/web-meta.json",
   "cp web/index.html web/dist/index.html",
+  "mkdir web/dist/themes",
+  "cp web/themes/light.css web/themes/dark.css web/dist/themes/",
   "bun web/notices.ts target/web-meta.json web/dist/THIRD-PARTY-LICENSES.txt",
 ]
 

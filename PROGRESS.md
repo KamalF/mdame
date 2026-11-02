@@ -303,7 +303,10 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
 3. No history choice (done): revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
    - `AppState` holds the config with no lock, and no longer holds its path or the state folder. `config::load` reads a `Config` only.
 4. `--no-open` (done): mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`, which becomes `opens_browser`. It closes the open point on `--no-open`.
-5. Built-in themes: `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 6, the page follows the system.
+5. Built-in themes (done): `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 6, the page follows the system.
+   - Primer variables: `--bg-raised` is `overlay-bgColor`, `--bg-sunken` is `bgColor-inset`, `--code-bg` is `bgColor-muted`, and `--selection` is `selection-bgColor`. A comment in each theme file names the Primer variable of each value.
+   - `mise run web` copies the two files into `web/dist/themes/`, which the binary embeds. Two `<link>`s with a `media` query pick the built-in of the system's scheme.
+   - The diff's colours are in the editor's CodeMirror theme: a theme there overrides the merge view's own colours.
 6. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
 7. User themes: each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_theme_outside_the_folder_is_refused` (a link, `..`).
 8. IBM Plex Sans and Mono, bundled as woff2. The OFL notice goes in `LICENSE`, and the credit in the README.
@@ -325,7 +328,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 5: built-in themes.
+1. Milestone 8, commit 6: theme choice.
 
 ## Open points
 

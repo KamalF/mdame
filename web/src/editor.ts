@@ -78,6 +78,17 @@ const palette = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: tint("--fg", 4) },
   // The completion list: its text has the page's colour.
   ".cm-tooltip": { backgroundColor: "var(--bg-raised)", border: "1px solid var(--border)" },
+  // The panels: the notice of a change on disk, and the search.
+  ".cm-panels": { backgroundColor: "var(--bg-sunken)", color: "var(--fg)" },
+  ".cm-panels-top": { borderBottom: "1px solid var(--border)" },
+  ".cm-panels-bottom": { borderTop: "1px solid var(--border)" },
+  ".cm-textfield": { backgroundColor: "var(--bg)", border: "1px solid var(--border)" },
+  ".cm-button": {
+    background: "var(--bg-raised)",
+    border: "1px solid var(--border)",
+    "&:active": { background: "var(--hover)" },
+  },
+  ".cm-selectionMatch": { backgroundColor: tint("--accent", 15) },
   // Diff mode.
   "&.cm-merge-b .cm-changedLine, .cm-inlineChangedLine": { backgroundColor: tint("--success", 12) },
   "&.cm-merge-b .cm-changedText": { background: tint("--success", 30) },

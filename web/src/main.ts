@@ -9,6 +9,7 @@ import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
 import * as sidebar from "./sidebar.ts";
+import * as theme from "./theme.ts";
 import * as view from "./view.ts";
 
 const app = document.getElementById("mdame-app") as HTMLElement;
@@ -21,8 +22,9 @@ function showStatus(state: State) {
   const workspace = document.createElement("span");
   workspace.textContent = state.workspace.root;
   const version = document.createElement("span");
+  version.className = "mdame-version";
   version.textContent = state.version;
-  status.replaceChildren(workspace, fileStatus, version);
+  status.replaceChildren(workspace, fileStatus, version, theme.themeButton());
 }
 
 function showFileStatus(path: string, file: view.FileView) {
@@ -388,6 +390,8 @@ async function refresh() {
   editor.checkDisk();
   editor.refreshPreview();
 }
+
+theme.apply();
 
 // The code or the token in the address has done its work: the cookie now
 // stands for it, and a reload must not send it again.

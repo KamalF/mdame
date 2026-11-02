@@ -41,6 +41,6 @@ main {
   flex: none;
 }
 
-#mdame-status > :last-child {
+.mdame-version {
   margin-left: auto;
 }

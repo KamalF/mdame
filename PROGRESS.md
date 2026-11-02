@@ -307,11 +307,14 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
    - Primer variables: `--bg-raised` is `overlay-bgColor`, `--bg-sunken` is `bgColor-inset`, `--code-bg` is `bgColor-muted`, and `--selection` is `selection-bgColor`. A comment in each theme file names the Primer variable of each value.
    - `mise run web` copies the two files into `web/dist/themes/`, which the binary embeds. Two `<link>`s with a `media` query pick the built-in of the system's scheme.
    - The diff's colours are in the editor's CodeMirror theme: a theme there overrides the merge view's own colours.
-6. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
+6. Theme choice (done): `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
+   - The two `<link>`s of commit 5 stay, with an `id`: under System, their media queries follow the system with no script. A stored choice sets their `media` to `all` and `not all`.
+   - The menu is a popover above the button, built when it opens. Mermaid takes the theme at each render, so a new choice shows in the next diagrams drawn.
 7. User themes: each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_theme_outside_the_folder_is_refused` (a link, `..`).
 8. IBM Plex Sans and Mono, bundled as woff2. The OFL notice goes in `LICENSE`, and the credit in the README.
 9. `web/themes/README.md`: the contract, with a commented template. The README gains a themes section and the Primer credit.
 10. Theme pass: each screen in light and dark (view, editor, revisions, dialogs, status bar), with contrast checks.
+   - Found in the browser check of commit 6: in dark, the current row of the sidebar is accent blue on the strong blue of `selection-bgColor`, hard to read. `--selection` serves text selection, hover and the current row, and Primer's value suits only the first.
 11. Manual checklist, `cargo mutants`, review loop.
 
 ## Public repository and crate
@@ -328,7 +331,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 6: theme choice.
+1. Milestone 8, commit 7: user themes.
 
 ## Open points
 

@@ -389,3 +389,37 @@
   color: var(--fg-muted);
   cursor: default;
 }
+
+.mdame-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--fg);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.mdame-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 12px 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mdame-menu button:hover {
+  background: var(--selection);
+}
+
+.mdame-menu [aria-pressed="false"] .mdame-icon {
+  visibility: hidden;
+}

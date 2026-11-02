@@ -11,7 +11,6 @@ use crate::error::io_message;
 #[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    pub theme: Option<String>,
     pub snapshots_per_file: Option<usize>,
 }
 
@@ -118,11 +117,17 @@ mod tests {
     fn reads_config() {
         let dir = tempfile::tempdir().unwrap();
         let config_path = dir.path().join("config.toml");
-        fs::write(&config_path, "theme = \"dark\"\n").unwrap();
+        fs::write(&config_path, "snapshots_per_file = 5\n").unwrap();
 
-        let config = load(&config_path).unwrap();
-        assert_eq!(config.theme.as_deref(), Some("dark"));
-        assert_eq!(config.snapshots_per_file, None);
+        assert_eq!(load(&config_path).unwrap().snapshots_per_file, Some(5));
+    }
+
+    #[test]
+    fn a_config_that_sets_theme_stops_mdame() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        fs::write(&path, "theme = \"dark\"\n").unwrap();
+        assert!(matches!(load(&path), Err(ConfigError::Parse { .. })));
     }
 
     #[test]

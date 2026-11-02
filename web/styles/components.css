@@ -71,7 +71,7 @@
 }
 
 .mdame-dialog button.is-secondary {
-  /* In dark, --bg-sunken is the dialog's own colour. */
+  /* A theme may give --bg-sunken the dialog's own colour. */
   border: 1px solid var(--border);
   background: var(--bg-sunken);
   color: var(--fg);

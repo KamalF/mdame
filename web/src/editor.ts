@@ -68,13 +68,14 @@ const palette = EditorView.theme({
     background: "var(--selection)",
   },
   // Translucent: the selection layer is drawn below the lines.
-  ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--fg) 4%, transparent)" },
+  ".cm-activeLine": { backgroundColor: tint("--fg", 4) },
   ".cm-gutters": {
     backgroundColor: "var(--bg-sunken)",
     color: "var(--fg-muted)",
     borderRight: "1px solid var(--border)",
   },
-  ".cm-activeLineGutter": { backgroundColor: "var(--bg-raised)" },
+  // A tint, since a theme may give --bg-raised the colour of the gutter.
+  ".cm-activeLineGutter": { backgroundColor: tint("--fg", 4) },
   // The completion list: its text has the page's colour.
   ".cm-tooltip": { backgroundColor: "var(--bg-raised)", border: "1px solid var(--border)" },
   // Diff mode.

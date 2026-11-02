@@ -343,9 +343,9 @@ addEventListener("keydown", (event: KeyboardEvent) => {
   // An input method uses Esc to cancel what it composes.
   if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
-  // Esc in a dialog closes the dialog.
+  // Esc in a dialog or a menu closes it.
   // Focus may have left the dialog for the page, after a click on its text.
-  if (document.querySelector("dialog[open]")) return;
+  if (document.querySelector("dialog[open], :popover-open")) return;
   // The sidebar's own listener closes its overlay first.
   if (!route().editing || sidebar.isOverlayOpen()) return;
   // Otherwise the browser applies this Esc to the dialog that it opens,

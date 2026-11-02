@@ -1,7 +1,7 @@
 mod common;
 
 use axum::http::{StatusCode, header};
-use common::{HOST, local, send};
+use common::{HOST, local, send, text};
 
 #[tokio::test]
 async fn page_is_served_with_security_headers() {
@@ -103,10 +103,7 @@ async fn only_api_and_raw_answers_stay_out_of_the_cache() {
 #[tokio::test]
 async fn every_woff2_font_of_the_css_is_served() {
     let response = send(local(), "/assets/main.css", &[HOST]).await;
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let css = String::from_utf8(bytes.to_vec()).unwrap();
+    let css = text(response).await;
     let fonts: Vec<&str> = css
         .split("url(")
         .skip(1)

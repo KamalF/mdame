@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use axum::http::StatusCode;
-use common::{HOST, get_json, local, send, send_to, status_and_json};
+use common::{HOST, get_json, local, send, send_to, status_and_json, text};
 use mdame::app::AppState;
 use mdame::server::router;
 use serde_json::json;
@@ -24,13 +24,6 @@ fn with_themes(dir: &Path, files: &[(&str, &str)]) -> AppState {
     }
 }
 
-async fn body(response: axum::response::Response) -> String {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    String::from_utf8(bytes.to_vec()).unwrap()
-}
-
 #[tokio::test]
 async fn a_builtin_theme_is_css() {
     for (name, scheme) in [
@@ -41,7 +34,7 @@ async fn a_builtin_theme_is_css() {
         assert_eq!(response.status(), StatusCode::OK, "{name}");
         let content_type = &response.headers()["content-type"];
         assert_eq!(content_type, "text/css; charset=utf-8", "{name}");
-        assert!(body(response).await.contains(scheme), "{name}");
+        assert!(text(response).await.contains(scheme), "{name}");
     }
 }
 
@@ -94,7 +87,7 @@ async fn a_user_theme_overrides_a_builtin() {
         response.headers()["content-type"],
         "text/css; charset=utf-8"
     );
-    assert_eq!(body(response).await, "/* mine */");
+    assert_eq!(text(response).await, "/* mine */");
 }
 
 #[tokio::test]
@@ -106,7 +99,7 @@ async fn a_new_user_theme_shows_without_a_restart() {
     let (_, state) = status_and_json(send_to(&app, "/api/state", &[HOST]).await).await;
     assert_eq!(state["themes"], json!(["light", "dark", "nord"]));
     let response = send_to(&app, "/themes/nord.css", &[HOST]).await;
-    assert_eq!(body(response).await, "/* nord */");
+    assert_eq!(text(response).await, "/* nord */");
 }
 
 #[tokio::test]
@@ -122,7 +115,7 @@ async fn a_link_in_the_folder_is_a_theme() {
     let (_, state) = status_and_json(send_to(&app, "/api/state", &[HOST]).await).await;
     assert_eq!(state["themes"], json!(["light", "dark", "nord"]));
     let response = send_to(&app, "/themes/nord.css", &[HOST]).await;
-    assert_eq!(body(response).await, "/* nord */");
+    assert_eq!(text(response).await, "/* nord */");
 }
 
 #[tokio::test]
@@ -145,5 +138,5 @@ async fn an_unreadable_theme_is_an_error() {
         return;
     }
     let response = send(state, "/themes/nord.css", &[HOST]).await;
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }

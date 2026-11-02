@@ -339,7 +339,7 @@ async fn theme(
     let (dir, name) = (app.themes_dir.clone(), file.clone());
     let user = tokio::task::spawn_blocking(move || themes::read(&dir, &name))
         .await?
-        .map_err(|error| ApiError::Internal(format!("{file}: {}", io_message(&error))))?;
+        .map_err(|error| file_error(&file, error))?;
     Ok(match user {
         Some(css) => ([(header::CONTENT_TYPE, content_type(&file))], css).into_response(),
         None => embedded(&format!("themes/{file}"), &headers),

@@ -19,6 +19,11 @@ export function media(name: BuiltIn, scheme: BuiltIn | null): string {
   return name === scheme ? "all" : "not all";
 }
 
+/** Whether the theme on screen is dark. */
+export function isDark(): boolean {
+  return getComputedStyle(document.documentElement).colorScheme === "dark";
+}
+
 function isBuiltIn(theme: string): theme is BuiltIn {
   return (BUILT_INS as readonly string[]).includes(theme);
 }
@@ -45,8 +50,7 @@ export function apply() {
   link.rel = "stylesheet";
   link.href = `/themes/${encodeURIComponent(theme)}.css`;
   link.addEventListener("load", () => {
-    const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
-    showBuiltIn(dark ? "dark" : "light");
+    showBuiltIn(isDark() ? "dark" : "light");
   });
   // Deleted since it was chosen: the system's theme.
   link.addEventListener("error", () => {
@@ -65,8 +69,8 @@ function label(theme: string): string {
   return isBuiltIn(theme) ? theme[0].toUpperCase() + theme.slice(1) : theme;
 }
 
-/** The theme button of the status bar, with its menu. */
-export function themeButton(): HTMLElement {
+/** The theme button of the status bar, with its menu of `themes`. */
+export function themeButton(themes: readonly string[]): HTMLElement {
   const menu = document.createElement("div");
   menu.className = "mdame-menu";
   menu.popover = "auto";
@@ -74,7 +78,7 @@ export function themeButton(): HTMLElement {
   // on it closes the open menu rather than opening it again.
   const button = iconButton("Theme", "palette", () => {});
   button.popoverTargetElement = menu;
-  let known: readonly string[] = BUILT_INS;
+  let known = themes;
 
   function render() {
     const current = chosen(load(KEY, null), known);

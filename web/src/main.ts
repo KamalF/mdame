@@ -25,7 +25,7 @@ function showStatus(state: State) {
   const version = document.createElement("span");
   version.className = "mdame-version";
   version.textContent = state.version;
-  status.replaceChildren(workspace, fileStatus, version, theme.themeButton());
+  status.replaceChildren(workspace, fileStatus, version, theme.themeButton(state.themes));
 }
 
 function showFileStatus(path: string, file: view.FileView) {

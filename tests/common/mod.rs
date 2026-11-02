@@ -56,6 +56,13 @@ pub async fn status_and_json(response: Response) -> (StatusCode, Value) {
     (status, serde_json::from_slice(&bytes).unwrap())
 }
 
+pub async fn text(response: Response) -> String {
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    String::from_utf8(bytes.to_vec()).unwrap()
+}
+
 pub async fn get_json(state: AppState, uri: &str) -> (StatusCode, Value) {
     status_and_json(send(state, uri, &[HOST]).await).await
 }

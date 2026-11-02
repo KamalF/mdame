@@ -1,4 +1,5 @@
 import type { Mermaid } from "mermaid";
+import { isDark } from "./theme.ts";
 
 let ready: Promise<Mermaid> | undefined;
 
@@ -7,13 +8,12 @@ let ready: Promise<Mermaid> | undefined;
 async function loadMermaid() {
   ready ??= import("mermaid").then(({ default: mermaid }) => mermaid);
   const mermaid = await ready;
-  const dark = getComputedStyle(document.documentElement).colorScheme === "dark";
   // Diagram text can be agent-written: 'strict' encodes HTML in labels
   // and disables click handlers. Never 'loose'.
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "strict",
-    theme: dark ? "dark" : "default",
+    theme: isDark() ? "dark" : "default",
   });
   return mermaid;
 }

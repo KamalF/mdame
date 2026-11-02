@@ -66,28 +66,6 @@ impl Workspace {
             watcher: None,
         })
     }
-
-    /// The canonical path that was opened: the folder, or the file.
-    pub fn path(&self) -> PathBuf {
-        match &self.start {
-            Some(name) => self.root.join(name),
-            None => self.root.clone(),
-        }
-    }
-}
-
-/// `~` and `~/…` name the home folder, as in a shell; `~user` is not expanded.
-pub fn expand_home(input: &str, home: Option<&Path>) -> PathBuf {
-    let Some(home) = home else {
-        return PathBuf::from(input);
-    };
-    if input == "~" {
-        return home.to_owned();
-    }
-    match input.strip_prefix("~/") {
-        Some(rest) => home.join(rest),
-        None => PathBuf::from(input),
-    }
 }
 
 #[cfg(test)]
@@ -123,21 +101,6 @@ mod tests {
 
         let dotted = Workspace::open(&dir.path().join("sub/../sub/.")).unwrap();
         assert_eq!(dotted.root, dir.path().join("sub").canonicalize().unwrap());
-    }
-
-    #[test]
-    fn tilde_names_the_home_folder() {
-        let home = Some(Path::new("/home/me"));
-        let cases = [
-            ("~", "/home/me"),
-            ("~/notes", "/home/me/notes"),
-            ("~user/notes", "~user/notes"),
-            ("/srv/~/a", "/srv/~/a"),
-        ];
-        for (input, expected) in cases {
-            assert_eq!(expand_home(input, home), PathBuf::from(expected), "{input}");
-        }
-        assert_eq!(expand_home("~/notes", None), PathBuf::from("~/notes"));
     }
 
     #[test]

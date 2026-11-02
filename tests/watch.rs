@@ -233,7 +233,7 @@ async fn reading_the_tree_sends_nothing() {
     let paths: Vec<String> = (0..150).map(|i| format!("d{i}/a.md")).collect();
     let files: Vec<(&str, &[u8])> = paths.iter().map(|path| (path.as_str(), &b""[..])).collect();
     let mut watched = Watched::new(&files);
-    mdame::tree::build(&watched.state.workspace().unwrap());
+    mdame::tree::build(&watched.state.workspace);
     watched.assert_next(&[]).await;
 }
 
@@ -246,12 +246,4 @@ async fn burst_gives_resync() {
     // A batch can be split over two ticks, so one part holds over 100.
     let events = watched.next().await;
     assert!(events.contains(&Event::Resync), "got {events:?}");
-}
-
-#[tokio::test]
-async fn watcher_stops_with_the_workspace() {
-    let mut watched = Watched::new(&[A]);
-    drop(watched.state.workspace.write().unwrap().take());
-    fs::write(watched.path("a.md"), "# Changed\n").unwrap();
-    watched.assert_next(&[]).await;
 }

@@ -18,7 +18,7 @@ mdame [PATH]
 ```
 
 mdame opens the folder or file at `PATH` in your browser. Without `PATH`, it
-starts at a folder picker. By default, it listens on 127.0.0.1. `mdame --help`
+opens the current folder. By default, it listens on 127.0.0.1. `mdame --help`
 lists the options.
 
 - It renders GitHub-flavoured markdown, with alerts, footnotes and Mermaid

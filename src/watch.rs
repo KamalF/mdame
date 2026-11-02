@@ -30,7 +30,6 @@ pub enum Event {
     Created { path: String },
     Removed { path: String },
     Renamed { from: String, to: String },
-    Workspace { root: String },
     Resync,
 }
 

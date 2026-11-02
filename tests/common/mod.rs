@@ -9,10 +9,11 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::response::Response;
 use mdame::{
-    app::{Access, AppState},
+    app::{Access, AppState, open_workspace},
     config::Config,
     server::router,
-    watch::EVENT_CAPACITY,
+    watch::{EVENT_CAPACITY, Event},
+    workspace::Workspace,
 };
 use serde_json::Value;
 use tokio::sync::broadcast;
@@ -59,17 +60,27 @@ pub async fn get_json(state: AppState, uri: &str) -> (StatusCode, Value) {
     status_and_json(send(state, uri, &[HOST]).await).await
 }
 
-pub fn local() -> AppState {
+/// A state on loopback, with no token.
+pub fn on(workspace: Workspace, events: broadcast::Sender<Event>) -> AppState {
     AppState {
         addr: "127.0.0.1:4891".parse().unwrap(),
-        workspace: RwLock::new(None),
+        workspace: Arc::new(workspace),
         access: Mutex::new(Access::default()),
         token_file: None,
         config: RwLock::new(Config::default()),
         config_path: PathBuf::new(),
         state_dir: PathBuf::new(),
-        events: broadcast::channel(EVENT_CAPACITY).0,
+        events,
     }
+}
+
+/// For tests that read no file: the workspace is an empty folder, shared by
+/// the tests.
+pub fn local() -> AppState {
+    let empty = Path::new(env!("CARGO_TARGET_TMPDIR")).join("empty");
+    fs::create_dir_all(&empty).unwrap();
+    let events = broadcast::channel(EVENT_CAPACITY).0;
+    on(Workspace::open(&empty).unwrap(), events)
 }
 
 pub const HOST: (&str, &str) = ("host", "127.0.0.1:4891");
@@ -96,10 +107,10 @@ pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {
     }
     fs::create_dir_all(&root).unwrap();
     fs::write(dir.join("secret.md"), "secret\n").unwrap();
-    let state = AppState {
+    let events = broadcast::channel(EVENT_CAPACITY).0;
+    let workspace = open_workspace(&root, events.clone()).unwrap();
+    AppState {
         state_dir: dir.to_path_buf(),
-        ..local()
-    };
-    state.open_workspace(&root).unwrap();
-    state
+        ..on(workspace, events)
+    }
 }

@@ -1,9 +1,8 @@
 /** What `/api/state` and the requests that change the state answer. */
 export interface State {
   version: string;
-  workspace: Workspace | null;
+  workspace: Workspace;
   needs_setup: boolean;
-  home: string | null;
 }
 
 export interface Workspace {

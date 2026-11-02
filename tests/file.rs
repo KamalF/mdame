@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use axum::http::StatusCode;
-use common::{get_json, local};
+use common::get_json;
 use mdame::app::AppState;
 use serde_json::Value;
 
@@ -126,10 +126,4 @@ async fn unreadable_file_is_not_called_outside() {
     let (status, body) = get_file(state, "docs/a.md").await;
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(body["error"]["message"], "no permission to open this file");
-}
-
-#[tokio::test]
-async fn no_file_without_a_workspace() {
-    let (status, _) = get_file(local(), "a.md").await;
-    assert_eq!(status, StatusCode::CONFLICT);
 }

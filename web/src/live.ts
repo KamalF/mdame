@@ -2,7 +2,6 @@
 export type LiveEvent =
   | { type: "changed" | "created" | "removed"; path: string }
   | { type: "renamed"; from: string; to: string }
-  | { type: "workspace"; root: string }
   | { type: "resync" };
 
 /** Whether `open` is `path` or inside the folder `path`. */
@@ -17,22 +16,18 @@ export function movedPath(open: string, from: string, to: string): string | null
 
 /** What the page does for a live event. */
 export type Reaction =
-  | { kind: "ignore" }
   | { kind: "reload" }
   | { kind: "update"; tree: boolean; refresh: boolean; followTo: string | null };
 
 /**
- * `open` is the file on screen, `onPicker` whether the picker is on screen,
- * and `dated(path)` whether a change to `path` can move it in the tree's
- * sort.
+ * `open` is the file on screen, and `dated(path)` whether a change to
+ * `path` can move it in the tree's sort.
  */
 export function react(
   event: LiveEvent,
   open: string | null,
-  onPicker: boolean,
   dated: (path: string) => boolean,
 ): Reaction {
-  if (event.type === "workspace") return onPicker ? { kind: "reload" } : { kind: "ignore" };
   if (event.type === "resync") return { kind: "reload" };
   const tree = event.type !== "changed" || dated(event.path);
   const update = { kind: "update", tree, refresh: false, followTo: null } as const;
@@ -48,7 +43,7 @@ export function react(
 
 /** Whether `event` names `open` or a folder holding it. */
 export function concerns(event: LiveEvent, open: string): boolean {
-  if (event.type === "workspace" || event.type === "resync") return false;
+  if (event.type === "resync") return false;
   const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
   return paths.some((path) => isWithin(open, path));
 }

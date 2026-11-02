@@ -8,7 +8,6 @@ import * as editor from "./editor.ts";
 import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
-import * as picker from "./picker.ts";
 import * as sidebar from "./sidebar.ts";
 import * as view from "./view.ts";
 
@@ -20,7 +19,7 @@ fileStatus.className = "mdame-file-status";
 
 function showStatus(state: State) {
   const workspace = document.createElement("span");
-  workspace.textContent = state.workspace ? state.workspace.root : "No workspace";
+  workspace.textContent = state.workspace.root;
   const version = document.createElement("span");
   version.textContent = state.version;
   status.replaceChildren(workspace, fileStatus, version);
@@ -236,7 +235,7 @@ function onEvent(event: live.LiveEvent) {
   // Until the state check after a reconnection: it refetches everything.
   if (isHeld()) return;
   const current = sidebar.pathFromUrl(location.pathname);
-  const reaction = live.react(event, current, shownRoot === null, sidebar.orderDependsOn);
+  const reaction = live.react(event, current, sidebar.orderDependsOn);
   if (reaction.kind === "reload") refresh();
   if (reaction.kind !== "update") return;
   if (reaction.tree) refreshTree();
@@ -279,7 +278,7 @@ content.addEventListener("click", (event) => {
 });
 
 async function showWorkspace(state: State) {
-  const { root, start } = state.workspace!;
+  const { root, start } = state.workspace;
   if (start && location.pathname === "/") {
     history.replaceState(null, "", sidebar.viewUrl(start));
   }
@@ -351,21 +350,15 @@ addEventListener("keydown", (event: KeyboardEvent) => {
   else stopEditing();
 });
 
-/** The root on screen: null on the picker, undefined before the first show. */
-let shownRoot: string | null | undefined;
+/** The root on screen, once shown. */
+let shownRoot: string | undefined;
 
 function show(state: State) {
-  const root = state.workspace?.root ?? null;
-  // The tab that opened a workspace also gets its `workspace` event.
-  if (root === shownRoot) return;
-  shownRoot = root;
+  // After a reconnection, the workspace is already on screen.
+  if (state.workspace.root === shownRoot) return;
+  shownRoot = state.workspace.root;
   showStatus(state);
-  if (state.workspace) {
-    picker.unmount();
-    showWorkspace(state);
-  } else {
-    picker.mount(app, { state, onOpen: show });
-  }
+  showWorkspace(state);
 }
 
 /** Counts the closes of the WebSocket. */
@@ -377,8 +370,8 @@ async function refresh() {
   const state = await api<State>("GET", "/api/state");
   // The answer may come from the mdame that is gone since.
   if (closes !== closed) return;
-  // The server restarted on another workspace, or on the picker.
-  if (shownRoot && state.workspace?.root !== shownRoot) {
+  // The server restarted on another folder.
+  if (shownRoot && state.workspace.root !== shownRoot) {
     // The leave-page warning lets the user stay, to copy unsaved edits.
     setHold("Copy your text, then reload the page: mdame now shows another folder.");
     location.reload();
@@ -386,7 +379,6 @@ async function refresh() {
   }
   setHold(null);
   show(state);
-  if (!shownRoot) return;
   refreshTree();
   view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);

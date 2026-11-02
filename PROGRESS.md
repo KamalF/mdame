@@ -297,8 +297,10 @@ Decided on 29 October 2026, after a comparison with mo: mdame does one job, and 
 Rules, as test names, by commit. Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
 
 1. CI on GitHub Actions (done): on each push and pull request, a Linux runner checks the format, then runs `lint`, `test` and `check-dist`. First, because the repository is public now: CI checks each push from here on. No test: done when a push of `m8-themes` gets a green run.
-2. No picker: `mdame` with no path opens the current folder. `picker.ts`, `GET /api/complete`, `GET /api/recents`, `POST /api/workspace`, `recents.toml`, `home` in `/api/state` and the `workspace` event go, with the page's code for a tab on the picker and the refusal of a hidden folder. `AppState` holds the workspace with no lock and no `Option`, so the 409 "no workspace is open" goes. The tests of the removed code go, and so do their rows in the routes matrix. The README's usage follows. No new test: the path defaults to `.`.
-3. No history choice: revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the warning about shared histories, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
+2. No picker (done): `mdame` with no path opens the current folder. `picker.ts`, `GET /api/complete`, `GET /api/recents`, `POST /api/workspace`, `recents.toml`, `home` in `/api/state` and the `workspace` event go, with the page's code for a tab on the picker and the refusal of a hidden folder. `AppState` holds the workspace with no lock and no `Option`, so the 409 "no workspace is open" goes. The tests of the removed code go, and so do their rows in the routes matrix. The README's usage follows. No new test: the path defaults to `.`.
+   - The warning about shared histories goes here too: it compared the workspace with the recents.
+   - mdame opens the workspace before it builds `AppState`. Tests that read no file get an empty workspace in `target/tmp/empty`.
+3. No history choice: revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
 4. `--no-open`: mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`. It closes the open point on `--no-open`.
 5. Built-in themes: `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 6, the page follows the system.
 6. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
@@ -322,7 +324,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 2: no picker.
+1. Milestone 8, commit 3: no history choice.
 
 ## Open points
 
@@ -361,14 +363,13 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - A save that writes nothing still opens the file for writing, so inotify reports `IN_CLOSE_WRITE`.
   - A text full of control characters escapes past the 32 MB body limit.
   - `history::snapshot` keeps a branch for paths with no extension, which the editor's routes refuse.
-  - Tests: five permission tests fail as root; the picker tests fail when `TMPDIR` is in a hidden folder; `tests/source.rs` and `tests/save.rs` repeat one table.
+  - Tests: five permission tests fail as root; `tests/source.rs` and `tests/save.rs` repeat one table.
 - The editor does not follow a rename of its file, as the view does: it shows the deleted notice.
 - Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
 - Backup branches, to delete once they are no longer needed: `backup/before-typescript` and `backup/m4-viewing-before-typescript` (the JavaScript history, before the rewrite of 18 October 2026), `backup/m4-before-dist-fix`, `backup/m6-before-import-fixup`, and `backup/m6-before-history-rewrite` (milestone 6 before its review commits were regrouped, 25 October 2026).
 - From the review of milestone 5, for later:
   - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs.
   - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
-  - Two tabs that open different folders at the same moment both start a watcher; the loser's events reach the tabs for about 50 ms.
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
   - A folder deleted between notify's inotify add and its stat gives `Io(NotFound)` with no path, which still turns live updates off; skipping it needs a retry.
   - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
@@ -380,9 +381,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.
 - Debug builds render a dense 1 MB markdown file in about 10 s. If `mise run dev` feels slow, `[profile.dev.package."*"] opt-level = 2` optimizes the dependencies only.
 - From the review of 18 October 2026, for later:
-  - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`; run `/api/complete` in `spawn_blocking`.
-  - Usability: debounce completion requests; unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
-  - Tests: `local()` paths in an owned temporary folder; `home` in `AppState` so route tests can control `~`.
+  - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`.
+  - Usability: unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
 - From the review of milestone 3, for later:
-  - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice, as in the picker.
+  - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice.
   - Big workspaces: a limit on the filter results, latinized names computed once, cached icons; `/api/tree` walks the whole folder on each request. Measure with the milestone 5 refetches first.

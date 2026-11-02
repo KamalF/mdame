@@ -20,19 +20,16 @@ test("movedPath follows a file and a file inside a moved folder", () => {
   expect(movedPath("docs-old/a.md", "docs", "guide")).toBe(null);
 });
 
-test("react reloads on resync, and on a workspace only from the picker", () => {
-  const workspace: LiveEvent = { type: "workspace", root: "/ws" };
-  expect(react(workspace, null, true, () => false)).toEqual({ kind: "reload" });
-  expect(react(workspace, "a.md", false, () => false)).toEqual({ kind: "ignore" });
-  expect(react({ type: "resync" }, "a.md", false, () => false)).toEqual({ kind: "reload" });
+test("react reloads on resync", () => {
+  expect(react({ type: "resync" }, "a.md", () => false)).toEqual({ kind: "reload" });
 });
 
 test("react reloads the tree unless a change keeps the sort", () => {
   const changed: LiveEvent = { type: "changed", path: "a.md" };
-  expect(react(changed, null, false, () => false)).toMatchObject({ tree: false });
-  expect(react(changed, null, false, () => true)).toMatchObject({ tree: true });
+  expect(react(changed, null, () => false)).toMatchObject({ tree: false });
+  expect(react(changed, null, () => true)).toMatchObject({ tree: true });
   const created: LiveEvent = { type: "created", path: "a.md" };
-  expect(react(created, null, false, () => false)).toMatchObject({ tree: true });
+  expect(react(created, null, () => false)).toMatchObject({ tree: true });
 });
 
 test("react refreshes or follows the open file", () => {
@@ -48,7 +45,7 @@ test("react refreshes or follows the open file", () => {
     [{ type: "renamed", from: "docs/b.md", to: "c.md" }, { refresh: false, followTo: null }],
   ];
   for (const [event, expected] of cases) {
-    expect(react(event, "docs/a.md", false, () => false)).toMatchObject(expected);
+    expect(react(event, "docs/a.md", () => false)).toMatchObject(expected);
   }
 });
 

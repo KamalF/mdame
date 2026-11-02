@@ -155,7 +155,7 @@ The small items form milestone 11, after v1. The medium and large ones wait.
 | `-H` kept | A URL token is required, on loopback too |
 | "Renamed file follows open tabs" without tabs | The current view follows a rename |
 | Five themes Later, theme picker kept | Picker ships with light, dark and user themes |
-| Single-file and folder mode Later, daemon kept | Same code path as starting at the picker, with the workspace preloaded, so in v1 |
+| Single-file and folder mode Later, daemon kept | In v1: `mdame <file>` and `mdame <folder>` are how mdame starts |
 
 ## Architecture
 
@@ -440,7 +440,7 @@ Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missi
 
 ## On-disk formats
 
-mdame keeps its own files and imports nothing from mdlive, so it starts with no revisions or recents. The layouts follow mdlive v2.3.13, checked against `handlers/api.rs` and `config.rs`, except where noted.
+mdame keeps its own files and imports nothing from mdlive, so it starts with no revisions. The layouts follow mdlive v2.3.13, checked against `handlers/api.rs` and `config.rs`, except where noted.
 
 **Revision snapshots.** Before a save overwrites a file, its previous content is copied to `<history root>/<relative path>/<unix milliseconds>.<original extension>`. Example: saving `api/rate-limiting.md` writes `api/rate-limiting.md/1771271566123.md` under the history root. The relative path is where the file really is: a link or a `..` in the path asked does not split the revisions of one file. The snapshot is opened with `OpenOptions::create_new`, so it never overwrites one that exists; on `AlreadyExists`, add 1 ms and retry. Its mode is 0600, since the file it copies may be private. After the save writes the file, mdame keeps the newest 20 snapshots of that file (`snapshots_per_file`), by the time in their name, and deletes the rest. A name dated after now, from a clock that was ahead, counts as the oldest: the list shows it last, and pruning deletes it first. Pruning always keeps the snapshot that the save just made, unless `snapshots_per_file` is 0: after a collision, its name can be ahead of the clock. Pruning waits for the write: with `snapshots_per_file = 0`, the snapshot still covers a crash during the write. It ignores snapshots already gone, and deletes no folder, no link, and no file whose name is not a snapshot's. A link at `.mdame` or `.mdame/history` stops the save: pruning through it could delete files of the workspace. If it fails, mdame logs a warning, and the save still succeeds. A test checks that two quick saves give two snapshots. An empty file gets no snapshot: writing over it loses nothing. A save of the text already on disk writes nothing and makes no snapshot, so a habit of pressing Ctrl+S does not push the real revisions out.
 
@@ -559,7 +559,7 @@ Reuse mdlive's tests, formats and a few small functions; replace everything else
 | From mdlive | Use it as | Where it goes |
 | --- | --- | --- |
 | `tests/websocket_test.rs` | Specification for the watcher: vim-style rename saves, delete-then-create, folder moves | `tests/watch.rs`, ported to the new events |
-| `tests/api_test.rs`, `tests/workspace_test.rs` | Cases for path validation, create and save, switching | route tests |
+| `tests/api_test.rs`, `tests/workspace_test.rs` | Cases for path validation, create and save | route tests |
 | `.mdlive/history` layout, prune-to-20 | Same layout under the history root, millisecond names, same default | `history.rs` |
 | `csv_to_html` in `state.rs` | Starting point for CSV tables | `render.rs` |
 | The 1 MB guard and its message | Same limit | `render.rs` |

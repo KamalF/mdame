@@ -1,14 +1,12 @@
 use crate::app::{
-    Access, AppState, OpenCode, OpenError, PRINTED_CODE_LIFE, hex, new_token, print_urls,
-    write_token,
+    Access, AppState, OpenCode, PRINTED_CODE_LIFE, hex, new_token, print_urls, write_token,
 };
-use crate::config::{self, HistoryMode, Recent};
+use crate::config::{self, HistoryMode};
 use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history::{self, Revision};
-use crate::tree::{self, Suggestion};
+use crate::tree;
 use crate::watch::Event;
-use crate::workspace;
 use crate::ws;
 use axum::{
     Json, Router,
@@ -31,9 +29,8 @@ use std::sync::{Arc, PoisonError};
 #[derive(Serialize)]
 struct StateResponse {
     version: &'static str,
-    workspace: Option<WorkspaceResponse>,
+    workspace: WorkspaceResponse,
     needs_setup: bool,
-    home: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -43,15 +40,13 @@ struct WorkspaceResponse {
 }
 
 fn state_response(app: &AppState) -> StateResponse {
-    let workspace = app.workspace.read().unwrap();
     StateResponse {
         version: env!("CARGO_PKG_VERSION"),
-        workspace: workspace.as_ref().map(|workspace| WorkspaceResponse {
-            root: workspace.root.display().to_string(),
-            start: workspace.start.clone(),
-        }),
+        workspace: WorkspaceResponse {
+            root: app.workspace.root.display().to_string(),
+            start: app.workspace.start.clone(),
+        },
         needs_setup: app.config.read().unwrap().history.is_none(),
-        home: std::env::home_dir().map(|home| home.display().to_string()),
     }
 }
 
@@ -388,68 +383,11 @@ fn content_type(path: &str) -> &'static str {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct OpenRequest {
-    path: String,
-}
-
-async fn open_workspace(
-    State(app): State<Arc<AppState>>,
-    body: Result<Json<OpenRequest>, JsonRejection>,
-) -> Result<Json<StateResponse>, ApiError> {
-    let Json(request) = body?;
-    let path = workspace::expand_home(&request.path, std::env::home_dir().as_deref());
-    // A relative path would depend on the folder where mdame was started,
-    // which the page does not know.
-    if path.is_relative() {
-        return Err(ApiError::BadRequest(format!(
-            "{}: give an absolute path or one that starts with ~/",
-            request.path
-        )));
-    }
-    // Starting the watcher walks the whole folder.
-    let opened = tokio::task::spawn_blocking({
-        let (app, path) = (app.clone(), path.clone());
-        move || app.open_picked(&path)
-    })
-    .await?;
-    opened.map_err(|error| {
-        let message = format!("{}: {error}", request.path);
-        match error {
-            OpenError::AlreadyOpen => ApiError::Conflict(error.to_string()),
-            OpenError::Hidden => ApiError::BadRequest(message),
-            OpenError::Io(io) if io.kind() == io::ErrorKind::NotFound => {
-                ApiError::NotFound(message)
-            }
-            OpenError::Io(_) => ApiError::BadRequest(message),
-        }
-    })?;
-    Ok(Json(state_response(&app)))
-}
-
 async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiError> {
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     // The walk reads every folder: run it where blocking is allowed.
     let node = tokio::task::spawn_blocking(move || tree::build(&workspace)).await?;
     Ok(Json(node))
-}
-
-async fn recents(State(app): State<Arc<AppState>>) -> Json<Vec<Recent>> {
-    Json(app.recents().entries)
-}
-
-#[derive(Deserialize)]
-struct CompleteQuery {
-    prefix: String,
-}
-
-async fn complete(
-    query: Result<Query<CompleteQuery>, QueryRejection>,
-) -> Result<Json<Vec<Suggestion>>, ApiError> {
-    let Query(query) = query?;
-    let home = std::env::home_dir();
-    Ok(Json(tree::complete(&query.prefix, home.as_deref())))
 }
 
 #[derive(Deserialize)]
@@ -462,7 +400,7 @@ async fn file(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<Json<View>, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     // Reading and rendering a large file takes a while.
     let path = query.path.clone();
     let view = tokio::task::spawn_blocking(move || document::view(&workspace.dir, &path)).await?;
@@ -475,7 +413,7 @@ async fn source(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let path = query.path.clone();
     let source =
         tokio::task::spawn_blocking(move || document::source(&workspace.dir, &path)).await?;
@@ -492,7 +430,7 @@ async fn revisions(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<Json<Vec<Revision>>, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let mode = app.config.read().unwrap().history.unwrap_or_default();
     let path = query.path.clone();
     let revisions = tokio::task::spawn_blocking(move || {
@@ -521,7 +459,7 @@ async fn revision(
     query: Result<Query<RevisionQuery>, QueryRejection>,
 ) -> Result<Json<RevisionText>, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let mode = app.config.read().unwrap().history.unwrap_or_default();
     let (path, id) = (query.path.clone(), query.id);
     let content = tokio::task::spawn_blocking(move || {
@@ -572,7 +510,7 @@ async fn save(
     let Query(query) = query?;
     let Json(request) = body?;
     let base_version = if_match(&headers)?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let mode = app.config.read().unwrap().history.unwrap_or_default();
     let keep = app.config.read().unwrap().snapshots_per_file();
     let path = query.path.clone();
@@ -611,7 +549,7 @@ async fn restore(
     body: Result<Json<RestoreRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let mode = app.config.read().unwrap().history.unwrap_or_default();
     let keep = app.config.read().unwrap().snapshots_per_file();
     let (path, id) = (request.path.clone(), request.id);
@@ -660,7 +598,7 @@ async fn create(
     body: Result<Json<CreateRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let path = request.path.clone();
     let created =
         tokio::task::spawn_blocking(move || document::create(&workspace.dir, &path)).await?;
@@ -713,7 +651,7 @@ async fn raw(
     State(app): State<Arc<AppState>>,
     Path(path): Path<String>,
 ) -> Result<Response, ApiError> {
-    let workspace = app.workspace()?;
+    let workspace = app.workspace.clone();
     let relative = path.clone();
     let (bytes, content_type) =
         tokio::task::spawn_blocking(move || document::raw(&workspace.dir, &relative))
@@ -735,9 +673,6 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/raw/{*path}", get(raw))
         .route("/api/state", get(state))
         .route("/api/settings", put(settings))
-        .route("/api/workspace", post(open_workspace))
-        .route("/api/complete", get(complete))
-        .route("/api/recents", get(recents))
         .route("/api/tree", get(tree))
         .route(
             "/api/file",

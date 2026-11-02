@@ -1,15 +1,15 @@
 mod common;
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::sync::RwLock;
 
 use axum::http::{Method, StatusCode};
 use common::{HOST, JSON, get_json, local, send_body, status_and_json};
 use mdame::app::AppState;
-use mdame::config::{self, Config, HistoryMode, Recents};
-use mdame::watch::Event;
+use mdame::config::{self, Config, HistoryMode};
+use mdame::workspace::Workspace;
 use serde_json::Value;
+use tokio::sync::broadcast;
 
 async fn get_state(state: AppState) -> Value {
     get_json(state, "/api/state").await.1
@@ -102,169 +102,15 @@ async fn failed_save_is_an_internal_error() {
 }
 
 #[tokio::test]
-async fn open_workspace_shows_in_state_and_recents() {
+async fn state_gives_the_workspace_and_its_start_file() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("a.md");
     fs::write(&file, "").unwrap();
-    let recents_path = dir.path().join("state/recents.toml");
-    let state = AppState {
-        state_dir: dir.path().join("state"),
-        ..local()
-    };
+    let workspace = Workspace::open(&file).unwrap();
+    let state = common::on(workspace, broadcast::channel(1).0);
 
-    state.open_workspace(&file).unwrap();
-
-    let recents: Recents = config::load(&recents_path).unwrap();
-    assert_eq!(recents.entries[0].path, file.canonicalize().unwrap());
-    let mode = fs::metadata(dir.path().join("state"))
-        .unwrap()
-        .permissions()
-        .mode();
-    assert_eq!(mode & 0o777, 0o700);
     let body = get_state(state).await;
     let root = dir.path().canonicalize().unwrap();
     assert_eq!(body["workspace"]["root"], root.display().to_string());
     assert_eq!(body["workspace"]["start"], "a.md");
-}
-
-#[tokio::test]
-async fn unreadable_recents_do_not_stop_the_open() {
-    let dir = tempfile::tempdir().unwrap();
-    let recents_path = dir.path().join("recents.toml");
-    fs::write(&recents_path, "not toml [").unwrap();
-    let state = AppState {
-        state_dir: dir.path().to_path_buf(),
-        ..local()
-    };
-
-    state.open_workspace(dir.path()).unwrap();
-
-    let recents: Recents = config::load(&recents_path).unwrap();
-    assert_eq!(recents.entries.len(), 1);
-}
-
-async fn open(state: AppState, path: &str) -> (StatusCode, Value) {
-    let body = serde_json::json!({ "path": path }).to_string();
-    let response = send_body(state, Method::POST, "/api/workspace", &[HOST, JSON], &body).await;
-    status_and_json(response).await
-}
-
-/// tempdir() names its folder `.tmp…`, which the picker refuses as hidden.
-fn visible_folder() -> tempfile::TempDir {
-    tempfile::Builder::new().prefix("mdame-").tempdir().unwrap()
-}
-
-#[tokio::test]
-async fn picker_refuses_a_hidden_folder() {
-    let dir = visible_folder();
-    let hidden = dir.path().join(".claude");
-    fs::create_dir(&hidden).unwrap();
-    // A link with a plain name leads there too.
-    let link = dir.path().join("notes");
-    std::os::unix::fs::symlink(&hidden, &link).unwrap();
-    for path in [&hidden, &link] {
-        let state = local();
-        let (status, _) = open(state, path.to_str().unwrap()).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{}", path.display());
-    }
-}
-
-#[tokio::test]
-async fn picker_opens_a_folder() {
-    let dir = visible_folder();
-    let state = AppState {
-        state_dir: dir.path().to_path_buf(),
-        ..local()
-    };
-    let mut events = state.events.subscribe();
-    let (status, body) = open(state, dir.path().to_str().unwrap()).await;
-    assert_eq!(status, StatusCode::OK);
-    let root = dir.path().canonicalize().unwrap().display().to_string();
-    assert_eq!(body["workspace"]["root"], root);
-    assert_eq!(events.try_recv().unwrap(), Event::Workspace { root });
-}
-
-#[tokio::test]
-async fn second_open_is_a_conflict() {
-    let dir = visible_folder();
-    let state = AppState {
-        state_dir: dir.path().to_path_buf(),
-        ..local()
-    };
-    state.open_workspace(dir.path()).unwrap();
-
-    let (status, body) = open(state, dir.path().to_str().unwrap()).await;
-    assert_eq!(status, StatusCode::CONFLICT);
-    assert_eq!(body["error"]["code"], "conflict");
-}
-
-#[tokio::test]
-async fn missing_relative_or_impossible_path_is_refused() {
-    let dir = visible_folder();
-    let missing = dir.path().join("missing");
-    fs::write(dir.path().join("a.md"), "").unwrap();
-    let through_file = dir.path().join("a.md/notes");
-    let cases = [
-        (missing.to_str().unwrap(), StatusCode::NOT_FOUND),
-        (through_file.to_str().unwrap(), StatusCode::BAD_REQUEST),
-        ("notes", StatusCode::BAD_REQUEST),
-    ];
-    for (path, expected) in cases {
-        let (status, body) = open(local(), path).await;
-        assert_eq!(status, expected, "{path}");
-        let message = body["error"]["message"].as_str().unwrap();
-        assert!(!message.contains("os error"), "{message}");
-    }
-}
-
-#[tokio::test]
-async fn recents_newest_first() {
-    let dir = tempfile::tempdir().unwrap();
-    let recents_path = dir.path().join("recents.toml");
-    let text = r#"
-        [[recent]]
-        path = "/b"
-        last_opened_secs = 2
-
-        [[recent]]
-        path = "/a"
-        last_opened_secs = 1
-    "#;
-    fs::write(&recents_path, text).unwrap();
-    let state = AppState {
-        state_dir: dir.path().to_path_buf(),
-        ..local()
-    };
-
-    let body = get_json(state, "/api/recents").await.1;
-    assert_eq!(
-        body,
-        serde_json::json!([
-            { "path": "/b", "last_opened_secs": 2 },
-            { "path": "/a", "last_opened_secs": 1 },
-        ])
-    );
-}
-
-#[tokio::test]
-async fn unreadable_recents_are_an_empty_list() {
-    let dir = tempfile::tempdir().unwrap();
-    let recents_path = dir.path().join("recents.toml");
-    fs::write(&recents_path, "not toml [").unwrap();
-    let state = AppState {
-        state_dir: dir.path().to_path_buf(),
-        ..local()
-    };
-
-    assert_eq!(
-        get_json(state, "/api/recents").await.1,
-        serde_json::json!([])
-    );
-}
-
-#[tokio::test]
-async fn state_gives_the_home_folder() {
-    let home = std::env::home_dir().unwrap();
-    let body = get_state(local()).await;
-    assert_eq!(body["home"], home.display().to_string());
 }

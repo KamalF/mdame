@@ -31,34 +31,6 @@ pub enum HistoryMode {
     State,
 }
 
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct Recents {
-    #[serde(default, rename = "recent")]
-    pub entries: Vec<Recent>,
-}
-
-const MAX_RECENTS: usize = 25;
-
-impl Recents {
-    pub fn add(&mut self, path: PathBuf, now_secs: u64) {
-        self.entries.retain(|entry| entry.path != path);
-        self.entries.insert(
-            0,
-            Recent {
-                path,
-                last_opened_secs: now_secs,
-            },
-        );
-        self.entries.truncate(MAX_RECENTS);
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Recent {
-    pub path: PathBuf,
-    pub last_opened_secs: u64,
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("{path}: {}", io_message(.source))]
@@ -132,8 +104,7 @@ pub fn config_file() -> Option<PathBuf> {
 }
 
 /// Makes `path` a folder that only the owner can list, even if it was not:
-/// the recents name the opened folders, and the history in `state` mode
-/// follows the workspace's file names.
+/// the history in `state` mode follows the workspace's file names.
 pub fn private_folder(path: &Path) -> io::Result<()> {
     fs::DirBuilder::new()
         .recursive(true)
@@ -180,7 +151,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("missing.toml");
         assert_eq!(load::<Config>(&path).unwrap(), Config::default());
-        assert_eq!(load::<Recents>(&path).unwrap(), Recents::default());
     }
 
     #[test]
@@ -190,30 +160,15 @@ mod tests {
     }
 
     #[test]
-    fn reads_config_and_recents() {
+    fn reads_config() {
         let dir = tempfile::tempdir().unwrap();
         let config_path = dir.path().join("config.toml");
         fs::write(&config_path, "theme = \"dark\"\nhistory = \"state\"\n").unwrap();
-        let recents_path = dir.path().join("recents.toml");
-        let recents_text = r#"
-            [[recent]]
-            path = "/Users/me/notes"
-            last_opened_secs = 1771273728
-        "#;
-        fs::write(&recents_path, recents_text).unwrap();
 
         let config: Config = load(&config_path).unwrap();
         assert_eq!(config.theme.as_deref(), Some("dark"));
         assert_eq!(config.history, Some(HistoryMode::State));
         assert_eq!(config.snapshots_per_file, None);
-        let recents: Recents = load(&recents_path).unwrap();
-        assert_eq!(
-            recents.entries,
-            [Recent {
-                path: "/Users/me/notes".into(),
-                last_opened_secs: 1771273728,
-            }]
-        );
     }
 
     #[test]
@@ -228,73 +183,11 @@ mod tests {
         save(&config, &config_path).unwrap();
         assert_eq!(load::<Config>(&config_path).unwrap(), config);
 
-        let recents_path = dir.path().join("state/mdame/recents.toml");
-        let recents = Recents {
-            entries: vec![Recent {
-                path: "/tmp/a.md".into(),
-                last_opened_secs: 1,
-            }],
-        };
-        save(&recents, &recents_path).unwrap();
-        assert_eq!(load::<Recents>(&recents_path).unwrap(), recents);
-
         let names: Vec<_> = fs::read_dir(config_path.parent().unwrap())
             .unwrap()
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(names, ["config.toml"], "no temporary file left");
-    }
-
-    fn paths(recents: &Recents) -> Vec<&str> {
-        recents
-            .entries
-            .iter()
-            .map(|entry| entry.path.to_str().unwrap())
-            .collect()
-    }
-
-    #[test]
-    fn add_puts_the_path_first() {
-        let mut recents = Recents::default();
-        recents.add("/a".into(), 1);
-        recents.add("/b.md".into(), 2);
-        assert_eq!(paths(&recents), ["/b.md", "/a"]);
-    }
-
-    #[test]
-    fn add_again_moves_the_path_first_with_the_new_time() {
-        let mut recents = Recents::default();
-        recents.add("/a".into(), 1);
-        recents.add("/b".into(), 2);
-        recents.add("/a".into(), 3);
-        assert_eq!(paths(&recents), ["/a", "/b"]);
-        assert_eq!(recents.entries[0].last_opened_secs, 3);
-    }
-
-    #[test]
-    fn add_keeps_the_newest_25() {
-        let mut recents = Recents::default();
-        for i in 0..30 {
-            recents.add(format!("/{i}").into(), i);
-        }
-        assert_eq!(recents.entries.len(), 25);
-        assert_eq!(recents.entries[0].path, PathBuf::from("/29"));
-        assert_eq!(recents.entries[24].path, PathBuf::from("/5"));
-    }
-
-    #[test]
-    fn path_that_is_not_utf8_is_an_error() {
-        use std::os::unix::ffi::OsStrExt;
-        let dir = tempfile::tempdir().unwrap();
-        let recents = Recents {
-            entries: vec![Recent {
-                path: std::ffi::OsStr::from_bytes(b"/a\xff").into(),
-                last_opened_secs: 1,
-            }],
-        };
-
-        let error = save(&recents, &dir.path().join("recents.toml")).unwrap_err();
-        assert!(matches!(error, ConfigError::Serialize { .. }));
     }
 
     #[test]

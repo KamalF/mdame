@@ -4,18 +4,17 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use clap::Parser;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 
-use crate::config::{self, Config, HistoryMode, Recents};
-use crate::error::{ApiError, io_message};
-use crate::history;
+use crate::config::{self, Config};
+use crate::error::io_message;
 use crate::server;
 use crate::watch::{self, EVENT_CAPACITY, Event};
-use crate::workspace::{Workspace, is_hidden};
+use crate::workspace::Workspace;
 
 const PORT_ATTEMPTS: usize = 10;
 
@@ -39,12 +38,10 @@ pub struct Args {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Folder or file to open; without it, mdame starts at the picker
-    pub path: Option<PathBuf>,
+    /// Folder or file to open
+    #[arg(default_value = ".")]
+    pub path: PathBuf,
 }
-
-/// Whether a hidden folder may become the workspace.
-struct AllowHidden(bool);
 
 /// Stands for the token in a URL that mdame opens or prints, once and for
 /// a short time: other accounts can read a browser's command line with
@@ -78,147 +75,36 @@ pub struct Access {
     pub open_codes: Vec<OpenCode>,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum OpenError {
-    #[error("a workspace is already open")]
-    AlreadyOpen,
-    #[error("open a folder that is not hidden, or start mdame on it")]
-    Hidden,
-    #[error("{}", io_message(.0))]
-    Io(#[from] io::Error),
-}
-
 pub struct AppState {
     pub addr: SocketAddr,
-    pub workspace: RwLock<Option<Arc<Workspace>>>,
+    pub workspace: Arc<Workspace>,
     pub access: Mutex<Access>,
     /// Where the token is kept, on loopback: a new one goes there too.
     pub token_file: Option<PathBuf>,
     pub config: RwLock<Config>,
     pub config_path: PathBuf,
-    /// The recents, the token, and the history root in `state` mode are
-    /// below it.
+    /// The token, and the history root in `state` mode, are below it.
     pub state_dir: PathBuf,
     pub events: broadcast::Sender<Event>,
 }
 
 impl AppState {
-    /// Clones the `Arc` out, so the lock is released before any `.await`.
-    pub fn workspace(&self) -> Result<Arc<Workspace>, ApiError> {
-        let workspace = self.workspace.read().unwrap().clone();
-        workspace.ok_or_else(|| ApiError::Conflict("no workspace is open".to_owned()))
-    }
-
     /// Whether `token` is still the current one: a theft replaces it.
     pub fn is_current(&self, token: Option<&str>) -> bool {
         let access = self.access.lock().unwrap_or_else(PoisonError::into_inner);
         access.token.as_deref() == token
     }
+}
 
-    pub fn open_workspace(&self, path: &Path) -> Result<(), OpenError> {
-        self.open(path, AllowHidden(true))
+/// Opens `path` and watches it. Without the watcher, mdame still serves the
+/// files, with no live updates.
+pub fn open_workspace(path: &Path, events: broadcast::Sender<Event>) -> io::Result<Workspace> {
+    let mut workspace = Workspace::open(path)?;
+    match watch::start(&workspace.root, events) {
+        Ok(watcher) => workspace.watcher = Some(watcher),
+        Err(error) => tracing::warn!("live updates are off: {error}"),
     }
-
-    /// From the picker. The editor refuses hidden folders inside a
-    /// workspace, so a hidden folder, such as ~/.claude, must not become one.
-    /// The real root counts: a link may lead into one.
-    pub fn open_picked(&self, path: &Path) -> Result<(), OpenError> {
-        self.open(path, AllowHidden(false))
-    }
-
-    /// The watcher starts before the lock is taken: its first walk reads the
-    /// whole folder, and every request waits for the lock. The store checks
-    /// again, so two tabs that open a workspace at the same time cannot both
-    /// succeed.
-    fn open(&self, path: &Path, AllowHidden(allow): AllowHidden) -> Result<(), OpenError> {
-        if self.workspace.read().unwrap().is_some() {
-            return Err(OpenError::AlreadyOpen);
-        }
-        let mut workspace = Workspace::open(path)?;
-        if !allow && is_hidden(&workspace.root) {
-            return Err(OpenError::Hidden);
-        }
-        match watch::start(&workspace.root, self.events.clone()) {
-            Ok(watcher) => workspace.watcher = Some(watcher),
-            Err(error) => tracing::warn!("live updates are off: {error}"),
-        }
-        let opened = workspace.path();
-        self.warn_shared_history(&workspace.root);
-        let root = workspace.root.display().to_string();
-        let mut slot = self.workspace.write().unwrap();
-        if slot.is_some() {
-            return Err(OpenError::AlreadyOpen);
-        }
-        *slot = Some(Arc::new(workspace));
-        drop(slot);
-        // Other tabs still show the picker. At start no tab is connected.
-        let _ = self.events.send(Event::Workspace { root });
-        self.remember(opened);
-        Ok(())
-    }
-
-    /// In `state` mode, two workspaces whose paths encode to one name keep
-    /// their revisions in one folder. The recents name the workspaces that
-    /// mdame opened on this machine.
-    fn warn_shared_history(&self, root: &Path) {
-        if self.config.read().unwrap().history.unwrap_or_default() != HistoryMode::State {
-            return;
-        }
-        let others: Vec<PathBuf> = self
-            .recents()
-            .entries
-            .into_iter()
-            // A recent is a workspace, or a file that opened one.
-            .filter_map(|recent| {
-                if recent.path.is_file() {
-                    recent.path.parent().map(Path::to_path_buf)
-                } else {
-                    Some(recent.path)
-                }
-            })
-            .collect();
-        if let Some(other) = history::shared_history(root, &others) {
-            tracing::warn!(
-                "set history = \"workspace\" in config.toml, or rename a folder: in state mode, {} and {} keep their revisions in one folder",
-                root.display(),
-                other.display()
-            );
-        }
-    }
-
-    /// Recents are a convenience: a file that cannot be read or saved only
-    /// gives a warning.
-    pub fn recents(&self) -> Recents {
-        config::load(&self.recents_path()).unwrap_or_else(|error| {
-            tracing::warn!("recents ignored: {error}");
-            Recents::default()
-        })
-    }
-
-    fn remember(&self, path: PathBuf) {
-        let mut recents = self.recents();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("the clock is after 1970")
-            .as_secs();
-        recents.add(path, now);
-        // Only the owner may list it.
-        if let Err(error) = config::private_folder(&self.state_dir) {
-            tracing::warn!(
-                "recents not saved: {}: {}",
-                self.state_dir.display(),
-                io_message(&error)
-            );
-            return;
-        }
-        if let Err(error) = config::save(&recents, &self.recents_path()) {
-            tracing::warn!("could not save the recents: {error}");
-        }
-    }
-
-    fn recents_path(&self) -> PathBuf {
-        self.state_dir.join("recents.toml")
-    }
+    Ok(workspace)
 }
 
 pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -242,9 +128,12 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         Some(token) => token,
         None => new_token()?,
     };
+    let events = broadcast::channel(EVENT_CAPACITY).0;
+    let workspace = open_workspace(&args.path, events.clone())
+        .map_err(|error| format!("{}: {}", args.path.display(), io_message(&error)))?;
     let app_state = AppState {
         addr,
-        workspace: RwLock::new(None),
+        workspace: Arc::new(workspace),
         // Every field named: a lost token line must not compile.
         access: Mutex::new(Access {
             token: Some(token.clone()),
@@ -254,13 +143,8 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         config: RwLock::new(config),
         config_path,
         state_dir,
-        events: broadcast::channel(EVENT_CAPACITY).0,
+        events,
     };
-    if let Some(path) = &args.path {
-        app_state
-            .open_workspace(path)
-            .map_err(|error| format!("{}: {error}", path.display()))?;
-    }
     // After the open: the watcher's first walk of a large folder can take
     // longer than a code lives.
     let (opened, printed) = (new_token()?, new_token()?);

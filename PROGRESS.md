@@ -330,6 +330,50 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
 11. Manual checklist, `cargo mutants`, review loop.
 
 - `cargo mutants` over the milestone 8 diff, on 2 November 2026: 62 mutants, 4 missed. A test now catches 2 of them: a user theme that cannot be read gives an error, not a 404. The 2 others are excluded with their reason. The first changes only the line that `run` logs when no browser opens, so the manual checklist must check that `--no-open` logs no "no display" line. The second needs a theme deleted between its check and its read: a race.
+- Review loop over milestone 8: a simplify pass and 2 rounds, converged on 2 November 2026. Fixes in their own commits:
+  - The editor's gutter shows the active line in Dark, which gives `--bg-raised` and `--bg-sunken` one colour.
+  - An unreadable theme gets 403, as an unreadable file does. The theme menu starts from the themes of the first `/api/state`.
+  - `history::root` and `open_root` take the workspace folder only. What the picker and the history choice left behind goes.
+  - The theme template gives `--content-width` the 60ch of `base.css`.
+  - With the theme menu open, Esc closes the menu, not the editor.
+  - The editor's panels, buttons, search fields and selection matches take the theme's colours. In Dark, the notice of a change on disk measured 2.7:1.
+  - Follow-ups and deferred nits are under Open points.
+- `cargo mutants` over the milestone 8 diff after the review, on 2 November 2026: 60 mutants, none missed.
+
+### Manual checklist
+
+Not run yet. These checks cover what no unit test covers: the theme menu, how each screen looks in each theme, the fonts under the CSP, and the start of mdame. Run mdame on a test folder, in Chrome and Firefox. The folder holds a markdown file with a Mermaid diagram, a code block, a table, and the five alerts: note, tip, important, warning and caution.
+
+Theme menu:
+
+1. The palette button at the right of the status bar opens a menu above it: System, Light, Dark. A check marks the current choice. Esc, a click outside the menu, and a second click on the button each close it. In the editor and in diff mode, Esc closes the menu, and the editor stays.
+2. With the system in light mode, choose Dark: the page turns dark with no reload. After a reload, it is dark from the first frame, with no light flash. Choose System: the page turns light. Switch the system to dark mode: the page follows with no reload.
+3. After a choice, the next diagram that mdame draws follows the theme: reload the page, or change the file.
+4. Choose Dark in Chrome: a second Chrome tab shows Dark after a reload, and Firefox keeps its own choice.
+
+User themes:
+
+5. With the system in dark mode and the menu closed, write `~/.config/mdame/themes/pink.css` with `:root { color-scheme: light; --accent: deeppink; }`. Open the menu: "pink" shows after Dark, with no restart. Choose it: the accent is pink, and every other colour is Light's.
+6. With pink chosen, delete `pink.css` and reload: the page shows the system's theme, and the menu marks System.
+7. Copy the template of `web/themes/README.md` into `~/.config/mdame/themes/mine.css`, and choose it: the page looks like Dark.
+
+Fonts:
+
+8. Text is IBM Plex Sans, and code is IBM Plex Mono. DevTools loads their woff2 files from `/assets/files/`, and the console shows no CSP error.
+9. A page in English loads only the Latin files. Add a paragraph in Greek: the page loads the Greek file too.
+
+Each screen, in Light and then in Dark:
+
+10. These are readable: the view, the editor and the completion list that `<d` opens, the notice of a change on disk, the search that Ctrl+F opens and the matches of a selected word, diff mode with its panel, the new-file dialog, the dialog before losing edits, the status bar, the theme menu, and the sidebar overlay below 900 px.
+11. The current file in the sidebar is readable, and a hovered row looks different from it. The text of an accent button is readable, and the secondary button of a dialog has a border. In the editor, the gutter shows the active line.
+12. The five alerts, the table and the colours of the code block are readable. A warning alert has the warning colour, and a caution alert has the danger colour.
+
+Start:
+
+13. In a folder, run `mdame` with no path: it opens that folder.
+14. Put `theme = "dark"` in `~/.config/mdame/config.toml`: mdame stops at start, with a message that names the file and the key. Do the same with `history = "state"`.
+15. With no `~/.config/mdame/config.toml`, start and stop mdame: it writes none.
+16. `mdame --no-open` prints the URL, opens no browser, and logs no "no display" line.
 
 ## Public repository and crate
 
@@ -345,9 +389,16 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 11: manual checklist, `cargo mutants`, review loop.
+1. Milestone 8, commit 11: run the manual checklist, then merge.
 
 ## Open points
+
+- From the review of milestone 8, for later:
+  - CI: pin `jdx/mise-action` and `Swatinem/rust-cache` by commit SHA, and set `persist-credentials: false` on the checkout.
+  - `web/themes/README.md`: say to use only themes that you trust. A theme can load images from the web, and so tell its author when mdame is used and which links a page holds.
+- Nits deferred by the review of milestone 8:
+  - `LICENSE` has no notice for `@primer/primitives` (MIT), whose colour values the built-in themes copy.
+  - A stored theme applies only when `main.js` runs, so a reload may show the system's theme first. Check 2 of the manual checklist watches for it.
 
 - From the review of milestone 7, for later:
   - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check.

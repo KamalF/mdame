@@ -26,32 +26,6 @@
   margin: 0 0 16px;
 }
 
-.mdame-dialog fieldset {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0 0 16px;
-  padding: 0;
-  border: 0;
-}
-
-.mdame-dialog label {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.mdame-dialog label > span {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mdame-dialog label strong {
-  font-weight: 600;
-}
-
 .mdame-dialog input[type="text"] {
   box-sizing: border-box;
   width: 100%;
@@ -99,14 +73,6 @@
 .mdame-dialog button.is-secondary {
   background: var(--bg-sunken);
   color: var(--fg);
-}
-
-.mdame-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
 }
 
 .mdame-tree,

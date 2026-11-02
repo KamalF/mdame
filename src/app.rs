@@ -3,7 +3,7 @@ use std::io::{self, ErrorKind, Write};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, PoisonError, RwLock};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use clap::Parser;
@@ -81,10 +81,7 @@ pub struct AppState {
     pub access: Mutex<Access>,
     /// Where the token is kept, on loopback: a new one goes there too.
     pub token_file: Option<PathBuf>,
-    pub config: RwLock<Config>,
-    pub config_path: PathBuf,
-    /// The token, and the history root in `state` mode, are below it.
-    pub state_dir: PathBuf,
+    pub config: Config,
     pub events: broadcast::Sender<Event>,
 }
 
@@ -140,9 +137,7 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
             open_codes: Vec::new(),
         }),
         token_file,
-        config: RwLock::new(config),
-        config_path,
-        state_dir,
+        config,
         events,
     };
     // After the open: the watcher's first walk of a large folder can take

@@ -1,15 +1,13 @@
 mod common;
 
-use std::fs::{self, Permissions};
-use std::os::unix::fs::{PermissionsExt, symlink};
+use std::fs;
+use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
 use common::{HOST, JSON, etag, etag_of, get_json, send_body};
 use mdame::app::AppState;
-use mdame::config::HistoryMode;
-use mdame::history::encode_path;
 use serde_json::json;
 
 /// A workspace with `a.md` and two of its revisions.
@@ -56,18 +54,13 @@ async fn history_of_a_file_never_saved_is_empty() {
 
 #[tokio::test]
 async fn listing_creates_no_history_folder() {
-    for mode in [HistoryMode::Workspace, HistoryMode::State] {
-        let dir = tempfile::tempdir().unwrap();
-        let mut state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
-        state.state_dir = dir.path().join("state");
-        state.config.get_mut().unwrap().history = Some(mode);
-        let (status, revisions) = get_json(state, "/api/history?path=a.md").await;
+    let dir = tempfile::tempdir().unwrap();
+    let state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
+    let (status, revisions) = get_json(state, "/api/history?path=a.md").await;
 
-        assert_eq!(status, StatusCode::OK, "{mode:?}");
-        assert_eq!(revisions, json!([]), "{mode:?}");
-        assert!(!dir.path().join("ws/.mdame").exists(), "{mode:?}");
-        assert!(!dir.path().join("state").exists(), "{mode:?}");
-    }
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(revisions, json!([]));
+    assert!(!dir.path().join("ws/.mdame").exists());
 }
 
 #[tokio::test]
@@ -234,31 +227,6 @@ async fn restore_keeps_the_current_content_as_a_revision() {
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(read(dir.path()), "# C\n");
-}
-
-#[tokio::test]
-async fn restore_in_state_mode_makes_the_state_folder_private() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut state = common::workspace(dir.path(), &[("a.md", b"# B\n")]);
-    state.state_dir = dir.path().join("state");
-    state.config.get_mut().unwrap().history = Some(HistoryMode::State);
-    let root = dir.path().join("ws").canonicalize().unwrap();
-    let folder = state
-        .state_dir
-        .join(encode_path(&root))
-        .join("history/a.md");
-    fs::create_dir_all(&folder).unwrap();
-    fs::write(folder.join("999.md"), "# A\n").unwrap();
-    // Others could list it: the restore makes it private, as a save does.
-    fs::set_permissions(&state.state_dir, Permissions::from_mode(0o755)).unwrap();
-    let response = restore(state, "a.md", "999.md").await;
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let mode = fs::metadata(dir.path().join("state"))
-        .unwrap()
-        .permissions()
-        .mode();
-    assert_eq!(mode & 0o777, 0o700);
 }
 
 #[tokio::test]

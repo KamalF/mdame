@@ -1,8 +1,8 @@
 #![allow(dead_code)] // Each test crate uses a part of these helpers.
 
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock};
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use axum::Router;
 use axum::body::Body;
@@ -67,9 +67,7 @@ pub fn on(workspace: Workspace, events: broadcast::Sender<Event>) -> AppState {
         workspace: Arc::new(workspace),
         access: Mutex::new(Access::default()),
         token_file: None,
-        config: RwLock::new(Config::default()),
-        config_path: PathBuf::new(),
-        state_dir: PathBuf::new(),
+        config: Config::default(),
         events,
     }
 }
@@ -109,8 +107,5 @@ pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {
     fs::write(dir.join("secret.md"), "secret\n").unwrap();
     let events = broadcast::channel(EVENT_CAPACITY).0;
     let workspace = open_workspace(&root, events.clone()).unwrap();
-    AppState {
-        state_dir: dir.to_path_buf(),
-        ..on(workspace, events)
-    }
+    on(workspace, events)
 }

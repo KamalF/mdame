@@ -1,7 +1,6 @@
 use crate::app::{
     Access, AppState, OpenCode, PRINTED_CODE_LIFE, hex, new_token, print_urls, write_token,
 };
-use crate::config::{self, HistoryMode};
 use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history::{self, Revision};
@@ -17,7 +16,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Redirect, Response},
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
@@ -30,7 +29,6 @@ use std::sync::{Arc, PoisonError};
 struct StateResponse {
     version: &'static str,
     workspace: WorkspaceResponse,
-    needs_setup: bool,
 }
 
 #[derive(Serialize)]
@@ -46,37 +44,11 @@ fn state_response(app: &AppState) -> StateResponse {
             root: app.workspace.root.display().to_string(),
             start: app.workspace.start.clone(),
         },
-        needs_setup: app.config.read().unwrap().history.is_none(),
     }
 }
 
 async fn state(State(app): State<Arc<AppState>>) -> Json<StateResponse> {
     Json(state_response(&app))
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Settings {
-    history: HistoryMode,
-}
-
-/// Saves the file first, so the config in memory never differs from it.
-async fn settings(
-    State(app): State<Arc<AppState>>,
-    body: Result<Json<Settings>, JsonRejection>,
-) -> Result<Json<StateResponse>, ApiError> {
-    let Json(settings) = body?;
-    let mut config = app.config.write().unwrap();
-    let mut new = config.clone();
-    new.history = Some(settings.history);
-    config::save(&new, &app.config_path).map_err(|error| {
-        tracing::error!("could not save the settings: {error}");
-        ApiError::Internal(error.to_string())
-    })?;
-    *config = new;
-    // state_response takes the read lock: holding the write lock would deadlock.
-    drop(config);
-    Ok(Json(state_response(&app)))
 }
 
 /// Refuses requests that do not come from the mdame page itself.
@@ -431,10 +403,9 @@ async fn revisions(
 ) -> Result<Json<Vec<Revision>>, ApiError> {
     let Query(query) = query?;
     let workspace = app.workspace.clone();
-    let mode = app.config.read().unwrap().history.unwrap_or_default();
     let path = query.path.clone();
     let revisions = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(mode, &workspace, &app.state_dir)?;
+        let history = history::open_root(&workspace)?;
         document::revisions(&workspace.dir, history.as_ref(), &path)
     })
     .await?;
@@ -460,10 +431,9 @@ async fn revision(
 ) -> Result<Json<RevisionText>, ApiError> {
     let Query(query) = query?;
     let workspace = app.workspace.clone();
-    let mode = app.config.read().unwrap().history.unwrap_or_default();
     let (path, id) = (query.path.clone(), query.id);
     let content = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(mode, &workspace, &app.state_dir)?;
+        let history = history::open_root(&workspace)?;
         document::revision(&workspace.dir, history.as_ref(), &path, &id)
     })
     .await?;
@@ -511,13 +481,12 @@ async fn save(
     let Json(request) = body?;
     let base_version = if_match(&headers)?;
     let workspace = app.workspace.clone();
-    let mode = app.config.read().unwrap().history.unwrap_or_default();
-    let keep = app.config.read().unwrap().snapshots_per_file();
+    let keep = app.config.snapshots_per_file();
     let path = query.path.clone();
     let saved = tokio::task::spawn_blocking(move || {
         document::save(
             &workspace.dir,
-            || history::root(mode, &workspace, &app.state_dir),
+            || history::root(&workspace),
             keep,
             &path,
             &request.content,
@@ -550,15 +519,14 @@ async fn restore(
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
     let workspace = app.workspace.clone();
-    let mode = app.config.read().unwrap().history.unwrap_or_default();
-    let keep = app.config.read().unwrap().snapshots_per_file();
+    let keep = app.config.snapshots_per_file();
     let (path, id) = (request.path.clone(), request.id);
     let restored = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(mode, &workspace, &app.state_dir)?;
+        let history = history::open_root(&workspace)?;
         document::restore(
             &workspace.dir,
             history.as_ref(),
-            || history::root(mode, &workspace, &app.state_dir),
+            || history::root(&workspace),
             keep,
             &path,
             &id,
@@ -672,7 +640,6 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/assets/{*path}", get(asset))
         .route("/raw/{*path}", get(raw))
         .route("/api/state", get(state))
-        .route("/api/settings", put(settings))
         .route("/api/tree", get(tree))
         .route(
             "/api/file",

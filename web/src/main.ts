@@ -3,7 +3,7 @@ import "../styles/layout.css";
 import "../styles/components.css";
 import { api, errorFrom, exists, isHeld, request, setHold, type State } from "./api.ts";
 import { copyButton } from "./copy.ts";
-import { askHistory, askNewFile, confirmDiscard } from "./dialogs.ts";
+import { askNewFile, confirmDiscard } from "./dialogs.ts";
 import * as editor from "./editor.ts";
 import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
@@ -404,6 +404,3 @@ await live.connect({
 
 const state = await api<State>("GET", "/api/state");
 show(state);
-if (state.needs_setup) {
-  askHistory();
-}

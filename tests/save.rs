@@ -8,9 +8,7 @@ use axum::http::{Method, StatusCode};
 use axum::response::Response;
 use common::{HOST, JSON, etag, etag_of, send_body, status_and_json};
 use mdame::app::AppState;
-use mdame::config::HistoryMode;
 use mdame::document::version;
-use mdame::history::encode_path;
 use serde_json::json;
 
 /// Saves `content` to `path`, with `If-Match` when `if_match` is given.
@@ -97,7 +95,7 @@ async fn save_prunes_to_snapshots_per_file() {
     for (setting, keep) in [(None, 20), (Some(2), 2)] {
         let dir = tempfile::tempdir().unwrap();
         let mut state = workspace(dir.path());
-        state.config.get_mut().unwrap().snapshots_per_file = setting;
+        state.config.snapshots_per_file = setting;
         let folder = dir.path().join("ws/.mdame/history/a.md");
         fs::create_dir_all(&folder).unwrap();
         for ms in 1..=keep {
@@ -117,7 +115,7 @@ async fn save_prunes_to_snapshots_per_file() {
 async fn a_save_keeps_its_snapshot_when_later_names_fill_the_history() {
     let dir = tempfile::tempdir().unwrap();
     let mut state = workspace(dir.path());
-    state.config.get_mut().unwrap().snapshots_per_file = Some(2);
+    state.config.snapshots_per_file = Some(2);
     let folder = dir.path().join("ws/.mdame/history/a.md");
     fs::create_dir_all(&folder).unwrap();
     // Made while the clock was ahead, by years.
@@ -133,7 +131,7 @@ async fn a_save_keeps_its_snapshot_when_later_names_fill_the_history() {
 async fn a_save_succeeds_when_pruning_fails() {
     let dir = tempfile::tempdir().unwrap();
     let mut state = workspace(dir.path());
-    state.config.get_mut().unwrap().snapshots_per_file = Some(1);
+    state.config.snapshots_per_file = Some(1);
     // The snapshot can go in, but the prune cannot list the folder.
     let folder = dir.path().join("ws/.mdame/history/a.md");
     fs::create_dir_all(&folder).unwrap();
@@ -340,40 +338,6 @@ async fn save_without_a_writable_history_folder_writes_nothing() {
     }
 }
 
-#[tokio::test]
-async fn save_in_state_mode_keeps_the_snapshot_in_the_state_folder() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut state = workspace(dir.path());
-    state.state_dir = dir.path().join("state");
-    state.config.get_mut().unwrap().history = Some(HistoryMode::State);
-    // Others could list it: the save makes it private.
-    fs::create_dir(&state.state_dir).unwrap();
-    fs::set_permissions(&state.state_dir, Permissions::from_mode(0o755)).unwrap();
-    let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let mode = fs::metadata(dir.path().join("state"))
-        .unwrap()
-        .permissions()
-        .mode();
-    assert_eq!(mode & 0o777, 0o700);
-    let root = dir.path().join("ws").canonicalize().unwrap();
-    let folder = dir
-        .path()
-        .join("state")
-        .join(encode_path(&root))
-        .join("history/a.md");
-    let snapshot = fs::read_dir(folder)
-        .unwrap()
-        .next()
-        .unwrap()
-        .unwrap()
-        .path();
-    assert_eq!(fs::read_to_string(snapshot).unwrap(), "old\n");
-    assert!(!dir.path().join("ws/.mdame").exists());
-}
-
-/// A leaked token must not rewrite `.git/config`, a `Makefile` or a snapshot.
 #[tokio::test]
 async fn save_refuses_what_the_editor_may_not_open() {
     let dir = tempfile::tempdir().unwrap();

@@ -245,8 +245,6 @@ pub fn save(
 pub fn restore(
     dir: &Dir,
     history: Option<&Dir>,
-    // As for a save: in state mode, opening it makes the state folder
-    // private.
     root: impl FnOnce() -> io::Result<Dir>,
     keep: usize,
     path: &str,

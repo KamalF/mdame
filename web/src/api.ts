@@ -2,7 +2,6 @@
 export interface State {
   version: string;
   workspace: Workspace;
-  needs_setup: boolean;
 }
 
 export interface Workspace {

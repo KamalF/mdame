@@ -300,7 +300,8 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
 2. No picker (done): `mdame` with no path opens the current folder. `picker.ts`, `GET /api/complete`, `GET /api/recents`, `POST /api/workspace`, `recents.toml`, `home` in `/api/state` and the `workspace` event go, with the page's code for a tab on the picker and the refusal of a hidden folder. `AppState` holds the workspace with no lock and no `Option`, so the 409 "no workspace is open" goes. The tests of the removed code go, and so do their rows in the routes matrix. The README's usage follows. No new test: the path defaults to `.`.
    - The warning about shared histories goes here too: it compared the workspace with the recents.
    - mdame opens the workspace before it builds `AppState`. Tests that read no file get an empty workspace in `target/tmp/empty`.
-3. No history choice: revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
+3. No history choice (done): revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
+   - `AppState` holds the config with no lock, and no longer holds its path or the state folder. `config::load` reads a `Config` only.
 4. `--no-open`: mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`. It closes the open point on `--no-open`.
 5. Built-in themes: `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 6, the page follows the system.
 6. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
@@ -324,7 +325,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 3: no history choice.
+1. Milestone 8, commit 4: `--no-open`.
 
 ## Open points
 
@@ -342,7 +343,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - The editor's routes read `/proc/self/fd`, so on macOS every edit is refused. `F_GETPATH` would do there.
   - The editor uses the markdown language for every file family.
   - `e` opens the editor at line 1, and Esc shows the view from the top.
-  - In `state` mode, an encoded workspace root over 255 bytes fails every save (`NAME_MAX`). It needs a spec decision.
   - `split.ts` copies the sidebar's resize handle and its CSS.
   - Each preview render runs Mermaid again on every diagram, with new ids, so the morph rewrites them all.
   - The check after our own save downloads the whole file to compare its `ETag`. `If-None-Match` and a 304 would skip the body.

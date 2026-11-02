@@ -33,9 +33,10 @@ mdame is a rebuild of [mdlive](https://github.com/bearded-giant/mdlive), itself
 a fork of Jose Fernandez's [mdserve](https://github.com/jfernandez/mdserve).
 Both are MIT licensed. The icons come from [Lucide](https://lucide.dev) (ISC),
 and some of them derive from [Feather](https://github.com/feathericons/feather)
-(MIT). `LICENSE` carries their notices. The page also bundles npm packages,
-such as CodeMirror and Mermaid: `web/dist/THIRD-PARTY-LICENSES.txt` carries
-their licence texts.
+(MIT). `LICENSE` carries their notices. The fonts are IBM Plex Sans and IBM
+Plex Mono, under the SIL Open Font License 1.1. The page bundles them and other
+npm packages, such as CodeMirror and Mermaid:
+`web/dist/THIRD-PARTY-LICENSES.txt` carries their licence texts.
 
 ## License
 

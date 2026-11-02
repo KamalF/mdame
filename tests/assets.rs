@@ -99,3 +99,30 @@ async fn only_api_and_raw_answers_stay_out_of_the_cache() {
         );
     }
 }
+
+#[tokio::test]
+async fn every_woff2_font_of_the_css_is_served() {
+    let response = send(local(), "/assets/main.css", &[HOST]).await;
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let css = String::from_utf8(bytes.to_vec()).unwrap();
+    let fonts: Vec<&str> = css
+        .split("url(")
+        .skip(1)
+        .filter_map(|rest| rest.split_once(')'))
+        .map(|(url, _)| url.trim_matches(['"', '\'']))
+        .filter(|url| url.ends_with(".woff2"))
+        .collect();
+    assert!(!fonts.is_empty());
+    for font in fonts {
+        let uri = format!("/assets/{}", font.trim_start_matches("./"));
+        let response = send(local(), &uri, &[HOST]).await;
+        assert_eq!(response.status(), StatusCode::OK, "{uri}");
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "font/woff2",
+            "{uri}"
+        );
+    }
+}

@@ -314,10 +314,15 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
    - Decided on 2 November 2026: a link in the folder is a theme, wherever it points, since dotfile managers make such links. The plan refused a link that leaves the folder.
    - `/api/state` lists the themes, and the menu asks for it each time it opens. The page loads a stored user theme without the list: if the theme is gone, its link fails and the page shows the system's theme.
    - A user file named like a built-in replaces it whole, so it must set every variable. The README of commit 9 says so.
-8. IBM Plex Sans and Mono, bundled as woff2. The OFL notice goes in `LICENSE`, and the credit in the README.
+8. IBM Plex Sans and Mono, bundled as woff2 (done). The credit goes in the README.
+   - From Fontsource 5.3.0: Plex Sans as a variable font, so one file per script covers every weight, and Plex Mono at 400 and 400 italic. Bold code is drawn by the browser. Every script that Plex has is bundled, and the browser loads only those that a page uses.
+   - Bun 1.4.3 inlines every font that CSS names, as a `data:` URL that the CSP refuses. The fonts are `--external` to the bundle, and `mise run web` copies their woff2 files to `web/dist/assets/files/`. `every_woff2_font_of_the_css_is_served` checks that none is missing. Plex Mono's CSS also names woff files, which no browser that reads woff2 asks for: they are not copied.
+   - The OFL texts go in `web/dist/THIRD-PARTY-LICENSES.txt`, with the other npm packages, and not in `LICENSE`, which holds the notices of code copied into the sources.
+   - `--font-content` and `--content-width` of the contract now apply to rendered files, with the values of before.
 9. `web/themes/README.md`: the contract, with a commented template. The README gains a themes section and the Primer credit.
 10. Theme pass: each screen in light and dark (view, editor, revisions, dialogs, status bar), with contrast checks.
    - Found in the browser check of commit 6: in dark, the current row of the sidebar is accent blue on the strong blue of `selection-bgColor`, hard to read. `--selection` serves text selection, hover and the current row, and Primer's value suits only the first.
+   - The spec sets the content width to 60ch, and the page still has 760px, from before Plex.
 11. Manual checklist, `cargo mutants`, review loop.
 
 ## Public repository and crate
@@ -334,7 +339,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 8: IBM Plex fonts.
+1. Milestone 8, commit 9: the themes README.
 
 ## Open points
 

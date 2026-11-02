@@ -17,7 +17,7 @@ function modal(id: string, heading: string, body: Node[], buttons: HTMLButtonEle
   dialog.append(form);
   document.body.append(dialog);
   dialog.showModal();
-  return { dialog, form };
+  return dialog;
 }
 
 function errorLine(): HTMLParagraphElement {
@@ -38,7 +38,7 @@ export function confirmDiscard(): Promise<boolean> {
   const discard = document.createElement("button");
   discard.value = "discard";
   discard.textContent = "Discard";
-  const { dialog } = modal(
+  const dialog = modal(
     "mdame-discard-title",
     "Discard unsaved changes?",
     [intro],
@@ -92,7 +92,7 @@ export function askNewFile(folder: string): Promise<string | null> {
   const create = document.createElement("button");
   create.value = "create";
   create.textContent = "Create";
-  const { dialog } = modal("mdame-new-title", "New file", [field, note, error], [cancel, create]);
+  const dialog = modal("mdame-new-title", "New file", [field, note, error], [cancel, create]);
   cancel.addEventListener("click", () => dialog.close());
   field.focus();
 

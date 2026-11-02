@@ -1,4 +1,4 @@
-/** What `/api/state` and the requests that change the state answer. */
+/** What `/api/state` answers. */
 export interface State {
   version: string;
   workspace: Workspace;

@@ -6,43 +6,40 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use cap_std::fs::{Dir, DirBuilder, DirBuilderExt, File, OpenOptions, OpenOptionsExt};
 use serde::Serialize;
 
-use crate::workspace::{OWN_DIR, Workspace};
+use crate::workspace::OWN_DIR;
 
 /// Creates the folder if it is missing.
-pub fn root(workspace: &Workspace) -> io::Result<Dir> {
+pub fn root(workspace: &Dir) -> io::Result<Dir> {
     // Any other error than an existing folder comes back from
     // create_dir_all below.
     // Only the owner may list it: its folders follow the workspace's file
     // names, also those in a private folder.
     let mut private = DirBuilder::new();
     private.mode(0o700);
-    if workspace.dir.create_dir_with(OWN_DIR, &private).is_ok() {
+    if workspace.create_dir_with(OWN_DIR, &private).is_ok() {
         // create_new follows no link that another program may have put
         // there since the folder appeared.
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
-        match workspace
-            .dir
-            .open_with(format!("{OWN_DIR}/.gitignore"), &options)
-        {
+        match workspace.open_with(format!("{OWN_DIR}/.gitignore"), &options) {
             Ok(mut file) => file.write_all(b"*\n")?,
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
             Err(error) => return Err(error),
         }
     }
     let history = format!("{OWN_DIR}/history");
-    refuse_link(&workspace.dir, OWN_DIR)?;
-    workspace.dir.create_dir_all(&history)?;
-    refuse_link(&workspace.dir, &history)?;
-    workspace.dir.open_dir(&history)
+    refuse_link(workspace, OWN_DIR)?;
+    workspace.create_dir_all(&history)?;
+    refuse_link(workspace, &history)?;
+    workspace.open_dir(&history)
 }
 
 /// As `root`, but creates nothing: `None` until a save makes the folder.
-pub fn open_root(workspace: &Workspace) -> io::Result<Option<Dir>> {
+pub fn open_root(workspace: &Dir) -> io::Result<Option<Dir>> {
     let history = format!("{OWN_DIR}/history");
-    let opened = refuse_link(&workspace.dir, OWN_DIR)
-        .and_then(|()| refuse_link(&workspace.dir, &history))
-        .and_then(|()| workspace.dir.open_dir(&history));
+    let opened = refuse_link(workspace, OWN_DIR)
+        .and_then(|()| refuse_link(workspace, &history))
+        .and_then(|()| workspace.open_dir(&history));
     match opened {
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         opened => opened.map(Some),
@@ -203,9 +200,9 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
 
-    fn workspace() -> (tempfile::TempDir, Workspace) {
+    fn workspace() -> (tempfile::TempDir, Dir) {
         let tmp = tempfile::tempdir().unwrap();
-        let workspace = Workspace::open(tmp.path()).unwrap();
+        let workspace = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         (tmp, workspace)
     }
 

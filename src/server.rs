@@ -427,7 +427,7 @@ async fn revisions(
     let workspace = app.workspace.clone();
     let path = query.path.clone();
     let revisions = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&workspace)?;
+        let history = history::open_root(&workspace.dir)?;
         document::revisions(&workspace.dir, history.as_ref(), &path)
     })
     .await?;
@@ -455,7 +455,7 @@ async fn revision(
     let workspace = app.workspace.clone();
     let (path, id) = (query.path.clone(), query.id);
     let content = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&workspace)?;
+        let history = history::open_root(&workspace.dir)?;
         document::revision(&workspace.dir, history.as_ref(), &path, &id)
     })
     .await?;
@@ -508,7 +508,7 @@ async fn save(
     let saved = tokio::task::spawn_blocking(move || {
         document::save(
             &workspace.dir,
-            || history::root(&workspace),
+            || history::root(&workspace.dir),
             keep,
             &path,
             &request.content,
@@ -544,11 +544,11 @@ async fn restore(
     let keep = app.config.snapshots_per_file();
     let (path, id) = (request.path.clone(), request.id);
     let restored = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&workspace)?;
+        let history = history::open_root(&workspace.dir)?;
         document::restore(
             &workspace.dir,
             history.as_ref(),
-            || history::root(&workspace),
+            || history::root(&workspace.dir),
             keep,
             &path,
             &id,

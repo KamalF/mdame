@@ -338,6 +338,7 @@ async fn save_without_a_writable_history_folder_writes_nothing() {
     }
 }
 
+/// A leaked token must not rewrite `.git/config`, a `Makefile` or a snapshot.
 #[tokio::test]
 async fn save_refuses_what_the_editor_may_not_open() {
     let dir = tempfile::tempdir().unwrap();

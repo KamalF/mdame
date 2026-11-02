@@ -239,8 +239,10 @@ function onEvent(event: live.LiveEvent) {
   if (isHeld()) return;
   const current = sidebar.pathFromUrl(location.pathname);
   const reaction = live.react(event, current, sidebar.orderDependsOn);
-  if (reaction.kind === "reload") refresh();
-  if (reaction.kind !== "update") return;
+  if (reaction.kind === "reload") {
+    refresh();
+    return;
+  }
   if (reaction.tree) refreshTree();
   view.refreshImages(content);
   const edited = editor.openPath();

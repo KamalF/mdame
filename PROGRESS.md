@@ -296,7 +296,7 @@ Decided on 29 October 2026, after a comparison with mo: mdame does one job, and 
 
 Rules, as test names, by commit. Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
 
-1. CI on GitHub Actions: on each push and pull request, a Linux runner checks the format, then runs `lint`, `test` and `check-dist`. First, because the repository is public now: CI checks each push from here on. No test: done when a push of `m8-themes` gets a green run.
+1. CI on GitHub Actions (done): on each push and pull request, a Linux runner checks the format, then runs `lint`, `test` and `check-dist`. First, because the repository is public now: CI checks each push from here on. No test: done when a push of `m8-themes` gets a green run.
 2. No picker: `mdame` with no path opens the current folder. `picker.ts`, `GET /api/complete`, `GET /api/recents`, `POST /api/workspace`, `recents.toml`, `home` in `/api/state` and the `workspace` event go, with the page's code for a tab on the picker and the refusal of a hidden folder. `AppState` holds the workspace with no lock and no `Option`, so the 409 "no workspace is open" goes. The tests of the removed code go, and so do their rows in the routes matrix. The README's usage follows. No new test: the path defaults to `.`.
 3. No history choice: revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the warning about shared histories, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
 4. `--no-open`: mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`. It closes the open point on `--no-open`.
@@ -322,7 +322,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 1: CI on GitHub Actions.
+1. Milestone 8, commit 2: no picker.
 
 ## Open points
 

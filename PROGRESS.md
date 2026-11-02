@@ -319,10 +319,12 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
    - Bun 1.4.3 inlines every font that CSS names, as a `data:` URL that the CSP refuses. The fonts are `--external` to the bundle, and `mise run web` copies their woff2 files to `web/dist/assets/files/`. `every_woff2_font_of_the_css_is_served` checks that none is missing. Plex Mono's CSS also names woff files, which no browser that reads woff2 asks for: they are not copied.
    - The OFL texts go in `web/dist/THIRD-PARTY-LICENSES.txt`, with the other npm packages, and not in `LICENSE`, which holds the notices of code copied into the sources.
    - `--font-content` and `--content-width` of the contract now apply to rendered files, with the values of before.
-9. `web/themes/README.md`: the contract, with a commented template. The README gains a themes section and the Primer credit.
+9. `web/themes/README.md` (done): the contract, with a commented template. The README gains a themes section and the Primer credit.
+   - The template is the documentation: each variable has the value of the dark built-in and a comment that says where it shows. No separate table.
 10. Theme pass: each screen in light and dark (view, editor, revisions, dialogs, status bar), with contrast checks.
    - Found in the browser check of commit 6: in dark, the current row of the sidebar is accent blue on the strong blue of `selection-bgColor`, hard to read. `--selection` serves text selection, hover and the current row, and Primer's value suits only the first.
    - The spec sets the content width to 60ch, and the page still has 760px, from before Plex.
+   - Two variables of the contract that no CSS reads yet, as `web/themes/README.md` describes them: `--warning` for warning alerts, which use `--danger` today, and `--accent-fg` for the text of buttons in `--accent`, which use `--bg-raised` today. In dark, Primer's white on `#4493f8` is 3.0:1.
 11. Manual checklist, `cargo mutants`, review loop.
 
 ## Public repository and crate
@@ -339,7 +341,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 9: the themes README.
+1. Milestone 8, commit 10: theme pass.
 
 ## Open points
 

@@ -60,7 +60,7 @@ lines that you do not change.
   --font-ui: "IBM Plex Sans Variable", system-ui, sans-serif; /* the interface */
   --font-content: var(--font-ui); /* rendered files */
   --font-mono: "IBM Plex Mono", ui-monospace, monospace; /* code */
-  --content-width: 760px; /* the column of rendered files */
+  --content-width: 60ch; /* the column of rendered files */
 
   /* Code, in the editor and in rendered files */
   --code-bg: #151b23; /* code blocks and inline code */

@@ -1,7 +1,7 @@
 mod common;
 
 use std::fs;
-use std::os::unix::fs::symlink;
+use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -132,4 +132,18 @@ async fn a_theme_outside_the_folder_is_refused() {
     let state = with_themes(dir.path(), &[]);
     let response = send(state, "/themes/..%2Fsecret.css", &[HOST]).await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn an_unreadable_theme_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = with_themes(dir.path(), &[("nord.css", "/* nord */")]);
+    let locked = dir.path().join("themes/nord.css");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::read(&locked).is_ok() {
+        // Root reads it anyway: nothing to test.
+        return;
+    }
+    let response = send(state, "/themes/nord.css", &[HOST]).await;
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }

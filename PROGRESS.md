@@ -329,6 +329,8 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
    - In dark, the dialog's secondary button had the dialog's own colour: it has a border now.
 11. Manual checklist, `cargo mutants`, review loop.
 
+- `cargo mutants` over the milestone 8 diff, on 2 November 2026: 62 mutants, 4 missed. A test now catches 2 of them: a user theme that cannot be read gives an error, not a 404. The 2 others are excluded with their reason. The first changes only the line that `run` logs when no browser opens, so the manual checklist must check that `--no-open` logs no "no display" line. The second needs a theme deleted between its check and its read: a race.
+
 ## Public repository and crate
 
 Decided on 29 October 2026, before milestone 8:

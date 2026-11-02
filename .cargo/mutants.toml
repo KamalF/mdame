@@ -6,6 +6,7 @@ exclude_re = [
     # Start-up wiring: the manual checklist covers it.
     "replace main -> ExitCode",
     "replace run -> Result",
+    "app.rs.*delete ! in run$",
     "replace (config_dir|state_dir) ->",
     "replace print_urls with \\(\\)",
     # Lookup tables: a test would only repeat them.
@@ -40,6 +41,8 @@ exclude_re = [
     # entry fails only when another mdame pruned it since the listing. The
     # column keeps the guard of read_dir, which a test catches.
     "history.rs:\\d+:(27|40): .* in list$",
+    # A theme deleted between its is_file check and its read: a race.
+    "themes.rs.*ErrorKind::NotFound with false in read",
     # The life of a code ends at one instant: < and <= differ there only.
     "replace < with <= in open_code",
 ]

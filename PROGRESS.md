@@ -302,7 +302,7 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
    - mdame opens the workspace before it builds `AppState`. Tests that read no file get an empty workspace in `target/tmp/empty`.
 3. No history choice (done): revisions live in `<workspace>/.mdame/history/`. The `history` field of `Config` goes: an old `config.toml` that sets it stops mdame at start, as any unknown key does. `state` mode, `encode_path`, the first-start dialog, `needs_setup`, `PUT /api/settings` and `config::save` go. Snapshots kept in `state` mode stay in `~/.local/state/mdame/`, and mdame no longer reads them. The tests of the removed code go.
    - `AppState` holds the config with no lock, and no longer holds its path or the state folder. `config::load` reads a `Config` only.
-4. `--no-open`: mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`. It closes the open point on `--no-open`.
+4. `--no-open` (done): mdame prints the URL and opens no browser. `no_open_opens_no_browser`, next to the tests of `has_display`, which becomes `opens_browser`. It closes the open point on `--no-open`.
 5. Built-in themes: `web/themes/light.css` and `dark.css` hold the Primer value of each contract variable, and `base.css` keeps no colour. The diff mixes `--success` and `--danger` into the background. Mermaid's theme follows `color-scheme`, and `--mermaid-theme` goes. `GET /themes/{name}.css`: `a_builtin_theme_is_css`, `an_unknown_theme_is_404`, `a_theme_name_is_one_segment`; a row in the routes matrix. Until commit 6, the page follows the system.
 6. Theme choice: `theme` leaves `Config` (`a_config_that_sets_theme_stops_mdame`). The theme button opens its menu: System, Light, Dark. The choice goes in `localStorage`, and the built-in of the theme's scheme loads first. `theme.ts`: `system follows prefers-color-scheme`, `a stored choice wins`, `an unknown stored theme falls back to system`.
 7. User themes: each `~/.config/mdame/themes/<name>.css` shows in the menu after the built-ins, and the list is read again each time the menu opens. A user file with a built-in's name overrides it. `state_lists_user_themes_after_the_builtins`, `a_user_theme_overrides_a_builtin`, `a_new_user_theme_shows_without_a_restart`, `a_theme_outside_the_folder_is_refused` (a link, `..`).
@@ -325,7 +325,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 4: `--no-open`.
+1. Milestone 8, commit 5: built-in themes.
 
 ## Open points
 
@@ -375,7 +375,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
 - The watcher watches gitignored folders too (`target/`, `node_modules/`: 2 600 of this repo's 2 900 folders), so a `cargo build` in the workspace sends events and `resync`s for files the tree never shows. Measure in the browser after milestone 5 before filtering.
-- `--no-open` flag: in the spec's v1 flags. Build it in milestone 8, or sooner if the tabs that `mise run dev` opens on each restart get in the way.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
 - From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread; "Copy content" fetches before it writes to the clipboard, which Safari may refuse, and the failure tooltip then blames localhost.
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.

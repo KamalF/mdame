@@ -321,10 +321,12 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
    - `--font-content` and `--content-width` of the contract now apply to rendered files, with the values of before.
 9. `web/themes/README.md` (done): the contract, with a commented template. The README gains a themes section and the Primer credit.
    - The template is the documentation: each variable has the value of the dark built-in and a comment that says where it shows. No separate table.
-10. Theme pass: each screen in light and dark (view, editor, revisions, dialogs, status bar), with contrast checks.
-   - Found in the browser check of commit 6: in dark, the current row of the sidebar is accent blue on the strong blue of `selection-bgColor`, hard to read. `--selection` serves text selection, hover and the current row, and Primer's value suits only the first.
-   - The spec sets the content width to 60ch, and the page still has 760px, from before Plex.
-   - Two variables of the contract that no CSS reads yet, as `web/themes/README.md` describes them: `--warning` for warning alerts, which use `--danger` today, and `--accent-fg` for the text of buttons in `--accent`, which use `--bg-raised` today. In dark, Primer's white on `#4493f8` is 3.0:1.
+10. Theme pass (done): each screen in light and dark (view, editor, revisions, dialogs, status bar, theme menu), with contrast checks.
+   - A script measured each text and background pair that the screens use, translucent colours blended first. Two failed: accent text on the current file (3.7:1 light, 2.5:1 dark), and Primer's white on the dark accent (3.1:1). Every other pair passes 4.5:1, the diff and each code colour included.
+   - The current file keeps `--selection` behind text in `--fg`. Hover no longer uses `--selection`, so it stays apart from the current file: `--hover` in `base.css` mixes `--fg` into the background, as the active line does. Themes do not set it.
+   - `--accent-fg` colours the text of accent buttons; dark sets it to `bgColor-inset` (6.6:1). `--warning` colours warning alerts; caution alerts keep `--danger`.
+   - The content width is the spec's 60ch.
+   - In dark, the dialog's secondary button had the dialog's own colour: it has a border now.
 11. Manual checklist, `cargo mutants`, review loop.
 
 ## Public repository and crate
@@ -341,7 +343,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 10: theme pass.
+1. Milestone 8, commit 11: manual checklist, `cargo mutants`, review loop.
 
 ## Open points
 

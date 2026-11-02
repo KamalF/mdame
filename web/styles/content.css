@@ -154,7 +154,10 @@
   border-left: 3px solid var(--accent);
 }
 
-.mdame-document .markdown-alert-warning,
+.mdame-document .markdown-alert-warning {
+  border-left-color: var(--warning);
+}
+
 .mdame-document .markdown-alert-caution {
   border-left-color: var(--danger);
 }

@@ -64,13 +64,15 @@
   border: 0;
   border-radius: 6px;
   background: var(--accent);
-  color: var(--bg-raised);
+  color: var(--accent-fg);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 
 .mdame-dialog button.is-secondary {
+  /* In dark, --bg-sunken is the dialog's own colour. */
+  border: 1px solid var(--border);
   background: var(--bg-sunken);
   color: var(--fg);
 }
@@ -105,7 +107,7 @@
 }
 
 .mdame-tree-row:hover {
-  background: var(--selection);
+  background: var(--hover);
 }
 
 /* A ring, not a background: the current file already has the background. */
@@ -115,7 +117,6 @@
 
 .mdame-tree-row[aria-current="page"] {
   background: var(--selection);
-  color: var(--accent);
   font-weight: 500;
 }
 
@@ -179,7 +180,7 @@
 }
 
 .mdame-icon-button:hover {
-  background: var(--selection);
+  background: var(--hover);
   color: var(--fg);
 }
 
@@ -335,7 +336,7 @@
 }
 
 .mdame-revision:hover {
-  background: var(--selection);
+  background: var(--hover);
 }
 
 .mdame-revision[aria-current="true"] {
@@ -377,7 +378,7 @@
   border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--accent);
-  color: var(--bg-raised);
+  color: var(--accent-fg);
   font: inherit;
   font-weight: 500;
   cursor: pointer;
@@ -417,7 +418,7 @@
 }
 
 .mdame-menu button:hover {
-  background: var(--selection);
+  background: var(--hover);
 }
 
 .mdame-menu [aria-pressed="false"] .mdame-icon {

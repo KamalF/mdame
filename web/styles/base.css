@@ -2,7 +2,9 @@
   --font-ui: "IBM Plex Sans Variable", system-ui, sans-serif;
   --font-content: var(--font-ui);
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --content-width: 760px;
+  --content-width: 60ch;
+  /* Not set by themes: a tint of the text keeps hover apart from --selection. */
+  --hover: color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 html,

@@ -24,8 +24,9 @@ A file named `light.css` or `dark.css` replaces that built-in theme, with nothin
 under it, so it must set every variable. Start from a copy of `light.css` or
 `dark.css` in this folder.
 
-A theme sets no diff colours: the diff of revisions mixes `--success` and
-`--danger` into the background. Shadows and backdrops stay translucent black.
+A theme sets no diff or hover colours. The diff of revisions mixes `--success`
+and `--danger` into the background, and a hovered row mixes in `--fg`. Shadows
+and backdrops stay translucent black.
 `--content-width-mono` is reserved for a mono mode that mdame does not have yet.
 
 ## Template
@@ -46,11 +47,11 @@ lines that you do not change.
   --fg: #f0f6fc; /* text */
   --fg-muted: #9198a1; /* secondary text, line numbers */
   --border: #3d444d; /* lines between regions, borders of fields */
-  --selection: #1f6febb3; /* selected text, hovered rows, the current file */
+  --selection: #1f6febb3; /* selected text, the current file */
 
   /* Meaning */
-  --accent: #4493f8; /* links, focus, the current file, main buttons */
-  --accent-fg: #ffffff; /* text on a button of --accent colour */
+  --accent: #4493f8; /* links, focus, main buttons */
+  --accent-fg: #010409; /* text on a button of --accent colour */
   --danger: #f85149; /* errors, removed lines, caution alerts */
   --warning: #d29922; /* warning alerts */
   --success: #3fb950; /* added lines */

@@ -508,7 +508,7 @@ A theme is one CSS file that sets variables on `:root` and nothing else. The app
 - **Code colours**, for the editor and rendered code alike through Lezer's `tok-*` classes: `--code-bg`, `--hl-keyword`, `--hl-string`, `--hl-number`, `--hl-comment`, `--hl-title`, `--hl-type`, `--hl-attr`, `--hl-meta`.
 - `color-scheme: light` or `dark`, a standard CSS property. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. Browsers also draw scrollbars and form controls to match.
 
-The diff's added and removed lines mix `--success` and `--danger` into the background, so themes set no diff colours. Shadows and backdrops stay translucent black, outside the contract.
+The diff's added and removed lines mix `--success` and `--danger` into the background, and a hovered row mixes in `--fg`, so themes set no diff or hover colours. Shadows and backdrops stay translucent black, outside the contract.
 
 The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/README.md` with a commented template, because that file is what issue #15 users will copy.
 
@@ -638,7 +638,7 @@ After milestone 11, the medium and large Later items wait; tabs need their own d
   - The README of milestone 10 leads with the owner's reason: a markdown viewer and editor in the browser beside the terminal, lighter than VS Code. Its comparison starts with VS Code.
   - Before the release, milestone 10 measures the memory of mdame and of its tab, idle and on a large repo, against VS Code. It also stops the watcher from watching gitignored folders.
   - Later loses file operations, the right-click menu and tabs.
-- **Theme details.** The built-in themes map each contract variable to a Primer variable (milestone 8, commit 5). The theme pass checks their contrast and may change the mapping. The list itself was fixed on 28 October 2026.
+- **Settled in milestone 8:** the built-in themes map each contract variable to a Primer variable, and the theme pass checked each pair that the screens use. Dark sets `--accent-fg` to `bgColor-inset`, since Primer's white is 3.1:1 on its accent.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
 

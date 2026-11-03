@@ -133,27 +133,25 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let events = broadcast::channel(EVENT_CAPACITY).0;
     let workspace = open_workspace(&args.path, events.clone())
         .map_err(|error| format!("{}: {}", args.path.display(), io_message(&error)))?;
-    let app_state = AppState {
+    // After the open: the watcher's first walk of a large folder can take
+    // longer than a code lives.
+    let (opened, printed) = (new_token()?, new_token()?);
+    let state = Arc::new(AppState {
         addr,
         workspace,
         // Every field named: a lost token line must not compile.
         access: Mutex::new(Access {
             token: Some(token.clone()),
-            open_codes: Vec::new(),
+            open_codes: vec![
+                OpenCode::new(opened.clone(), OPENED_CODE_LIFE),
+                OpenCode::new(printed.clone(), PRINTED_CODE_LIFE),
+            ],
         }),
         token_file,
         config,
         themes_dir: config_dir.join("themes"),
         events,
-    };
-    // After the open: the watcher's first walk of a large folder can take
-    // longer than a code lives.
-    let (opened, printed) = (new_token()?, new_token()?);
-    app_state.access.lock().unwrap().open_codes = vec![
-        OpenCode::new(opened.clone(), OPENED_CODE_LIFE),
-        OpenCode::new(printed.clone(), PRINTED_CODE_LIFE),
-    ];
-    let state = Arc::new(app_state);
+    });
 
     print_urls(addr, &printed, &token);
     let linux = cfg!(target_os = "linux");

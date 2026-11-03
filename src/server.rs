@@ -378,9 +378,8 @@ fn content_type(path: &str) -> &'static str {
 }
 
 async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiError> {
-    let workspace = app.workspace.clone();
     // The walk reads every folder: run it where blocking is allowed.
-    let node = tokio::task::spawn_blocking(move || tree::build(&workspace)).await?;
+    let node = tokio::task::spawn_blocking(move || tree::build(&app.workspace)).await?;
     Ok(Json(node))
 }
 
@@ -394,10 +393,10 @@ async fn file(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<Json<View>, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace.clone();
     // Reading and rendering a large file takes a while.
     let path = query.path.clone();
-    let view = tokio::task::spawn_blocking(move || document::view(&workspace.dir, &path)).await?;
+    let view =
+        tokio::task::spawn_blocking(move || document::view(&app.workspace.dir, &path)).await?;
     view.map(Json)
         .map_err(|error| file_error(&query.path, error))
 }
@@ -407,10 +406,9 @@ async fn source(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace.clone();
     let path = query.path.clone();
     let source =
-        tokio::task::spawn_blocking(move || document::source(&workspace.dir, &path)).await?;
+        tokio::task::spawn_blocking(move || document::source(&app.workspace.dir, &path)).await?;
     let source = source.map_err(|error| file_error(&query.path, error))?;
     Ok(([(header::ETAG, etag(&source.version))], Json(source)))
 }
@@ -424,11 +422,10 @@ async fn revisions(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<Json<Vec<Revision>>, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace.clone();
     let path = query.path.clone();
     let revisions = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&workspace.dir)?;
-        document::revisions(&workspace.dir, history.as_ref(), &path)
+        let history = history::open_root(&app.workspace.dir)?;
+        document::revisions(&app.workspace.dir, history.as_ref(), &path)
     })
     .await?;
     revisions
@@ -452,11 +449,10 @@ async fn revision(
     query: Result<Query<RevisionQuery>, QueryRejection>,
 ) -> Result<Json<RevisionText>, ApiError> {
     let Query(query) = query?;
-    let workspace = app.workspace.clone();
     let (path, id) = (query.path.clone(), query.id);
     let content = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&workspace.dir)?;
-        document::revision(&workspace.dir, history.as_ref(), &path, &id)
+        let history = history::open_root(&app.workspace.dir)?;
+        document::revision(&app.workspace.dir, history.as_ref(), &path, &id)
     })
     .await?;
     content
@@ -502,13 +498,12 @@ async fn save(
     let Query(query) = query?;
     let Json(request) = body?;
     let base_version = if_match(&headers)?;
-    let workspace = app.workspace.clone();
     let keep = app.config.snapshots_per_file();
     let path = query.path.clone();
     let saved = tokio::task::spawn_blocking(move || {
         document::save(
-            &workspace.dir,
-            || history::root(&workspace.dir),
+            &app.workspace.dir,
+            || history::root(&app.workspace.dir),
             keep,
             &path,
             &request.content,
@@ -540,15 +535,14 @@ async fn restore(
     body: Result<Json<RestoreRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
-    let workspace = app.workspace.clone();
     let keep = app.config.snapshots_per_file();
     let (path, id) = (request.path.clone(), request.id);
     let restored = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&workspace.dir)?;
+        let history = history::open_root(&app.workspace.dir)?;
         document::restore(
-            &workspace.dir,
+            &app.workspace.dir,
             history.as_ref(),
-            || history::root(&workspace.dir),
+            || history::root(&app.workspace.dir),
             keep,
             &path,
             &id,
@@ -588,10 +582,9 @@ async fn create(
     body: Result<Json<CreateRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Json(request) = body?;
-    let workspace = app.workspace.clone();
     let path = request.path.clone();
     let created =
-        tokio::task::spawn_blocking(move || document::create(&workspace.dir, &path)).await?;
+        tokio::task::spawn_blocking(move || document::create(&app.workspace.dir, &path)).await?;
     let created = created.map_err(|error| match error.kind() {
         io::ErrorKind::AlreadyExists => {
             ApiError::Conflict(format!("{}: the file exists", request.path))
@@ -641,10 +634,9 @@ async fn raw(
     State(app): State<Arc<AppState>>,
     Path(path): Path<String>,
 ) -> Result<Response, ApiError> {
-    let workspace = app.workspace.clone();
     let relative = path.clone();
     let (bytes, content_type) =
-        tokio::task::spawn_blocking(move || document::raw(&workspace.dir, &relative))
+        tokio::task::spawn_blocking(move || document::raw(&app.workspace.dir, &relative))
             .await?
             .map_err(|error| file_error(&path, error))?;
     let headers = [

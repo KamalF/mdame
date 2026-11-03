@@ -81,7 +81,7 @@ pub struct Access {
 
 pub struct AppState {
     pub addr: SocketAddr,
-    pub workspace: Arc<Workspace>,
+    pub workspace: Workspace,
     pub access: Mutex<Access>,
     /// Where the token is kept, on loopback: a new one goes there too.
     pub token_file: Option<PathBuf>,
@@ -135,7 +135,7 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|error| format!("{}: {}", args.path.display(), io_message(&error)))?;
     let app_state = AppState {
         addr,
-        workspace: Arc::new(workspace),
+        workspace,
         // Every field named: a lost token line must not compile.
         access: Mutex::new(Access {
             token: Some(token.clone()),

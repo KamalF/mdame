@@ -302,7 +302,7 @@ mdame/
 **Shared state.** The router holds `Arc<AppState>`, and axum hands every handler a clone of that `Arc`: one pointer copy, no data copied. `AppState` itself cannot be cloned, because `Mutex` is not `Clone`. It holds:
 
 - `config: Config`, read at start.
-- `workspace: Arc<Workspace>`, opened at start. It never changes while mdame runs, so it needs no lock.
+- `workspace: Workspace`, opened at start. It never changes while mdame runs, so it needs no lock, and a handler reaches it through its `Arc<AppState>`.
 - `events: broadcast::Sender<Event>` for WebSocket clients.
 - `access: Mutex<Access>`: the token and its open codes (the opened and the printed one), under one lock, so that a request decides from one view of them. A `None` token turns the check off for tests of other rules.
 - `token_file: Option<PathBuf>`: where the token is kept, on loopback (see Token).

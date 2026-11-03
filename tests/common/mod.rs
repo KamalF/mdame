@@ -71,7 +71,7 @@ pub async fn get_json(state: AppState, uri: &str) -> (StatusCode, Value) {
 pub fn on(workspace: Workspace, events: broadcast::Sender<Event>) -> AppState {
     AppState {
         addr: "127.0.0.1:4891".parse().unwrap(),
-        workspace: Arc::new(workspace),
+        workspace,
         access: Mutex::new(Access::default()),
         token_file: None,
         config: Config::default(),

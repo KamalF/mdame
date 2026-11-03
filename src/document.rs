@@ -121,21 +121,20 @@ pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
     })
 }
 
-/// The revisions of the file at `path`, newest first. `history` is `None`
-/// while no save has made the history folder.
-pub fn revisions(dir: &Dir, history: Option<&Dir>, path: &str) -> io::Result<Vec<Revision>> {
+/// The revisions of the file at `path`, newest first.
+pub fn revisions(dir: &Dir, path: &str) -> io::Result<Vec<Revision>> {
     let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;
-    match history {
-        Some(history) => history::list(history, &real),
+    match history::open_root(dir)? {
+        Some(history) => history::list(&history, &real),
         None => Ok(Vec::new()),
     }
 }
 
 /// The text of the revision `id` of the file at `path`.
-pub fn revision(dir: &Dir, history: Option<&Dir>, path: &str, id: &str) -> io::Result<String> {
+pub fn revision(dir: &Dir, path: &str, id: &str) -> io::Result<String> {
     let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;
-    let history = history.ok_or_else(history::no_revision)?;
-    let bytes = read_at_most(&history::open(history, &real, id)?, EDIT_LIMIT)?;
+    let history = history::open_root(dir)?.ok_or_else(history::no_revision)?;
+    let bytes = read_at_most(&history::open(&history, &real, id)?, EDIT_LIMIT)?;
     String::from_utf8(bytes).map_err(|_| not_text())
 }
 
@@ -244,13 +243,12 @@ pub fn save(
 /// current content as a revision, so the restore can be undone.
 pub fn restore(
     dir: &Dir,
-    history: Option<&Dir>,
     root: impl FnOnce() -> io::Result<Dir>,
     keep: usize,
     path: &str,
     id: &str,
 ) -> Result<Saved, SaveError> {
-    let text = revision(dir, history, path, id)?;
+    let text = revision(dir, path, id)?;
     // A write by another program after this read makes the save refuse.
     let current = source(dir, path)?.version;
     save(dir, root, keep, path, &text, &current)

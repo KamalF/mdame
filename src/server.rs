@@ -423,11 +423,8 @@ async fn revisions(
 ) -> Result<Json<Vec<Revision>>, ApiError> {
     let Query(query) = query?;
     let path = query.path.clone();
-    let revisions = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&app.workspace.dir)?;
-        document::revisions(&app.workspace.dir, history.as_ref(), &path)
-    })
-    .await?;
+    let revisions =
+        tokio::task::spawn_blocking(move || document::revisions(&app.workspace.dir, &path)).await?;
     revisions
         .map(Json)
         .map_err(|error| file_error(&query.path, error))
@@ -450,11 +447,9 @@ async fn revision(
 ) -> Result<Json<RevisionText>, ApiError> {
     let Query(query) = query?;
     let (path, id) = (query.path.clone(), query.id);
-    let content = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&app.workspace.dir)?;
-        document::revision(&app.workspace.dir, history.as_ref(), &path, &id)
-    })
-    .await?;
+    let content =
+        tokio::task::spawn_blocking(move || document::revision(&app.workspace.dir, &path, &id))
+            .await?;
     content
         .map(|content| Json(RevisionText { content }))
         .map_err(|error| file_error(&query.path, error))
@@ -538,10 +533,8 @@ async fn restore(
     let keep = app.config.snapshots_per_file();
     let (path, id) = (request.path.clone(), request.id);
     let restored = tokio::task::spawn_blocking(move || {
-        let history = history::open_root(&app.workspace.dir)?;
         document::restore(
             &app.workspace.dir,
-            history.as_ref(),
             || history::root(&app.workspace.dir),
             keep,
             &path,

@@ -360,7 +360,7 @@ Theme menu:
 User themes:
 
 5. With the system in dark mode and the menu closed, write `~/.config/mdame/themes/pink.css` with `:root { color-scheme: light; --accent: deeppink; }`. Open the menu: "pink" shows after Dark, with no restart. Choose it: the accent is pink, and every other colour is Light's.
-6. With pink chosen, delete `pink.css` and reload: the page shows the system's theme, and the menu marks System.
+6. With pink chosen, delete `pink.css`, then open the menu: it marks System, and the page shows the system's theme at once.
 7. Copy the template of `web/themes/README.md` into `~/.config/mdame/themes/mine.css`, and choose it: the page looks like Dark.
 
 Fonts:

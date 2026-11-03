@@ -108,6 +108,10 @@ export function themeButton(themes: readonly string[]): HTMLElement {
       ({ themes }) => {
         const changed = themes.join("\n") !== known.join("\n");
         known = themes;
+        // Deleted since it was chosen: the page follows the menu, which
+        // marks System.
+        const stored = load<unknown>(KEY, null);
+        if (stored !== null && chosen(stored, themes) === null) choose(null);
         if (changed && menu.matches(":popover-open")) render();
       },
       () => {},

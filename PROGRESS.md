@@ -17,7 +17,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
-| 8 | Themes and polish | In progress on `m8-themes` | about 11 |
+| 8 | Themes and polish | Done 3 November 2026 | 31, with the review fixes |
 | 9 | Agent workflow | — | — |
 | 10 | Release, then Show HN | — | — |
 | 11 | Small Later items | — | — |
@@ -346,9 +346,11 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
   - Under reduced motion, the sidebar overlay no longer slides: the rule that turned the transition off lost to more specific selectors.
   - Kept: the helpers with one caller whose names say what they do, `errorLine`, which an open point wants to reuse, and the `fileIcon` fallback for a family that Rust may add.
 
+- After the manual checklist, on 3 November 2026: when the menu finds that the chosen theme was deleted, it clears the choice, so the page shows the system's theme at once. Check 1 failed at first in Firefox: the tab still ran the page from before the fix, since a restart on the same folder does not reload it.
+
 ### Manual checklist
 
-Not run yet. These checks cover what no unit test covers: the theme menu, how each screen looks in each theme, the fonts under the CSP, and the start of mdame. Run mdame on a test folder, in Chrome and Firefox. The folder holds a markdown file with a Mermaid diagram, a code block, a table, and the five alerts: note, tip, important, warning and caution.
+Run by hand on 3 November 2026: all 17 checks passed. These checks cover what no unit test covers: the theme menu, how each screen looks in each theme, the fonts under the CSP, and the start of mdame. Run mdame on a test folder, in Chrome and Firefox. The folder holds a markdown file with a Mermaid diagram, a code block, a table, and the five alerts: note, tip, important, warning and caution.
 
 Theme menu:
 
@@ -399,7 +401,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 8, commit 11: run the manual checklist, then merge.
+1. Merge milestone 8 into `main`.
 
 ## Open points
 

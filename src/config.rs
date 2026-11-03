@@ -20,33 +20,14 @@ impl Config {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-    #[error("{path}: {}", io_message(.source))]
-    Io { path: PathBuf, source: io::Error },
-    #[error("{path}: {source}")]
-    Parse {
-        path: PathBuf,
-        source: toml::de::Error,
-    },
-}
-
-/// A missing file gives the default config.
-pub fn load(path: &Path) -> Result<Config, ConfigError> {
-    let text = match fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Config::default()),
-        Err(source) => {
-            return Err(ConfigError::Io {
-                path: path.to_owned(),
-                source,
-            });
-        }
-    };
-    toml::from_str(&text).map_err(|source| ConfigError::Parse {
-        path: path.to_owned(),
-        source,
-    })
+/// A missing file gives the default config. An error names the file.
+pub fn load(path: &Path) -> Result<Config, String> {
+    let named = |message: String| format!("{}: {message}", path.display());
+    match fs::read_to_string(path) {
+        Ok(text) => toml::from_str(&text).map_err(|error| named(error.to_string())),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(Config::default()),
+        Err(error) => Err(named(io_message(&error))),
+    }
 }
 
 /// Holds `config.toml` and the `themes` folder.
@@ -127,7 +108,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
         fs::write(&path, "theme = \"dark\"\n").unwrap();
-        assert!(matches!(load(&path), Err(ConfigError::Parse { .. })));
+        assert!(load(&path).unwrap_err().contains("unknown field `theme`"));
     }
 
     #[test]
@@ -136,7 +117,7 @@ mod tests {
         let path = dir.path().join("config.toml");
         fs::write(&path, "snapshot_per_file = 5\n").unwrap();
         let error = load(&path).unwrap_err();
-        assert!(matches!(error, ConfigError::Parse { .. }));
+        assert!(error.contains("unknown field `snapshot_per_file`"));
     }
 
     #[test]
@@ -145,8 +126,7 @@ mod tests {
         let path = dir.path().join("config.toml");
         fs::write(&path, "snapshots_per_file = \"many\"").unwrap();
         let error = load(&path).unwrap_err();
-        assert!(matches!(error, ConfigError::Parse { .. }));
-        assert!(error.to_string().starts_with(&path.display().to_string()));
+        assert!(error.starts_with(&path.display().to_string()));
     }
 
     #[test]

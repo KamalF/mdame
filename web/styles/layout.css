@@ -145,7 +145,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Above the more specific selectors that set the transition. */
   #mdame-sidebar {
-    transition: none;
+    transition: none !important;
   }
 }

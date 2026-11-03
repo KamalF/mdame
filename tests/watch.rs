@@ -140,7 +140,6 @@ async fn save_through_a_temporary_file_creates_it() {
     let mut watched = Watched::new(&[A]);
     let temporary = watched.path("a.md.tmp.12345");
     fs::write(&temporary, "# Saved\n").unwrap();
-    tokio::time::sleep(Duration::from_millis(100)).await;
     fs::rename(&temporary, watched.path("a.md")).unwrap();
     watched.assert_next(&[created("a.md")]).await;
 }

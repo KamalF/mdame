@@ -340,6 +340,11 @@ Rules, as test names, by commit. Done when: a user theme dropped into `~/.config
   - `run` decides `--no-open` once, and `has_display` checks only the display again, as before commit 4. `no_open_opens_no_browser` and the mutants exclusion of the second check go: manual check 16 covers the flag.
   - Follow-ups and deferred nits are under Open points.
 - `cargo mutants` over the milestone 8 diff after the review, on 2 November 2026: 60 mutants, none missed.
+- A check for over-engineering over the whole code, on 3 November 2026. Fixes in their own commits:
+  - Four leftovers of the picker and state mode go: the `ConfigError` enum, the `Arc` around the workspace, the `history` parameter of the revision functions, and the lock that set the open codes after `AppState` was built.
+  - The page loses a helper, a check and four CSS rules that changed nothing.
+  - Under reduced motion, the sidebar overlay no longer slides: the rule that turned the transition off lost to more specific selectors.
+  - Kept: the helpers with one caller whose names say what they do, `errorLine`, which an open point wants to reuse, and the `fileIcon` fallback for a family that Rust may add.
 
 ### Manual checklist
 
@@ -376,6 +381,10 @@ Start:
 15. With no `~/.config/mdame/config.toml`, start and stop mdame: it writes none.
 16. `mdame --no-open` prints the URL, opens no browser, and logs no "no display" line.
 
+Motion:
+
+17. With reduced motion on in the system, and the window below 900 px, the sidebar overlay opens and closes with no slide.
+
 ## Public repository and crate
 
 Decided on 29 October 2026, before milestone 8:
@@ -397,9 +406,10 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - From the review of milestone 8, for later:
   - CI: pin `jdx/mise-action` and `Swatinem/rust-cache` by commit SHA, and set `persist-credentials: false` on the checkout.
   - `web/themes/README.md`: say to use only themes that you trust. A theme can load images from the web, and so tell its author when mdame is used and which links a page holds.
-- Nits deferred by the review of milestone 8:
+- Nits deferred by the review and the over-engineering check of milestone 8:
   - `LICENSE` has no notice for `@primer/primitives` (MIT), whose colour values the built-in themes copy.
   - A stored theme applies only when `main.js` runs, so a reload may show the system's theme first. Check 2 of the manual checklist watches for it.
+  - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 
 - From the review of milestone 7, for later:
   - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check.

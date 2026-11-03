@@ -17,10 +17,12 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 5 | Live updates | Done 19 October 2026, merged into `main` 20 October | 56, with the review fixes |
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
-| 8 | Themes and polish | Done 3 November 2026 | 31, with the review fixes |
-| 9 | Agent workflow | — | — |
-| 10 | Release, then Show HN | — | — |
-| 11 | Small Later items | — | — |
+| 8 | Themes and polish | Done 3 November 2026, merged into `main` the same day | 31, with the review fixes |
+| 9 | Agent workflow | Planned 3 November 2026 | About 12, without the review fixes |
+| 10 | Release, then Show HN | — | About 10, without the review fixes |
+| 11 | Small Later items | — | About 10, without the review fixes |
+
+The commits of milestones 9 to 11 are estimates, made on 3 November 2026. Before their reviews, milestones 7 and 8 made one commit for each commit of their plan. The plan of milestone 9 has 12 commits before its review. Milestones 10 and 11 have no plan yet; each has about 10 items in the build order of `docs/SPEC.md`.
 
 ## Milestone 1: skeleton
 
@@ -387,6 +389,37 @@ Motion:
 
 17. With reduced motion on in the system, and the window below 900 px, the sidebar overlay opens and closes with no slide.
 
+## Milestone 9: agent workflow
+
+Decided on 3 November 2026, before the milestone started. `docs/SPEC.md` holds the design: Feature scope, the routes, and the design decisions of the front end.
+
+- Markdown in hidden folders shows in the tree and opens in the editor, except under `.git` and `.mdame`. Every other type in hidden folders stays out. This replaces the view-only agent folders of 29 October.
+- The handoff goes to Later, with its two designs: a lock file, or a check of the ports. The list of changes in the status bar replaces it: when an agent writes a file, the file is one click away.
+- What changed: change bars, as in a git gutter, against the version that you last saw in the tab. Diff mode gets a "Last seen" entry, with Restore.
+- Full-text search: a panel, opened with `s`, with the files on the left and the matching lines on the right. It matches like `rg -S`, not like a fuzzy finder: a fuzzy match on prose matches nearly every line.
+- The content width: Default, Wide and Full, in the palette menu, which becomes View options.
+- New: an outline of the headings, and spellcheck in the editor, each with a toggle in View options.
+- Two private mockups helped to decide the layout: [content width](https://claude.ai/artifact/TtEVW1C8Pivas7aywDy8PW) and [outline](https://claude.ai/artifact/TLm7r823mEPjwZBJ1JmYcv).
+- The shortcut help gets a footer line with the version and links. It replaces the About dialog of milestone 11.
+- Dropped: the agent snippet and skill, the font size presets and clickable task lists. File operations, the right-click menu and tabs, which waited after v1, are dropped too. Copy as quote goes to Later as a maybe, and wide blocks go to Later.
+- Milestone 10 gains the memory measurement against VS Code, the watcher that skips gitignored folders, the open points of milestone 8, and a README that leads with VS Code.
+
+Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: Claude Code, with `plansDirectory` set to `.claude/plans`, writes a plan. The plan shows in the tree and in the list of changes, and one click opens it. When the agent rewrites it, the changed blocks get bars and the outline gets dots. In diff mode, "Last seen" shows what changed and restores it.
+
+1. Markdown in hidden folders, in the tree: the walker reads hidden entries, and never enters `.git` or `.mdame`. A path with a hidden part shows only if it is markdown. `.gitignore` applies as before. The watcher already sends events for these files. `markdown_in_a_hidden_folder_is_listed`, `a_hidden_markdown_file_is_listed`, `other_types_in_a_hidden_folder_stay_out`, `git_and_mdame_are_never_listed` (it replaces `hidden_and_mdame_entries_are_left_out`), `gitignore_applies_in_hidden_folders`.
+2. Markdown in hidden folders, in the editor: `editable_name` accepts markdown with a hidden part, except under `.git` and `.mdame`. The real path of the open file passes the same rule. Create and the revisions follow. `hidden_markdown_is_offered_to_the_editor` (it replaces `hidden_files_are_not_offered_to_the_editor`), `create_makes_markdown_in_a_hidden_folder`, `a_hidden_file_keeps_its_revisions`. The refusal tests of source, save and create keep `.git/x.md`, `.mdame/…` and `.claude/settings.json`. Their link case `.a.md -> a.md` is now allowed, so it becomes a name under `.git/`.
+3. The source in `/api/file`: `source` holds the text that was rendered, and is `null` for an image and over 1 MB. `file_returns_the_source_that_it_rendered`, `an_image_and_a_large_file_have_no_source`.
+4. Change bars: a pure module finds the marks from the version last seen, the current source and the blocks' `data-sourcepos`. The page keeps the version last seen of each file in memory. `an added paragraph is marked added`, `a changed list item marks the item, not the list`, `removed text marks the place where it was`, `an undone change loses its bar`, `a file shown for the first time has no bars`, `leaving a file makes the version on screen the one last seen`.
+5. "Last seen" in diff mode: the first entry of the revision list when the file differs from the version last seen. Its Restore saves that text through `PUT /api/file` with `If-Match`. `last seen comes first when the file changed`, `no last seen entry when the file is unchanged`, `restoring last seen saves its text`.
+6. The list of changes: a pure module keeps the list, and the status bar shows it, with a menu when it holds several files. `a created or changed markdown file is listed`, `other types are not listed`, `the file on screen is not listed`, `a second change moves the file to the top`, `opening a file removes it`, `a rename keeps the entry under the new name`, `a removed file leaves the list`, `resync adds nothing`, `clear empties the list`.
+7. `GET /api/search`, in a new `search.rs`, with a row in the routes matrix. `a_phrase_matches_in_any_case`, `an_uppercase_letter_makes_the_case_count`, `search_reads_what_the_tree_shows` (gitignored files out, hidden markdown in, `.git` out), `images_and_files_over_1_mb_are_skipped`, `a_file_that_is_not_utf8_is_skipped`, `newest_files_come_first`, `results_stop_at_50_files_and_20_matches_per_file`, `context_lines_are_merged_where_they_overlap`, `an_empty_query_is_400`.
+8. The search panel: `s` and a button beside the filter open it. A new keystroke aborts the request in flight. `the match is bold whatever its case`, `the preview breaks where the line numbers jump`, `a line maps to the block that holds it`.
+9. The content width: the palette menu gains a Width section, and its tooltip says "View options". `a stored width wins`, `default sets no width`, `an unknown stored width falls back to default`.
+10. The outline: a pure module lists the headings and places the outline. `only h2 and h3 are listed`, `fewer than 3 headings give no outline`, `a section with a change bar gets a dot`, `the outline fits beside a centred column`, `without room the column moves left`, `with full the column narrows`, `when moving is not enough the outline hides`. Its toggle in View options.
+11. Spellcheck: the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
+12. Shortcut help: one list of the keys, and `?` opens the dialog, with the footer line. `every key that the page binds is in the help`, `macos shows ⌘ and the others ctrl`.
+13. Manual checklist, `cargo mutants`, review loop.
+
 ## Public repository and crate
 
 Decided on 29 October 2026, before milestone 8:
@@ -401,15 +434,15 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Merge milestone 8 into `main`.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 1 of its plan.
 
 ## Open points
 
-- From the review of milestone 8, for later:
+- From the review of milestone 8, for milestone 10:
   - CI: pin `jdx/mise-action` and `Swatinem/rust-cache` by commit SHA, and set `persist-credentials: false` on the checkout.
   - `web/themes/README.md`: say to use only themes that you trust. A theme can load images from the web, and so tell its author when mdame is used and which links a page holds.
 - Nits deferred by the review and the over-engineering check of milestone 8:
-  - `LICENSE` has no notice for `@primer/primitives` (MIT), whose colour values the built-in themes copy.
+  - `LICENSE` has no notice for `@primer/primitives` (MIT), whose colour values the built-in themes copy. For milestone 10.
   - A stored theme applies only when `main.js` runs, so a reload may show the system's theme first. Check 2 of the manual checklist watches for it.
   - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 

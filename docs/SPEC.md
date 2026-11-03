@@ -72,6 +72,7 @@ The goal is a local markdown workspace in the browser that the owner fully under
 - **Server owns files, browser owns presentation.** The server reads, writes, renders and watches; the browser lays out, edits and themes.
 - **Patch, don't reload.** File changes update only what changed, keeping scroll and state.
 - **Every feature earns its code.** If a feature needs a new subsystem, it goes to Later.
+- **What the browser or the terminal already does, mdame does not rebuild.** Browser tabs are the tabs, and browser zoom is the font size. Find and print come from the browser. Renames, moves, deletes and git happen in the terminal, and mdame follows them. Decided on 3 November 2026.
 - **Learning first.** Code is idiomatic and explained; no clever abstractions the owner hasn't chosen.
 
 ## Feature scope
@@ -82,7 +83,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 **Launching.** `mdame <folder>` opens that folder, and `mdame <file>` opens its folder with that file shown first. `mdame` with no path opens the current folder. One workspace per launch. Flags: `-H` bind address, `-p` port with fallback to the next free one, `--no-open`, `-v` verbose logging. Opens the browser on start. Ships as a single binary with all assets embedded.
 
-**Viewing.** GitHub-flavoured markdown, raw HTML (sanitized), front matter hidden, highlighted code blocks with a copy button, Mermaid in fenced blocks and `.mmd` files, images from the workspace, text, JSON, YAML and TOML shown highlighted, GraphQL as plain text, CSV as a table, a 1 MB render guard, a not-found page and an empty-workspace page. Find in page uses the browser's own Cmd/Ctrl+F.
+**Viewing.** GitHub-flavoured markdown, raw HTML (sanitized), front matter hidden, highlighted code blocks with a copy button, Mermaid in fenced blocks and `.mmd` files, images from the workspace, text, JSON, YAML and TOML shown highlighted, GraphQL as plain text, CSV as a table, a 1 MB render guard, a not-found page and an empty-workspace page. Find in page uses the browser's own Cmd/Ctrl+F. An outline beside the content lists the headings of the file.
 
 **Live updates.** Content updates in place when a file changes, new and removed files and folders show in the sidebar, editors' save-by-rename is handled, images refresh, scroll position is kept, the current view follows a rename, and the editor shows a "changed on disk" notice.
 
@@ -90,31 +91,27 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 **Status bar actions.** Edit, copy raw content, copy path, revisions.
 
-**Editor.** CodeMirror 6 with markdown highlighting, opened with `e`. Split view with draggable divider, show/hide preview, line numbers, scroll sync, Cmd/Ctrl+S and a Save button, Esc to close, Cmd/Ctrl+B and I, Tab inserts two spaces, unsaved dot and leave-page warning, last-modified time in the status bar.
+**Editor.** CodeMirror 6 with markdown highlighting, opened with `e`. Split view with draggable divider, show/hide preview, line numbers, scroll sync, Cmd/Ctrl+S and a Save button, Esc to close, Cmd/Ctrl+B and I, Tab inserts two spaces, unsaved dot and leave-page warning, last-modified time in the status bar. The browser's spellcheck, with a toggle.
 
 **Revisions.** Snapshot on every save that changes the file. `h` or `r` from view or editor opens the editor in diff mode: an inline diff against a revision picked from a list, then restore (snapshots the current version first, so it is undoable). Automatic pruning to the last N snapshots per file.
 
-**Look and feel.** Theme picker with built-in light and dark themes plus any user theme in `~/.config/mdame/themes/`, content width and font size presets, a shortcut help dialog (`?`), status bar (workspace, file, edit mode, version, file actions), dialogs on the native `<dialog>` element.
+**Look and feel.** A View options menu: the theme (built-in light and dark, plus any user theme in `~/.config/mdame/themes/`), the content width, and the toggles of the outline and of the spellcheck. A shortcut help dialog (`?`), with a footer line for the version and links. Status bar (workspace, file, edit mode, version, file actions), dialogs on the native `<dialog>` element.
 
-**Agent workflow.** Added on 29 October 2026, so that v1 is ready for a Show HN:
+**Agent workflow.** Added on 29 October 2026 so that v1 is ready for a Show HN, and settled on 3 November 2026:
 
-- The tree shows the markdown in the folders where agents write: `.claude`, `.kiro`, `.cursor` and `.github`. They are view-only: the editor still refuses hidden files, and `.git` and `.mdame` stay out.
-- Handoff: `mdame <file>` in a workspace that a running mdame already serves opens that file in its tab and exits, so an agent or a second terminal reuses one tab. An advisory lock file that holds the port (`File::try_lock`, released by the OS on exit) finds the running mdame; where it lives is decided in milestone 9.
-- What changed: after a change on disk, the blocks that changed glow for a moment, and diff mode can compare the text with the version shown when the file was opened. The glow comes from a diff of the source lines, mapped to blocks through `data-sourcepos`.
-- Full-text search: the sidebar filter also searches the contents of the files.
-- Copy as quote: a selection in the view copies as a markdown quote with `path:line`, ready to paste into the agent.
-- Clickable task lists: a click on a checkbox in the view ticks it in the file, through the same save and `If-Match`.
-- A `CLAUDE.md` / `AGENTS.md` snippet and a one-file skill tell an agent to run `mdame <file>` after it writes a plan.
+- The tree shows every markdown file in hidden folders, at any depth. Agents write their plans and specs there, under `.claude`, `.kiro`, `.cursor` or `.github`. The editor edits them too. Other types in hidden folders stay hidden, and `.git` and `.mdame` stay out.
+- Changes: the status bar lists the markdown files that changed on disk while the tab was open, so the file that an agent writes is one click away.
+- Change bars: each block that changed since you last saw the file gets a bar in the margin, as in a git gutter. Diff mode compares the text with that version, and can restore it.
+- Search: a panel searches the contents of the files, and shows the matching lines beside the list of files.
 
 **Distribution.** Release binaries for Linux and macOS through cargo-dist: an install script, a Homebrew tap and an npm wrapper. A public GitHub repository, and the crate on crates.io.
 
 ### Later, by cost
 
-The small items form milestone 11, after v1. The medium and large ones wait.
+The small items form milestone 11, after v1, except copy as quote. The medium ones wait.
 
 | Item | Cost | Notes |
 | --- | --- | --- |
-| About dialog | Small | One dialog; the shortcut help moved to v1 |
 | Custom key bindings | Small | A `[keys]` table in `config.toml` mapping action names to keys, sent in `/api/state`; `keys.ts` builds its map from it with the defaults as fallback. Two actions on one key stop mdame at start |
 | Alternative built-in themes: Catppuccin (Latte, Frappé, Macchiato, Mocha) and Minimal | Small | Extra CSS files. Catppuccin from its official palette and style guide, with `subtext1` as muted text in Latte (5.53:1; `subtext0` fails at 4.37). Minimal from its default HSL formulas, with Primer's code colours since it has none; its default accent needs checking as link text. Both MIT |
 | New file with `n`, new-file editor | Small | Reuses the folder hover action |
@@ -125,11 +122,11 @@ The small items form milestone 11, after v1. The medium and large ones wait.
 | Print stylesheet | Small | Ctrl+P prints the content alone, without the sidebar and the status bar; the browser can print to PDF |
 | Word count and reading time in the status bar | Small | For the open file |
 | Read-only mode, `--read-only` | Small | The write routes (save, create, restore) answer 403, and `/api/state` tells the page to hide the editor. For a LAN share, or a folder that you only watch |
-| File operations: new folder, rename, move, delete with confirmation | Medium | Server side is simple with cap-std; UI needs a menu |
-| Right-click menu on tree and page | Medium | Do together with file operations |
+| Copy as quote | Small | Maybe, so not in milestone 11. With `q`, a selection in the view copies as a markdown quote of its source lines, with `path:line`, to paste into an agent |
+| Handoff to a running mdame | Medium | `mdame <file>`, in a folder that a running mdame serves, opens the file in that mdame's tabs and exits. Two designs: a lock file per instance in the state folder and an `open` event to the tabs, or a check of ports 4891–4900 and a new browser tab on the running server. Either needs a flag for agents, so that a call with no mdame running fails instead of serving. Out of v1 on 3 November 2026: the list of changes covers the agent loop |
+| Wide blocks | Medium | Tables, code blocks and diagrams grow past the text column, up to the pane, and the text keeps its width. The outline then needs its own place |
 | launchd service (`mdame service …`) | Medium | macOS only, a plist template |
 | Paste or drop an image into the editor | Medium | The image is saved in the workspace and linked at the cursor. A new upload route, with the limits of the other writes; where the image goes is decided then |
-| Tabs: open files, reorder, close, overflow, unsaved markers, restore per workspace | Large | The most tangled part of the old UI; needs a design first |
 
 ### Dropped
 
@@ -143,6 +140,12 @@ The small items form milestone 11, after v1. The medium and large ones wait.
 - The custom find bar; the browser's find and CodeMirror search cover it.
 - The workspace picker, the recent workspaces, and workspace switching: mdame starts from a terminal, where `mdame` opens the current folder. Another folder needs another launch.
 - The choice of history location, and the first-start dialog that asked it: revisions live in the workspace.
+- Font size presets: browser zoom does it.
+- Clickable task lists in the view: the editor ticks a box in a few keys.
+- The `CLAUDE.md` snippet and the skill for agents: users tune their own, once they know their workflow.
+- The About dialog: a footer line in the shortcut help gives the version and links.
+- File operations from the page (new folder, rename, move, delete) and the right-click menu: they happen in the terminal, and mdame follows them.
+- Tabs inside the page: browser tabs are the tabs.
 
 ### Inconsistencies resolved
 
@@ -196,7 +199,7 @@ After a `changed` event or a 412, the editor fetches the file again and compares
 
 ## Libraries
 
-Each part of the app maps to one focused library; custom code is limited to snapshot storage, scroll sync, toasts, port fallback, config and state paths, the keyboard map, rendered-markdown CSS and the code-highlighting glue. Versions and facts were checked on crates.io, docs.rs, the npm registry and each repo on 14 October 2026; pin whatever is current when the project starts.
+Each part of the app maps to one focused library; custom code is limited to snapshot storage, scroll sync, toasts, port fallback, config and state paths, the keyboard map, rendered-markdown CSS, the code-highlighting glue, content search and the change bars. Versions and facts were checked on crates.io, docs.rs, the npm registry and each repo on 14 October 2026; pin whatever is current when the project starts.
 
 ### Rust
 
@@ -205,7 +208,7 @@ Each part of the app maps to one focused library; custom code is limited to snap
 | axum + tokio | 0.8.9; 1.53 | HTTP and WebSocket server (`ws` feature); the guard is `middleware::from_fn_with_state` | none smaller worth the trade |
 | rust-embed | 8.13 | Embed `web/dist` in release builds, read from disk on each request in debug (unless the `debug-embed` feature is on); its per-file SHA-256 gives `/assets` ETags | memory-serve (small user base), axum-embed (no release since 2023) |
 | notify-debouncer-full | 0.7 | Debounced file events with rename pairing | raw `notify` with custom handling (what mdlive does), notify-debouncer-mini (loses rename info). Rename pairing on inotify is not explicitly documented: the ported mdlive watcher tests are the proof. 0.8 is in release candidate. |
-| ignore | 0.4.33 | Walk the workspace, respecting `.gitignore` and hidden files; `follow_links` stays false | walkdir (no ignore rules) |
+| ignore | 0.4.33 | Walk the workspace, respecting `.gitignore`; mdame filters hidden entries itself, to keep their markdown; `follow_links` stays false | walkdir (no ignore rules) |
 | cap-std | 4.0.3 | Confine every file operation to the workspace directory | `canonicalize` + `starts_with` checks |
 | comrak | 0.56 | Markdown to HTML: GFM, footnotes, alerts, front matter, heading ids, `sourcepos`. About one breaking minor a month: pin it and update deliberately | `markdown` crate (fewer options), pulldown-cmark (fewer extensions) |
 | ammonia | 4.2.4 | Sanitize rendered HTML: keep markup, strip scripts and handlers | none |
@@ -231,7 +234,7 @@ Dev dependencies: tempfile, [insta](https://crates.io/crates/insta) for snapshot
 | Bun (package manager and bundler); esbuild as fallback bundler | 1.4.3; esbuild 0.28.2 | Install browser packages from `bun.lock`, bundle `web/src` into `web/dist` | npm and Node (Node not wanted; dependency install scripts on by default); hand-vendored ES modules (CDN builds duplicate `@codemirror/state`); no framework toolchain |
 | typescript, @types/bun | 7.0.2; 1.4.3 | Check the types of the browser code (`tsc --noEmit`, in `mise run lint`) and of its tests | JSDoc types in plain JavaScript (weaker checks, noisier code) |
 | codemirror, @codemirror/lang-markdown, @codemirror/language-data, @codemirror/search | 6.0.2; 6.5.2; 6.5.2; 6.7.2 | Editor, markdown and fenced-code highlighting, search; language-data loads each language on demand | textarea (current), Monaco (heavy) |
-| @codemirror/merge | 6.12 | Inline diff against a revision in the editor (`unifiedMergeView`) | diff2html, server-side diff with `similar` |
+| @codemirror/merge | 6.12 | Inline diff against a revision in the editor (`unifiedMergeView`); its `diff` also finds the lines behind the change bars | diff2html, server-side diff with `similar` |
 | @lezer/highlight | 1.2.5 | Code highlighting in rendered views with the editor's own parsers (`highlightCode`, `classHighlighter`) | highlight.js (a second grammar set and class names), shiki (heavier), syntect on the server (theme mapping work) |
 | mermaid | 12.2 | Diagrams; an ESM entry of 31 KB plus 104 lazy chunks (about 5.4 MB, embedded), loaded only when a page has one | none exists |
 | idiomorph | 0.8 | Patch new HTML into the page in place (0BSD) | morphdom (equivalent), full reload (current) |
@@ -246,7 +249,7 @@ Icons: Lucide, copied in as SVG files, only the icons used. Lucide is ISC, and i
 
 Theme colours: copied from `@primer/primitives` (MIT) for the built-ins, and later from Catppuccin and Minimal (both MIT). No package is installed; the README credits each.
 
-No UI framework: plain ES modules, written in TypeScript. Revisit Preact only if tabs make state sprawl.
+No UI framework: plain ES modules, written in TypeScript. Revisit Preact only if the state of the page sprawls.
 
 **TypeScript.** The browser code is TypeScript with `strict` on, plus `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch` and `noImplicitReturns`; `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` stay off, as they add noise for little safety here. Bun strips the types when it bundles, so no compile step is added; `tsc --noEmit` checks them in `mise run lint`, and `@types/bun` types `bun test`. Chosen over plain JavaScript because type errors show before the code reaches the browser.
 
@@ -329,11 +332,12 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security); 413 over 64 MB, since the file is read whole |
 | `GET /api/state` | Workspace as `{root, start}`, version, and `themes`: the built-ins, then the user themes by name. The themes folder is read at each request | JSON |
 | `GET /api/tree` | Nested folder tree. Only viewable files (see Rendering); folders with none are left out. `.gitignore` rules apply even outside a git repository. A folder's `modified` is that of its newest file; a file has a `family` (`markdown`, `text`, `data`, `table`, `diagram`, `image`) that picks its icon and its rendering | `{name, path, kind, family, modified, children}` |
-| `GET /api/file?path=` | Rendered file: `html`, `family`, `modified`, `size`, `too_large`, and `editable`, whether the page offers the editor. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
+| `GET /api/file?path=` | Rendered file: `html`, `source`, `family`, `modified`, `size`, `too_large`, and `editable`, whether the page offers the editor. `source` is the text that was rendered, for the change bars; it is `null` for an image and for a file over 1 MB. 404 `not_found` for a missing file; 404 `not_viewable` for a file that exists with no family, so the page can offer the raw file | JSON |
 | `GET /api/source?path=` | Editor source, in one request: text and its version together; 413 over 8 MB, and 404 `not_viewable` for a file that the editor may not open (below) or that is not UTF-8 | `{content, modified}` with `ETag: "<content hash>"` |
 | `PUT /api/file?path=` | Save `{content}` with `If-Match: "<hash>"`; snapshots first; 404 `not_viewable` for a file that the editor may not open; 413 over 8 MB | `{modified}` and the new `ETag`; 412 if the content changed on disk since, or if `If-Match` is anything but one strong `ETag` (`*` and lists included); 428 without `If-Match` |
 | `POST /api/file` | Create `{path}`, empty; 409 if it exists, 400 for a type that the editor cannot open or that the tree hides, 404 naming the folder when its folder is missing. Folders are never created | 201, `{modified}` and the `ETag` of the empty content |
 | `POST /api/render` | Editor preview `{path, content}` | `{html}` |
+| `GET /api/search?q=` | Content search, for the search panel. `q` is a literal phrase with smart case: the search ignores case unless `q` has an uppercase letter. It reads the files that the tree shows, except images and files over 1 MB. Newest files first, at most 50 files and 20 matches per file. An empty `q` gets 400 | `{files: [{path, modified, lines: [{number, text, matched}]}], more}`: the matching lines of each file and the 2 lines around each, merged where they overlap, as `rg -C2` prints them. `more` is true when the list was cut |
 | `GET /api/history?path=` | Revisions of a file that the editor may open, newest first. The `id` is the snapshot's name, and `time` is the Unix milliseconds of that name. A file that mdame never saved over gives `[]`, and the request creates no folder | `[{id, time, size}]` |
 | `GET /api/history/view?path=&id=` | A revision's text, for the merge view. 404 `not_found` for an `id` that is not the name of a revision of this file; 404 `not_viewable` for a revision that is not UTF-8 | `{content}` |
 | `POST /api/history/restore` | `{path, id}`: saves the revision over the file, as `PUT /api/file` does. The current content becomes a revision first, so the restore can be undone. It needs no `If-Match`. 404 for a deleted file, or for an `id` that names no revision; 412 if another program writes the file during the restore | `{modified}` and the new `ETag` |
@@ -384,7 +388,7 @@ Files over 1 MB return `too_large: true` and a short notice instead of HTML; up 
 - Heading ids on, with no prefix: `extension.header_id_prefix = Some("".into())`, so table-of-contents links such as `#install` work.
 - TOML front matter (`+++`) is not a comrak option: strip a leading `+++` block in `render.rs` before parsing.
 - `options.render.r#unsafe = true` so raw HTML passes through to ammonia, which decides what stays. The field is named `unsafe`, a Rust keyword, so it is written as a raw identifier.
-- `render.sourcepos = true`: each block carries `data-sourcepos="start:col-end:col"`, used for scroll sync.
+- `render.sourcepos = true`: each block carries `data-sourcepos="start:col-end:col"`, used for scroll sync, the change bars, and opening a search match at its line.
 - Fenced code keeps `class="language-…"`; the browser highlights it with the matching Lezer parser and turns `language-mermaid` blocks into diagrams.
 
 ### Sanitizing with ammonia
@@ -435,7 +439,7 @@ The guard trusts origins, not code: any script running on a page at mdame's orig
 | Further defence for the page | `Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'` (Mermaid needs inline styles; `default-src` does not cover framing, so another site could otherwise load the page in an iframe and trick clicks; the page itself needs no frame and no object), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. Remote `https:` images are allowed so README badges show, as on GitHub; scripts, styles and connections stay `'self'`. `/api` and `/raw` answers carry `Cache-Control: no-store`: a file may be private, and the browser's cache outlives the tab. |
 | JSON endpoints called by plain HTML forms | Handlers that change state accept only `application/json`, which a form cannot send without triggering the Origin check. |
 
-**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too. Also give it a PID namespace of its own, which hides your other processes from it. The code in the URL that mdame opens is on the browser launcher's command line for a moment, and `hidepid` hides only the processes of other accounts. The editor's routes also open, save and create only the text types that the view shows, and no hidden file or file in a hidden folder, such as `.git`, `.mdame` or `.claude`, through a symbolic link either (a hard link is the same file under a second name, which mdame cannot tell from the first): a leaked token cannot rewrite `.git/config`, an agent's settings, a `Makefile` or a snapshot. It can still rewrite a data file that runs commands, such as `package.json` or `mise.toml`.
+**Programs on this machine.** Any program on the machine can reach the loopback port, even one in a sandbox that cannot write the files itself: a Flatpak app with network access, a container on the host network, a coding agent. Without the token, such a program could write any file through mdame. The token stops it only if the sandbox also keeps it from reading the token. Coding-agent sandboxes often limit writes but not reads. Deny the agent reads of mdame's state folder, which holds the token, and of the browser profile, whose cookies hold it too. Also give it a PID namespace of its own, which hides your other processes from it. The code in the URL that mdame opens is on the browser launcher's command line for a moment, and `hidepid` hides only the processes of other accounts. The editor's routes also open, save and create only the text types that the view shows. A hidden file, or a file in a hidden folder, must be markdown, and never under `.git` or `.mdame`. The rules apply through a symbolic link too (a hard link is the same file under a second name, which mdame cannot tell from the first). A leaked token then cannot rewrite `.git/config`, an agent's settings such as `.claude/settings.json`, a CI workflow, a `Makefile` or a snapshot. It can still rewrite a data file that runs commands, such as `package.json` or `mise.toml`. It can also rewrite an agent's instructions, such as `CLAUDE.md` or a skill. A skill whose front matter lists `allowed-tools` runs those tools without asking. Accepted on 3 November 2026: you amend an agent's plan in mdame, and the root `CLAUDE.md` was writable already.
 
 Tests cover each row: a request with a foreign `Origin`, a wrong `Host`, a missing token, on loopback too, a `../` path, a symlink pointing out of the workspace, an in-workspace symlinked file, and an `.html` and an `.svg` under `/raw` returning `sandbox` (and `text/plain` for the `.html`). The guard rows land in milestone 1, the rest with their routes.
 
@@ -459,7 +463,7 @@ snapshots_per_file = 20
 
 **User themes.** Any `~/.config/mdame/themes/<name>.css` appears in the theme picker as `<name>`, after the built-ins. A user file with a built-in's name overrides it. A link there counts too, wherever it points, since dotfile managers make such links. A theme name has no `/` and no leading dot, so a request names only a file of the folder.
 
-**Browser-only preferences** such as sidebar width and open folders live in `localStorage` (see Front end). `.mdlive/tabs.json` belongs to the Later tabs feature.
+**Browser-only preferences** such as sidebar width and open folders live in `localStorage` (see Front end).
 
 ## Front end and design
 
@@ -470,7 +474,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 - `main.ts` reads `/api/state`, routes on the URL (`/view/<path>`, `/edit/<path>`), and wires the WebSocket.
 - `api.ts` is the only module that calls `fetch`; it turns error bodies into exceptions with a code.
 - Each screen module exports `mount(el, params)` and `unmount()`; state lives in plain objects, and changes re-render or morph only the affected region.
-- Preferences that belong to one browser (sidebar width, open folders, preview visibility, split position, theme) go in `localStorage`, wrapped in try/catch, with every key prefixed `mdame:` so they never meet mdlive's keys on the same port.
+- Preferences that belong to one browser (sidebar width, open folders, preview visibility, split position, theme, content width, outline, spellcheck) go in `localStorage`, wrapped in try/catch, with every key prefixed `mdame:` so they never meet mdlive's keys on the same port.
 - App element ids start with `mdame-`; no code reads elements through `window.<id>` globals.
 - Logic with no DOM access (scroll-sync mapping, key rules, error mapping) lives in its own functions so `bun test` can cover it.
 
@@ -478,11 +482,11 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 
 | Screen | Contents |
 | --- | --- |
-| View | Sidebar (filter, sort, tree), rendered content, status bar (path, modified time, actions) |
+| View | Sidebar (filter, search button, sort, tree), rendered content with its change bars and outline, status bar (path, modified time, list of changes, actions) |
 | Editor | Same frame; content area splits into CodeMirror and preview, with a divider; status bar gains unsaved dot and Save |
 | Revisions | Inline diff in the editor (CodeMirror merge view) against a revision picked from a list, with Restore |
 | Empty and not found | One line saying what happened and one action |
-| Dialogs | Native `<dialog>` for confirm, name input and the shortcut help. Toasts are a Later item |
+| Dialogs | Native `<dialog>` for confirm, name input, the shortcut help and the search panel. Toasts are a Later item |
 
 ### Keyboard
 
@@ -495,6 +499,8 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | `b` | Hide or show sidebar |
 | `/` | Focus the sidebar filter |
 | `h`, `r` | Revisions (diff in the editor) |
+| `s` | Search the contents of the files |
+| `?` | Shortcut help |
 
 Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the revisions panel first, then the editor, unless a dialog, the theme menu or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
 
@@ -508,7 +514,7 @@ A theme is one CSS file that sets variables on `:root` and nothing else. The app
 - **Code colours**, for the editor and rendered code alike through Lezer's `tok-*` classes: `--code-bg`, `--hl-keyword`, `--hl-string`, `--hl-number`, `--hl-comment`, `--hl-title`, `--hl-type`, `--hl-attr`, `--hl-meta`.
 - `color-scheme: light` or `dark`, a standard CSS property. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. Browsers also draw scrollbars and form controls to match.
 
-The diff's added and removed lines mix `--success` and `--danger` into the background, and a hovered row mixes in `--fg`, so themes set no diff or hover colours. Shadows and backdrops stay translucent black, outside the contract.
+The diff's added and removed lines mix `--success` and `--danger` into the background, and a hovered row mixes in `--fg`, so themes set no diff or hover colours. The change bars use `--success` for an added block, `--accent` for a changed one and `--danger` where text was removed, so themes set no colours for them either. Shadows and backdrops stay translucent black, outside the contract.
 
 The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/README.md` with a commented template, because that file is what issue #15 users will copy.
 
@@ -525,7 +531,16 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
 - Editor: preview on the right, 50/50 by default, draggable divider, scroll sync.
 - Revisions: inline diff in the editor (CodeMirror merge view) against a revision picked from a list. `h` or `r` in view mode opens the editor in diff mode.
 - Typography: IBM Plex Sans for UI and content, IBM Plex Mono for code, content width 60ch. The mono toggle (Later) will set the content in Plex Mono at 72ch. Fonts are bundled as woff2 (OFL). Decided 28 October 2026.
-- Theme picker: a theme button in the status bar opens a menu: System, Light, Dark, then the user themes. The choice lives in `localStorage`, per browser and per port. Decided 28 October 2026.
+- View options: the palette button in the status bar opens a menu. It holds the theme (System, Light, Dark, then the user themes), the content width (Default, Wide, Full), and the toggles of the outline and of the spellcheck. Each choice lives in `localStorage`, per browser and per port. The theme was decided on 28 October 2026, the rest on 3 November 2026.
+- Content width: Default is the theme's `--content-width`, 60ch in the built-ins. Wide is 80ch, and Full is the whole pane. Wide and Full set `--content-width` on `<html>`, so they win over the theme. They apply to the view and to the editor's preview. Decided 3 November 2026.
+- Hidden folders: the tree shows each markdown file whose path has a hidden part, at any depth, such as `.claude/plans/a.md` or `.notes.md`. Other types there stay out. The walker never enters `.git` or `.mdame`, and `.gitignore` applies as elsewhere. Decided 3 November 2026.
+- List of changes: the status bar lists the markdown files that are created or changed on disk while the tab is open. It leaves out the file on screen and the files of a `resync`. With one file, the item shows its name, and a click opens it. With several, it shows the newest name and `+N`, and a click opens a menu, newest first, with Clear at the end. Opening a file, from anywhere, removes it from the list. A second change moves a file to the top. A rename keeps its entry under the new name, and a removal takes it out. The list lives in the tab's memory. Decided 3 November 2026.
+- Change bars: a block that changed since you last saw the file gets a bar at its left, as in a git gutter. The bar is `--success` for an added block and `--accent` for a changed one. A `--danger` mark shows where text was removed. A bar marks the innermost block with a `data-sourcepos`, so a changed list item marks the item, not the list. Per file, the tab keeps in memory the version that you last saw: the version on screen when you last left the file. After each change, the page compares that version with the current one. The bars therefore add up, and a change that is undone loses its bar. A file that the tab has never shown has no bars. A new bar glows once, then stays; under reduced motion, it does not glow. The page diffs the lines with `diff` from `@codemirror/merge`. Decided 3 November 2026.
+- Last seen: if the text of a file differs from the version that you last saw, diff mode lists that version first, as "Last seen". Its Restore saves that text as a normal save, so the current text becomes a revision first. mdame makes revisions of its own saves only, so after an agent rewrites a file, this is how you undo the rewrite. Decided 3 November 2026.
+- Search panel: `s`, or a button beside the sidebar filter, opens a dialog. The field is at the top. The matching files are on the left, newest first, with their number of matches. On the right are the matching lines of the selected file, with 2 lines of context, line numbers and the match in bold. The panel searches as you type, from 3 characters, and each keystroke cancels the request in flight. ↑↓ choose a file, Enter opens it at its first match, a click on a line opens it at that line, and Esc closes the panel. In markdown, the page scrolls to the block that holds the line; other types open at the top. Below 900 px, the preview goes under the list. The `/` filter keeps matching names only. A regex toggle may come later. Decided 3 November 2026.
+- Outline: an "On this page" list of the h2 and h3 headings, to the right of the content column. It shows in the view only, for a file with 3 headings or more. The heading of the section on screen is highlighted, and a click on a heading scrolls to it. A dot marks each section that has a change bar. The outline needs 224 px: 200 px for the list and a gap of 24 px. If the space to the right of the centred column is narrower, the column moves left to make room. With Full, the column narrows instead. If moving the column is not enough, the outline hides. Its toggle in View options hides it too. Decided 3 November 2026.
+- Spellcheck: the editor turns on the browser's spellcheck, with the browser's dictionary. It underlines words in code too. A toggle in View options turns it off, with no reload. Decided 3 November 2026.
+- Shortcut help: `?` opens a dialog with the keys in three groups: Anywhere, Editor, and Filter and search. One list in the code feeds it, and a test checks that each key that the page binds is in it. It shows ⌘ on macOS and Ctrl elsewhere. One line says that the editor keeps CodeMirror's own keys, such as Ctrl+F and Ctrl+Z. A footer line gives the version and links to the repository and to the licences. Decided 3 November 2026.
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.
 - Default theme: follow the system. Until the user picks a theme, the page uses the built-in light or dark theme according to `prefers-color-scheme`, and switches live when the OS does; a picked theme is stored and wins. Decided 15 October 2026.
@@ -620,24 +635,17 @@ Ten milestones for v1, the version for a Show HN, then an eleventh, each ending 
    - Done when: restore is undoable from the panel.
 8. **Themes and polish.** Theme contract fixed, light and dark built-ins, user themes folder, theme picker, status bar, dialogs, `--no-open`, a first README with attribution and licence notes, CI on GitHub Actions. The workspace picker and the choice of history location go.
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
-9. **Agent workflow.** Agent folders in the tree, handoff, what changed, full-text search, copy as quote, clickable task lists, content width and font size, shortcut help, the agent snippet and skill.
-   - Done when: a plan that an agent writes under `.claude/plans` shows in the tree, `mdame <that file>` from another terminal opens it in the running tab, and the blocks that the agent rewrites glow.
-10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, release 0.1.0 of the crate on crates.io, and the README with a demo of the agent loop and an honest comparison. Then the Show HN.
+9. **Agent workflow.** Markdown in hidden folders, shown and editable; the list of changes in the status bar; the change bars and "Last seen" in diff mode; the search panel; the content width; the outline; spellcheck in the editor; the shortcut help with its footer line.
+   - Done when: Claude Code, with `plansDirectory` set to `.claude/plans`, writes a plan. The plan shows in the tree and in the list of changes, and one click opens it. When the agent rewrites it, the changed blocks get bars and the outline gets dots. In diff mode, "Last seen" shows what changed and restores it.
+10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, and release 0.1.0 of the crate on crates.io. The watcher stops watching gitignored folders. The memory of mdame and of its tab is measured against VS Code, idle and on a large repository. The open points of milestone 8 close: CI actions pinned by SHA, a warning to use only themes that you trust, and the notice of `@primer/primitives`. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, and its demo of the agent loop sets `plansDirectory`. Then the Show HN.
    - Done when: the install script and `brew install` give a working mdame on Linux and macOS.
-11. **Small Later items.** About, custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
+11. **Small Later items.** Custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
 
-After milestone 11, the medium and large Later items wait; tabs need their own design round.
+After milestone 11, the medium Later items wait.
 
 ## Open decisions
 
 - **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
-- **Scope of milestones 9 and 10.** Proposed on 29 October 2026, after a comparison with mo and VS Code. Settle it before milestone 9 starts.
-  - A principle: if the browser or the terminal already does something, mdame does not rebuild it. Browser tabs are the tabs, and browser zoom is the font size. Find and print come from the browser. Renames, deletes and git happen in the terminal, and mdame follows them.
-  - Milestone 9 keeps handoff, full-text search, what changed, agent folders, shortcut help and the agent snippet. Clickable task lists, copy as quote and the font size move to Later. The content width stays: zoom does not widen the column.
-  - Optional additions to milestone 9: an outline of the headings of the open file, and the browser's spellcheck in the editor.
-  - The README of milestone 10 leads with the owner's reason: a markdown viewer and editor in the browser beside the terminal, lighter than VS Code. Its comparison starts with VS Code.
-  - Before the release, milestone 10 measures the memory of mdame and of its tab, idle and on a large repo, against VS Code. It also stops the watcher from watching gitignored folders.
-  - Later loses file operations, the right-click menu and tabs.
 - **Settled in milestone 8:** the built-in themes map each contract variable to a Primer variable, and the theme pass checked each pair that the screens use. Dark sets `--accent-fg` to `bgColor-inset`, since Primer's white is 3.1:1 on its accent.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
@@ -675,6 +683,9 @@ After milestone 11, the medium and large Later items wait; tabs need their own d
 | Themes: the choice lives in `localStorage`, and `theme` leaves `config.toml`. A theme's `color-scheme` picks the built-in loaded under it and Mermaid's theme. Diff colours derive from `--success` and `--danger`. A status bar menu picks the theme. IBM Plex is bundled. Shadows stay outside the contract | 28 October 2026 |
 | The workspace picker, the recents and workspace switching go: `mdame` with no path opens the current folder. Revisions live in the workspace only: the `state` mode and the first-start dialog go. mdame never writes `config.toml` | 29 October 2026 |
 | A link in the themes folder is a theme, wherever it points: dotfile managers make them. Changed from refusing a link that leaves the folder | 2 November 2026 |
+| What the browser or the terminal already does, mdame does not rebuild. Dropped: the font size presets, clickable task lists, file operations, the right-click menu, tabs, and the agent snippet and skill. The About dialog becomes a footer line of the shortcut help | 3 November 2026 |
+| Milestone 9: markdown in hidden folders is shown and editable, except under `.git` and `.mdame`. The handoff goes to Later, and a list of changes in the status bar replaces it. Change bars compare with the version that you last saw. A search panel, the content width, an outline and spellcheck come in. Copy as quote and wide blocks go to Later | 3 November 2026 |
+| Milestone 10 also measures memory against VS Code, stops watching gitignored folders, takes the open points of milestone 8, and leads the README with VS Code | 3 November 2026 |
 
 ### Review log, 14 October 2026
 

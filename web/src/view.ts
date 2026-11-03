@@ -4,7 +4,7 @@ import { api, type ApiError } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
-import { encodePath, pathFromUrl } from "./sidebar.ts";
+import { encodePath } from "./sidebar.ts";
 
 /** What `/api/file` answers. */
 export interface FileView {
@@ -33,7 +33,7 @@ export function rawUrl(path: string): string {
 
 /** The server points links to `/raw/`, as images; links open in the app. */
 export function viewHref(href: string): string {
-  return href.startsWith("/raw/") ? "/view/" + href.slice("/raw/".length) : href;
+  return "/view/" + href.slice("/raw/".length);
 }
 
 /** Shows the rendered file in `el`, and returns its `/api/file` answer, or
@@ -134,17 +134,12 @@ async function fetchFile(el: HTMLElement, path: string, id: number): Promise<Fil
  * showing the copy that it has. */
 let version: number | undefined;
 
-/** The workspace path that `img` shows, or null for an image from elsewhere. */
-function rawPath(img: HTMLImageElement): string | null {
-  // The sanitizer removes a `src` it refuses, such as `data:`, and "" is no URL.
-  if (!img.src) return null;
-  const url = new URL(img.src);
-  return url.origin === location.origin ? pathFromUrl(url.pathname, "/raw/") : null;
-}
-
 function useVersion(img: HTMLImageElement) {
-  if (version === undefined || rawPath(img) === null) return;
+  // The sanitizer removes a `src` it refuses, such as `data:`, and "" is no URL.
+  if (version === undefined || !img.src) return;
   const url = new URL(img.src);
+  // An image from elsewhere keeps its URL.
+  if (url.origin !== location.origin || !url.pathname.startsWith("/raw/")) return;
   url.searchParams.set("v", String(version));
   const src = url.pathname + url.search;
   if (img.getAttribute("src") !== src) img.src = src;

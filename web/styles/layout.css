@@ -1,5 +1,4 @@
 .mdame-frame {
-  --sidebar-width: 260px;
   position: relative;
   display: flex;
   height: 100%;
@@ -38,7 +37,6 @@
 }
 
 .mdame-split {
-  --split: 0.5;
   display: flex;
   height: 100%;
 }

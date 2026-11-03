@@ -212,10 +212,6 @@
   font: inherit;
 }
 
-.mdame-tree-name b {
-  font-weight: 700;
-}
-
 /* Shrinks long before the file name does: the name matters more. */
 .mdame-tree-folder {
   flex: 0 1000 auto;
@@ -392,7 +388,6 @@
 }
 
 .mdame-menu {
-  position: fixed;
   inset: auto;
   margin: 0;
   padding: 4px;

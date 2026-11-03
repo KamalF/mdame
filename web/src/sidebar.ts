@@ -33,11 +33,7 @@ const SORT_LABELS: Record<string, string> = {
   "date-asc": "oldest first",
 };
 
-export const SORTS = Object.keys(SORT_LABELS);
-
-export function nextSort(order: string): string {
-  return SORTS[(SORTS.indexOf(order) + 1) % SORTS.length];
-}
+const SORTS = Object.keys(SORT_LABELS);
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
@@ -223,7 +219,7 @@ export async function mount(
   }
 
   sortButton.addEventListener("click", () => {
-    order = nextSort(order);
+    order = SORTS[(SORTS.indexOf(order) + 1) % SORTS.length];
     store("mdame:sort", order);
     tree = sortTree(fetched, order);
     showSort();

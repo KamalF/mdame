@@ -406,7 +406,8 @@ Decided on 3 November 2026, before the milestone started. `docs/SPEC.md` holds t
 
 Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: Claude Code, with `plansDirectory` set to `.claude/plans`, writes a plan. The plan shows in the tree and in the list of changes, and one click opens it. When the agent rewrites it, the changed blocks get bars and the outline gets dots. In diff mode, "Last seen" shows what changed and restores it.
 
-1. Markdown in hidden folders, in the tree: the walker reads hidden entries, and never enters `.git` or `.mdame`. A path with a hidden part shows only if it is markdown. `.gitignore` applies as before. The watcher already sends events for these files. `markdown_in_a_hidden_folder_is_listed`, `a_hidden_markdown_file_is_listed`, `other_types_in_a_hidden_folder_stay_out`, `git_and_mdame_are_never_listed` (it replaces `hidden_and_mdame_entries_are_left_out`), `gitignore_applies_in_hidden_folders`.
+1. Markdown in hidden folders, in the tree (done): the walker reads hidden entries, and never enters `.git` or `.mdame`. A path with a hidden part shows only if it is markdown. `.gitignore` applies as before. The watcher already sends events for these files. `markdown_in_a_hidden_folder_is_listed`, `a_hidden_markdown_file_is_listed`, `other_types_in_a_hidden_folder_stay_out`, `git_and_mdame_are_never_listed` (it replaces `hidden_and_mdame_entries_are_left_out`), `gitignore_applies_in_hidden_folders`.
+   - A `.git` or `.mdame` folder stays out at any depth, so the `.git` of a nested repository does too. `is_git_or_mdame` in `workspace.rs` holds the rule, for the editor of commit 2.
 2. Markdown in hidden folders, in the editor: `editable_name` accepts markdown with a hidden part, except under `.git` and `.mdame`. The real path of the open file passes the same rule. Create and the revisions follow. `hidden_markdown_is_offered_to_the_editor` (it replaces `hidden_files_are_not_offered_to_the_editor`), `create_makes_markdown_in_a_hidden_folder`, `a_hidden_file_keeps_its_revisions`. The refusal tests of source, save and create keep `.git/x.md`, `.mdame/…` and `.claude/settings.json`. Their link case `.a.md -> a.md` is now allowed, so it becomes a name under `.git/`.
 3. The source in `/api/file`: `source` holds the text that was rendered, and is `null` for an image and over 1 MB. `file_returns_the_source_that_it_rendered`, `an_image_and_a_large_file_have_no_source`.
 4. Change bars: a pure module finds the marks from the version last seen, the current source and the blocks' `data-sourcepos`. The page keeps the version last seen of each file in memory. `an added paragraph is marked added`, `a changed list item marks the item, not the list`, `removed text marks the place where it was`, `an undone change loses its bar`, `a file shown for the first time has no bars`, `leaving a file makes the version on screen the one last seen`.
@@ -419,6 +420,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 11. Spellcheck: the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
 12. Shortcut help: one list of the keys, and `?` opens the dialog, with the footer line. `every key that the page binds is in the help`, `macos shows ⌘ and the others ctrl`.
 13. Manual checklist, `cargo mutants`, review loop.
+   - For the "done when" check: this repository's `.git/info/exclude` lists `/.claude/`, and ignore rules apply in hidden folders too, so its `.claude/plans` stays out of the tree. Run the check in another workspace.
 
 ## Public repository and crate
 
@@ -434,7 +436,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 1 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 2 of its plan.
 
 ## Open points
 

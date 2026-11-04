@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::io::{self, ErrorKind};
 use std::os::fd::{AsFd, AsRawFd};
 use std::path::{Component, Path, PathBuf};
@@ -18,7 +19,13 @@ pub fn fd_path(handle: &impl AsFd) -> io::Result<PathBuf> {
     std::fs::read_link(format!("/proc/self/fd/{}", handle.as_fd().as_raw_fd()))
 }
 
-/// Whether a part of `path` is hidden, as the tree leaves such entries out.
+/// Whether a folder is `.git` or `.mdame`, at any depth: the tree never
+/// enters them.
+pub fn is_git_or_mdame(name: &OsStr) -> bool {
+    name == ".git" || name == OWN_DIR
+}
+
+/// Whether a part of `path` is hidden: there, the tree lists markdown only.
 pub fn is_hidden(path: &Path) -> bool {
     path.components().any(
         |part| matches!(part, Component::Normal(name) if name.as_encoded_bytes().starts_with(b".")),

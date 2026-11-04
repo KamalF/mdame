@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::document::modified_secs;
 use crate::render::Family;
-use crate::workspace::Workspace;
+use crate::workspace::{Workspace, is_git_or_mdame, is_hidden};
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -45,6 +45,8 @@ pub fn build(workspace: &Workspace) -> Node {
         // Git reads core.excludesFile only in a repository, too.
         .git_global(in_repo)
         .parents(in_repo)
+        .hidden(false)
+        .filter_entry(|entry| !is_git_or_mdame(entry.file_name()))
         .build();
     let mut top = Folder::default();
     for entry in walker.filter_map(Result::ok) {
@@ -62,12 +64,15 @@ pub fn build(workspace: &Workspace) -> Node {
 }
 
 /// The family and modified time of a viewable file, or `None` for
-/// anything else.
+/// anything else. In hidden folders, only markdown is viewable.
 /// The `Dir` follows a symlink only while it stays in the workspace, so a
 /// link to a file inside counts as a file and a link out is left out; the
 /// walker does not descend into a link to a folder.
 fn viewable_file(dir: &Dir, relative: &str) -> Option<File> {
     let family = Family::of(relative)?;
+    if family != Family::Markdown && is_hidden(Path::new(relative)) {
+        return None;
+    }
     let metadata = dir
         .metadata(relative)
         .ok()
@@ -212,13 +217,67 @@ mod tests {
     }
 
     #[test]
-    fn hidden_and_mdame_entries_are_left_out() {
+    fn markdown_in_a_hidden_folder_is_listed() {
         let root = tempfile::tempdir().unwrap();
-        write(root.path(), ".hidden/a.md", 1);
-        write(root.path(), ".mdame/history/a.md/1.md", 1);
-        write(root.path(), "a.md", 1);
+        write(root.path(), ".claude/plans/a.md", 1);
+        write(root.path(), "docs/.drafts/b.markdown", 1);
 
-        assert_eq!(tree_paths(&walk(root.path())), ["", "a.md"]);
+        assert_eq!(
+            tree_paths(&walk(root.path())),
+            [
+                "",
+                ".claude",
+                ".claude/plans",
+                ".claude/plans/a.md",
+                "docs",
+                "docs/.drafts",
+                "docs/.drafts/b.markdown"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_hidden_markdown_file_is_listed() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), ".notes.md", 1);
+
+        assert_eq!(tree_paths(&walk(root.path())), ["", ".notes.md"]);
+    }
+
+    #[test]
+    fn other_types_in_a_hidden_folder_stay_out() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), ".claude/settings.json", 1);
+        write(root.path(), ".github/logo.png", 1);
+        write(root.path(), ".notes.txt", 1);
+        write(root.path(), "a.json", 1);
+
+        assert_eq!(tree_paths(&walk(root.path())), ["", "a.json"]);
+    }
+
+    #[test]
+    fn git_and_mdame_are_never_listed() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), ".git/a.md", 1);
+        write(root.path(), ".mdame/history/a.md/1.md", 1);
+        write(root.path(), "sub/.git/b.md", 1);
+        write(root.path(), "sub/.mdame/c.md", 1);
+        write(root.path(), "sub/d.md", 1);
+
+        assert_eq!(tree_paths(&walk(root.path())), ["", "sub", "sub/d.md"]);
+    }
+
+    #[test]
+    fn gitignore_applies_in_hidden_folders() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join(".gitignore"), ".claude/local/\n").unwrap();
+        write(root.path(), ".claude/local/a.md", 1);
+        write(root.path(), ".claude/plans/b.md", 1);
+
+        assert_eq!(
+            tree_paths(&walk(root.path())),
+            ["", ".claude", ".claude/plans", ".claude/plans/b.md"]
+        );
     }
 
     #[test]

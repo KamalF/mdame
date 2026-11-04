@@ -25,6 +25,9 @@ pub const EDIT_LIMIT: u64 = 8 * 1024 * 1024;
 #[derive(Debug, Serialize)]
 pub struct View {
     pub html: String,
+    /// The text that `html` was rendered from, for the change bars. `None`
+    /// for an image, and over `RENDER_LIMIT`.
+    pub source: Option<String>,
     pub family: Family,
     pub modified: u64,
     pub size: u64,
@@ -40,14 +43,19 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
     let (file, metadata) = open_file(dir, path, OpenOptions::new().read(true))?;
     let family = Family::of(path).ok_or_else(not_viewable)?;
     let size = metadata.len();
-    let html = match family {
-        Family::Image => Some(render::file(family, path, "")),
+    let source = match family {
+        Family::Image => None,
         _ if size > RENDER_LIMIT => None,
         _ => match read_at_most(&file, RENDER_LIMIT) {
-            Ok(bytes) => Some(render::file(family, path, &String::from_utf8_lossy(&bytes))),
+            Ok(bytes) => Some(String::from_utf8_lossy(&bytes).into_owned()),
             Err(error) if error.kind() == ErrorKind::FileTooLarge => None,
             Err(error) => return Err(error),
         },
+    };
+    let html = match (family, &source) {
+        (Family::Image, _) => Some(render::file(family, path, "")),
+        (_, Some(text)) => Some(render::file(family, path, text)),
+        (_, None) => None,
     };
     let too_large = html.is_none();
     let html = html.unwrap_or_else(|| {
@@ -60,6 +68,7 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
     });
     Ok(View {
         html,
+        source,
         family,
         modified: modified_secs(&metadata).unwrap_or(0),
         size,

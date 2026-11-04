@@ -410,7 +410,8 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - A `.git` or `.mdame` folder stays out at any depth, so the `.git` of a nested repository does too. `is_git_or_mdame` in `workspace.rs` holds the rule, for the editor of commit 2.
 2. Markdown in hidden folders, in the editor (done): `editable_name` accepts markdown with a hidden part, except under `.git` and `.mdame`. The real path of the open file passes the same rule. Create and the revisions follow. `hidden_markdown_is_offered_to_the_editor` (it replaces `hidden_files_are_not_offered_to_the_editor`), `create_makes_markdown_in_a_hidden_folder`, `a_hidden_file_keeps_its_revisions`. The refusal tests of source, save and create keep `.git/x.md`, `.mdame/…` and `.claude/settings.json`. Their link case `.a.md -> a.md` is now allowed, so it becomes a name under `.git/`.
    - Each refusal has its own message: "mdame does not edit files in .git or .mdame", or "a hidden file, or a file in a hidden folder, must be markdown". `create_refuses_a_type_that_the_editor_cannot_open` checks both.
-3. The source in `/api/file`: `source` holds the text that was rendered, and is `null` for an image and over 1 MB. `file_returns_the_source_that_it_rendered`, `an_image_and_a_large_file_have_no_source`.
+3. The source in `/api/file` (done): `source` holds the text that was rendered, and is `null` for an image and over 1 MB. `file_returns_the_source_that_it_rendered`, `an_image_and_a_large_file_have_no_source`.
+   - A file that is not UTF-8 gets the lossy text that was rendered, with U+FFFD, so the bars compare the text on screen.
 4. Change bars: a pure module finds the marks from the version last seen, the current source and the blocks' `data-sourcepos`. The page keeps the version last seen of each file in memory. `an added paragraph is marked added`, `a changed list item marks the item, not the list`, `removed text marks the place where it was`, `an undone change loses its bar`, `a file shown for the first time has no bars`, `leaving a file makes the version on screen the one last seen`.
 5. "Last seen" in diff mode: the first entry of the revision list when the file differs from the version last seen. Its Restore saves that text through `PUT /api/file` with `If-Match`. `last seen comes first when the file changed`, `no last seen entry when the file is unchanged`, `restoring last seen saves its text`.
 6. The list of changes: a pure module keeps the list, and the status bar shows it, with a menu when it holds several files. `a created or changed markdown file is listed`, `other types are not listed`, `the file on screen is not listed`, `a second change moves the file to the top`, `opening a file removes it`, `a rename keeps the entry under the new name`, `a removed file leaves the list`, `resync adds nothing`, `clear empties the list`.
@@ -437,7 +438,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 3 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 4 of its plan.
 
 ## Open points
 

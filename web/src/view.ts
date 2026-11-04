@@ -9,6 +9,8 @@ import { encodePath } from "./sidebar.ts";
 /** What `/api/file` answers. */
 export interface FileView {
   html: string;
+  /** Null for an image, and over 1 MB. */
+  source: string | null;
   family: string;
   modified: number;
   size: number;

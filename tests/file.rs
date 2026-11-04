@@ -35,6 +35,31 @@ async fn markdown_file_is_rendered() {
 }
 
 #[tokio::test]
+async fn file_returns_the_source_that_it_rendered() {
+    let dir = tempfile::tempdir().unwrap();
+    let files: [(&str, &[u8]); 2] = [("a.md", b"# A\n\ntext\n"), ("latin1.md", b"caf\xe9\n")];
+    for (path, source) in [("a.md", "# A\n\ntext\n"), ("latin1.md", "caf\u{fffd}\n")] {
+        let (status, body) = get_file(common::workspace(dir.path(), &files), path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert_eq!(body["source"], source, "{path}");
+    }
+}
+
+#[tokio::test]
+async fn an_image_and_a_large_file_have_no_source() {
+    let dir = tempfile::tempdir().unwrap();
+    workspace(dir.path());
+    fs::write(dir.path().join("ws/a.png"), b"\x89PNG").unwrap();
+    fs::write(dir.path().join("ws/big.md"), "a".repeat(1024 * 1024 + 1)).unwrap();
+    for path in ["a.png", "big.md"] {
+        let (status, body) = get_file(workspace(dir.path()), path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        // `body["source"]` is null for a missing key too.
+        assert_eq!(body.get("source"), Some(&Value::Null), "{path}");
+    }
+}
+
+#[tokio::test]
 async fn file_over_1_mb_is_not_rendered() {
     let dir = tempfile::tempdir().unwrap();
     workspace(dir.path());

@@ -54,8 +54,8 @@ async fn source_refuses_what_the_editor_may_not_open() {
     // A name that the editor does not open, linked to a file that it does.
     let state = common::workspace(dir.path(), &files);
     std::fs::write(dir.path().join("ws/a.md"), "# A\n").unwrap();
-    std::os::unix::fs::symlink("a.md", dir.path().join("ws/.a.md")).unwrap();
-    let (status, body) = get_json(state, "/api/source?path=.a.md").await;
+    std::os::unix::fs::symlink("../a.md", dir.path().join("ws/.git/a.md")).unwrap();
+    let (status, body) = get_json(state, "/api/source?path=.git/a.md").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"]["code"], "not_viewable");
 }

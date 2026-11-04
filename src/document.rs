@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::error::io_message;
 use crate::history::{self, Revision};
 use crate::render::{self, Family};
-use crate::workspace::{fd_path, is_hidden};
+use crate::workspace::{fd_path, is_git_or_mdame, is_hidden};
 
 /// Bigger files are not rendered: the page would freeze. The editor can
 /// still open them.
@@ -278,11 +278,11 @@ fn saved(version: String, file: &File) -> io::Result<Saved> {
     Ok(Saved { version, modified })
 }
 
-/// The editor opens, saves and creates the text types that the view shows,
-/// outside the hidden folders that the tree leaves out, such as `.git`,
-/// `.mdame` or `.claude`: a leaked token then cannot rewrite `.git/config`,
-/// an agent's settings or a snapshot. The name asked counts, and so does
-/// where the open file is: a link, or an entry swapped during the request,
+/// The editor opens, saves and creates the text types that the view shows.
+/// A hidden file, or a file in a hidden folder, must be markdown, and never
+/// under `.git` or `.mdame`: a leaked token then cannot rewrite
+/// `.git/config`, an agent's settings or a snapshot. The name asked counts,
+/// and so does where the open file is: a link, or an entry swapped during the request,
 /// may lead from `notes.md` to `.git/config`.
 ///
 /// Also gives where the file is: its revisions go under that path, so that
@@ -329,13 +329,22 @@ fn outside() -> io::Error {
 }
 
 fn editable_name(path: &Path) -> io::Result<()> {
-    if is_hidden(path) {
+    if path
+        .components()
+        .any(|part| is_git_or_mdame(part.as_os_str()))
+    {
         return Err(io::Error::new(
             ErrorKind::Unsupported,
-            "mdame does not edit hidden files or files in hidden folders",
+            "mdame does not edit files in .git or .mdame",
         ));
     }
     let family = path.to_str().and_then(Family::of);
+    if family != Some(Family::Markdown) && is_hidden(path) {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "a hidden file, or a file in a hidden folder, must be markdown",
+        ));
+    }
     if matches!(family, None | Some(Family::Image)) {
         return Err(io::Error::new(
             ErrorKind::Unsupported,

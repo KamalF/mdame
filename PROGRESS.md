@@ -408,7 +408,8 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 
 1. Markdown in hidden folders, in the tree (done): the walker reads hidden entries, and never enters `.git` or `.mdame`. A path with a hidden part shows only if it is markdown. `.gitignore` applies as before. The watcher already sends events for these files. `markdown_in_a_hidden_folder_is_listed`, `a_hidden_markdown_file_is_listed`, `other_types_in_a_hidden_folder_stay_out`, `git_and_mdame_are_never_listed` (it replaces `hidden_and_mdame_entries_are_left_out`), `gitignore_applies_in_hidden_folders`.
    - A `.git` or `.mdame` folder stays out at any depth, so the `.git` of a nested repository does too. `is_git_or_mdame` in `workspace.rs` holds the rule, for the editor of commit 2.
-2. Markdown in hidden folders, in the editor: `editable_name` accepts markdown with a hidden part, except under `.git` and `.mdame`. The real path of the open file passes the same rule. Create and the revisions follow. `hidden_markdown_is_offered_to_the_editor` (it replaces `hidden_files_are_not_offered_to_the_editor`), `create_makes_markdown_in_a_hidden_folder`, `a_hidden_file_keeps_its_revisions`. The refusal tests of source, save and create keep `.git/x.md`, `.mdame/…` and `.claude/settings.json`. Their link case `.a.md -> a.md` is now allowed, so it becomes a name under `.git/`.
+2. Markdown in hidden folders, in the editor (done): `editable_name` accepts markdown with a hidden part, except under `.git` and `.mdame`. The real path of the open file passes the same rule. Create and the revisions follow. `hidden_markdown_is_offered_to_the_editor` (it replaces `hidden_files_are_not_offered_to_the_editor`), `create_makes_markdown_in_a_hidden_folder`, `a_hidden_file_keeps_its_revisions`. The refusal tests of source, save and create keep `.git/x.md`, `.mdame/…` and `.claude/settings.json`. Their link case `.a.md -> a.md` is now allowed, so it becomes a name under `.git/`.
+   - Each refusal has its own message: "mdame does not edit files in .git or .mdame", or "a hidden file, or a file in a hidden folder, must be markdown". `create_refuses_a_type_that_the_editor_cannot_open` checks both.
 3. The source in `/api/file`: `source` holds the text that was rendered, and is `null` for an image and over 1 MB. `file_returns_the_source_that_it_rendered`, `an_image_and_a_large_file_have_no_source`.
 4. Change bars: a pure module finds the marks from the version last seen, the current source and the blocks' `data-sourcepos`. The page keeps the version last seen of each file in memory. `an added paragraph is marked added`, `a changed list item marks the item, not the list`, `removed text marks the place where it was`, `an undone change loses its bar`, `a file shown for the first time has no bars`, `leaving a file makes the version on screen the one last seen`.
 5. "Last seen" in diff mode: the first entry of the revision list when the file differs from the version last seen. Its Restore saves that text through `PUT /api/file` with `If-Match`. `last seen comes first when the file changed`, `no last seen entry when the file is unchanged`, `restoring last seen saves its text`.
@@ -436,7 +437,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 2 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 3 of its plan.
 
 ## Open points
 
@@ -469,7 +470,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - Nits deferred by the review of milestone 6:
   - Ctrl+B and Ctrl+I: a marker next to a backslash is escaped; Ctrl+I strips the stars inside a code span; between `**a**` and `**b**`, Ctrl+B merges them. Neither undoes itself when a `*` is inside the selection or right next to it.
   - The editor's status bar has no Copy path or Copy content. It is rebuilt at each keystroke, so Save loses the focus and an error is announced again. A failed disk check leaves its error until a save succeeds.
-  - The view's notice for a 1–8 MB file says "Open it in the editor" for a hidden file, or for a file that is not UTF-8.
+  - The view's notice for a 1–8 MB file says "Open it in the editor" for a hidden file that is not markdown, or for a file that is not UTF-8.
   - A file rewritten during editing as non-UTF-8, or past 8 MB, gives a status error or a 413, and no notice.
   - A `changed` event during `editor.mount` is lost: a later save gets 412.
   - Two quick Backs with unsaved edits open two dialogs. `e`, a `#…` link in the preview, then Esc leave [view, edit, view] in the history.

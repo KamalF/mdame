@@ -70,13 +70,19 @@ async fn the_editor_is_offered_up_to_the_edit_limit() {
 }
 
 #[tokio::test]
-async fn hidden_files_are_not_offered_to_the_editor() {
+async fn hidden_markdown_is_offered_to_the_editor() {
     let dir = tempfile::tempdir().unwrap();
-    for path in [".todo.md", "notes/.drafts/a.md"] {
-        let state = common::workspace(dir.path(), &[(path, b"# A\n")]);
+    let cases = [
+        (".todo.md", true),
+        ("notes/.drafts/a.md", true),
+        (".claude/settings.json", false),
+        (".git/a.md", false),
+    ];
+    for (path, editable) in cases {
+        let state = common::workspace(dir.path(), &[(path, b"{}\n")]);
         let (status, body) = get_file(state, path).await;
         assert_eq!(status, StatusCode::OK, "{path}");
-        assert_eq!(body["editable"], false, "{path}");
+        assert_eq!(body["editable"], editable, "{path}");
     }
 }
 

@@ -6,7 +6,7 @@ use std::path::Path;
 
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
-use common::{HOST, JSON, etag, etag_of, send_body, status_and_json};
+use common::{HOST, JSON, etag, etag_of, get_json, send_body, status_and_json};
 use mdame::app::AppState;
 use mdame::document::version;
 use serde_json::json;
@@ -70,6 +70,21 @@ async fn save_snapshots_the_old_content_first() {
     .await;
 
     assert_eq!(snapshots(dir.path(), "a.md"), ["old\n"]);
+}
+
+#[tokio::test]
+async fn a_hidden_file_keeps_its_revisions() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = ".claude/plans/a.md";
+    let state = common::workspace(dir.path(), &[(path, b"old\n")]);
+    let response = put(state, path, Some(&etag(b"old\n")), "new\n").await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(snapshots(dir.path(), path), ["old\n"]);
+    let state = common::workspace(dir.path(), &[]);
+    let (status, revisions) = get_json(state, &format!("/api/history?path={path}")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(revisions.as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -368,8 +383,8 @@ async fn save_refuses_what_the_editor_may_not_open() {
     // A name that the editor does not open, linked to a file that it does.
     let state = common::workspace(dir.path(), &files);
     fs::write(dir.path().join("ws/a.md"), "# A\n").unwrap();
-    symlink("a.md", dir.path().join("ws/.a.md")).unwrap();
-    let response = put(state, ".a.md", Some(&etag(b"# A\n")), "new\n").await;
+    symlink("../a.md", dir.path().join("ws/.git/a.md")).unwrap();
+    let response = put(state, ".git/a.md", Some(&etag(b"# A\n")), "new\n").await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     assert_eq!(read(dir.path(), "a.md"), "# A\n");
 }

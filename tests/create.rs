@@ -64,9 +64,28 @@ async fn create_refuses_a_type_that_the_editor_cannot_open() {
         assert!(!dir.path().join("ws").join(path).exists(), "{path}");
     }
     // The name is the reason, not the type.
-    let (_, body) = create(workspace(dir.path()), ".notes.md").await;
+    let (_, body) = create(workspace(dir.path()), ".claude/b.json").await;
     let message = body["error"]["message"].as_str().unwrap();
     assert!(message.contains("hidden"), "{message}");
+    let (_, body) = create(workspace(dir.path()), ".git/b.md").await;
+    let message = body["error"]["message"].as_str().unwrap();
+    assert!(message.contains(".git"), "{message}");
+}
+
+#[tokio::test]
+async fn create_makes_markdown_in_a_hidden_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir_all(dir.path().join("ws/.claude/plans")).unwrap();
+    for path in [".notes.md", ".claude/plans/b.md"] {
+        let (status, _) = create(workspace(dir.path()), path).await;
+
+        assert_eq!(status, StatusCode::CREATED, "{path}");
+        assert_eq!(
+            fs::read(dir.path().join("ws").join(path)).unwrap(),
+            b"",
+            "{path}"
+        );
+    }
 }
 
 #[tokio::test]

@@ -421,7 +421,10 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - The editor gives the revisions panel two callbacks: the text on disk as the editor holds it, and the version last seen, from `view.ts`. The entry has no time, and no request loads it. `restoreRequest` picks `PUT /api/file` for "Last seen" and `POST /api/history/restore` for a revision.
    - Checked in Chrome on 5 November 2026: after an agent's rewrite, `h` opens diff mode on "Last seen", with the rewrite as a diff. "Restore Last seen" writes the first version back, the agent's text becomes the one revision, and the view shows no bars.
    - The rebuild renamed most chunks of `web/dist`, as earlier editor commits did. The content of some shared chunks changed, not only the hashed names that they import; the cause is in bun's bundler, and was not looked into further.
-6. The list of changes: a pure module keeps the list, and the status bar shows it, with a menu when it holds several files. `a created or changed markdown file is listed`, `other types are not listed`, `the file on screen is not listed`, `a second change moves the file to the top`, `opening a file removes it`, `a rename keeps the entry under the new name`, `a removed file leaves the list`, `resync adds nothing`, `clear empties the list`.
+6. The list of changes (done): a pure module keeps the list, and the status bar shows it, with a menu when it holds several files. `a created or changed markdown file is listed`, `other types are not listed`, `the file on screen is not listed`, `a second change moves the file to the top`, `opening a file removes it`, `a rename keeps the entry under the new name`, `a removed file leaves the list`, `resync adds nothing`, `clear empties the list`.
+   - `changelist.ts` holds the `ChangeList` class and the status bar's item, with `a file saved by renaming a new file over it is listed` too: the watcher reports such a save as a rename.
+   - The item stays in the page while its menu is open, so a new change updates the open menu and does not close it.
+   - Open point for milestone 10: the watcher reports gitignored files too, so the list can show a markdown file that the tree hides. The watcher that skips gitignored folders fixes most of it.
 7. `GET /api/search`, in a new `search.rs`, with a row in the routes matrix. `a_phrase_matches_in_any_case`, `an_uppercase_letter_makes_the_case_count`, `search_reads_what_the_tree_shows` (gitignored files out, hidden markdown in, `.git` out), `images_and_files_over_1_mb_are_skipped`, `a_file_that_is_not_utf8_is_skipped`, `newest_files_come_first`, `results_stop_at_50_files_and_20_matches_per_file`, `context_lines_are_merged_where_they_overlap`, `an_empty_query_is_400`.
 8. The search panel: `s` and a button beside the filter open it. A new keystroke aborts the request in flight. `the match is bold whatever its case`, `the preview breaks where the line numbers jump`, `a line maps to the block that holds it`.
 9. The content width: the palette menu gains a Width section, and its tooltip says "View options". `a stored width wins`, `default sets no width`, `an unknown stored width falls back to default`.
@@ -445,7 +448,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 6 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 7 of its plan.
 
 ## Open points
 

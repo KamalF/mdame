@@ -3,6 +3,7 @@ import "../styles/base.css";
 import "../styles/layout.css";
 import "../styles/components.css";
 import { api, errorFrom, exists, isHeld, request, setHold, type State } from "./api.ts";
+import { ChangeList, changesItem } from "./changelist.ts";
 import { copyButton } from "./copy.ts";
 import { askNewFile, confirmDiscard } from "./dialogs.ts";
 import * as editor from "./editor.ts";
@@ -19,13 +20,28 @@ const status = document.getElementById("mdame-status") as HTMLElement;
 const fileStatus = document.createElement("span");
 fileStatus.className = "mdame-file-status";
 
+const changes = new ChangeList();
+const changesStatus = changesItem(
+  (path) => openFile(path),
+  () => {
+    changes.clear();
+    changesStatus.update(changes.paths);
+  },
+);
+
 function showStatus(state: State) {
   const workspace = document.createElement("span");
   workspace.textContent = state.workspace.root;
   const version = document.createElement("span");
   version.className = "mdame-version";
   version.textContent = state.version;
-  status.replaceChildren(workspace, fileStatus, version, theme.themeButton(state.themes));
+  status.replaceChildren(
+    workspace,
+    fileStatus,
+    changesStatus.el,
+    version,
+    theme.themeButton(state.themes),
+  );
 }
 
 function showFileStatus(path: string, file: view.FileView) {
@@ -102,6 +118,10 @@ function editUrl(path: string): string {
 function showRoute(withRevisions = false) {
   const { path, editing } = route();
   sidebar.setCurrent(path);
+  if (path) {
+    changes.opened(path);
+    changesStatus.update(changes.paths);
+  }
   if (editing && path) {
     fileStatus.replaceChildren();
     view.forget();
@@ -237,6 +257,8 @@ async function follow(moved: string) {
 function onEvent(event: live.LiveEvent) {
   // Until the state check after a reconnection: it refetches everything.
   if (isHeld()) return;
+  changes.apply(event, route().path);
+  changesStatus.update(changes.paths);
   const current = sidebar.pathFromUrl(location.pathname);
   const reaction = live.react(event, current, sidebar.orderDependsOn);
   if (reaction.kind === "reload") {

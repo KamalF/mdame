@@ -45,6 +45,7 @@ main {
   flex: none;
 }
 
-.mdame-version {
+/* Always there, empty or not: it pushes the version to the right. */
+.mdame-changes {
   margin-left: auto;
 }

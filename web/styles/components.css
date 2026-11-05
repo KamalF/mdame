@@ -419,3 +419,37 @@
 .mdame-menu [aria-pressed="false"] .mdame-icon {
   visibility: hidden;
 }
+
+.mdame-changes-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 24ch;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* A dot, as the outline marks a changed section. */
+.mdame-changes-button::before {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.mdame-changes-button:hover {
+  color: var(--accent);
+}
+
+.mdame-menu .mdame-menu-separated {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}

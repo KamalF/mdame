@@ -1,6 +1,7 @@
 import { api, type State } from "./api.ts";
 import { icon, iconButton } from "./icons.ts";
 import { load, store } from "./storage.ts";
+import { chooseWidth, currentWidth, WIDTHS } from "./width.ts";
 
 const KEY = "mdame:theme";
 const DARK = "(prefers-color-scheme: dark)";
@@ -69,31 +70,52 @@ function label(theme: string): string {
   return isBuiltIn(theme) ? theme[0].toUpperCase() + theme.slice(1) : theme;
 }
 
-/** The theme button of the status bar, with its menu of `themes`. */
+/** The View options button of the status bar: its menu holds the theme,
+ * with the user `themes`, and the content width. */
 export function themeButton(themes: readonly string[]): HTMLElement {
   const menu = document.createElement("div");
   menu.className = "mdame-menu";
   menu.popover = "auto";
   // As the menu's invoker, the button is outside its light dismiss: a click
   // on it closes the open menu rather than opening it again.
-  const button = iconButton("Theme", "palette", () => {});
+  const button = iconButton("View options", "palette", () => {});
   button.popoverTargetElement = menu;
   let known = themes;
 
+  function item(text: string, pressed: boolean, onChoose: () => void) {
+    const element = document.createElement("button");
+    element.setAttribute("aria-pressed", String(pressed));
+    element.append(icon("check"), text);
+    element.addEventListener("click", () => {
+      onChoose();
+      menu.hidePopover();
+      button.focus();
+    });
+    return element;
+  }
+
+  function heading(text: string) {
+    const element = document.createElement("div");
+    element.className = "mdame-menu-label";
+    element.textContent = text;
+    return element;
+  }
+
   function render() {
     const current = chosen(load(KEY, null), known);
-    const items = [null, ...known].map((theme) => {
-      const item = document.createElement("button");
-      item.setAttribute("aria-pressed", String(theme === current));
-      item.append(icon("check"), theme === null ? "System" : label(theme));
-      item.addEventListener("click", () => {
-        choose(theme);
-        menu.hidePopover();
-        button.focus();
-      });
-      return item;
-    });
-    menu.replaceChildren(...items);
+    const width = currentWidth();
+    menu.replaceChildren(
+      heading("Theme"),
+      ...[null, ...known].map((theme) =>
+        item(theme === null ? "System" : label(theme), theme === current, () => choose(theme)),
+      ),
+      heading("Width"),
+      ...WIDTHS.map((choice) =>
+        item(choice[0].toUpperCase() + choice.slice(1), choice === width, () =>
+          chooseWidth(choice),
+        ),
+      ),
+    );
   }
 
   menu.addEventListener("beforetoggle", (event) => {

@@ -14,6 +14,7 @@ import { openSearch } from "./search.ts";
 import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
+import { applyWidth } from "./width.ts";
 
 const app = document.getElementById("mdame-app") as HTMLElement;
 const status = document.getElementById("mdame-status") as HTMLElement;
@@ -431,6 +432,7 @@ async function refresh() {
 }
 
 theme.apply();
+applyWidth();
 
 // The code or the token in the address has done its work: the cookie now
 // stands for it, and a reload must not send it again.

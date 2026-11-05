@@ -29,11 +29,15 @@ lists the options.
 
 ## Themes
 
-The palette button at the right of the status bar picks the theme: System,
-Light, Dark, or one of yours. System follows the light or dark mode of your OS.
-A theme of yours is a CSS file in `~/.config/mdame/themes/`.
-[web/themes/README.md](web/themes/README.md) lists its variables, with a
-template.
+The palette button at the right of the status bar opens View options. There,
+pick the theme: System, Light, Dark, or one of yours. System follows the light
+or dark mode of your OS. A theme of yours is a CSS file in
+`~/.config/mdame/themes/`. [web/themes/README.md](web/themes/README.md) lists
+its variables, with a template.
+
+View options also sets the width of the text: Default (the theme's width, 60
+characters in the built-in themes), Wide (80 characters) or Full (the whole
+pane).
 
 ## Credits
 

@@ -126,6 +126,11 @@ export class Seen {
     return source;
   }
 
+  /** The version last seen of `path`, if the tab showed it. */
+  version(path: string): string | undefined {
+    return this.#versions.get(path);
+  }
+
   /** The tab leaves `path`, with `source` on screen. */
   leave(path: string, source: string) {
     this.#versions.set(path, source);

@@ -15,7 +15,7 @@ import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts"
 import { type Queue, serial } from "./serial.ts";
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
-import { message } from "./view.ts";
+import { lastSeen, message } from "./view.ts";
 
 /** What `/api/source` answers, with its `ETag` as the version. */
 interface Source {
@@ -329,6 +329,8 @@ export function toggleRevisions() {
   const actions = {
     close: closeRevisions,
     restore: (id: string, content: string) => restore(current, id, content),
+    saved: () => current.saved,
+    lastSeen: () => lastSeen(current.path),
   };
   current.split.append(revisions.show(current.view, current.path, actions));
   report();
@@ -393,13 +395,19 @@ export function save() {
   });
 }
 
-/** Writes the revision `id` over the file, then takes its text as Reload
- * does: Ctrl+Z brings back the text from before, unsaved edits too. */
+/** Writes the entry `id` of the list over the file, then takes its text as
+ * Reload does: Ctrl+Z brings back the text from before, unsaved edits too. */
 function restore(current: Open, id: string, content: string) {
-  // Per revision: the queue drops a waiting task asked for again.
+  // Per entry: the queue drops a waiting task asked for again.
   current.queue(`restore ${id}`, async () => {
     try {
-      const response = await send("POST", "/api/history/restore", { path: current.path, id });
+      const { method, url, body, headers } = revisions.restoreRequest(
+        current.path,
+        id,
+        content,
+        current.base,
+      );
+      const response = await send(method, url, body, headers);
       const restored: { modified: number } = await response.json();
       if (open !== current) return;
       reload(current, { content, version: etagOf(response), modified: restored.modified });

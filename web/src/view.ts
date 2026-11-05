@@ -45,6 +45,12 @@ function showing(path: string, source: string | null) {
   onScreen = { path, source };
 }
 
+/** The version of `path` that the change bars compare with, if the view
+ * showed it. */
+export function lastSeen(path: string): string | undefined {
+  return seen.version(path);
+}
+
 /** Draws the change bars of `file` in `article`. */
 function bars(article: HTMLElement, path: string, file: FileView) {
   if (file.source === null) clearBars(article);

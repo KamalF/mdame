@@ -1,7 +1,14 @@
 import { expect, test } from "bun:test";
 import { Chunk } from "@codemirror/merge";
 import { Text } from "@codemirror/state";
-import { dayOf, lineCounts, sizeLabel } from "./revisions.ts";
+import {
+  dayOf,
+  entries,
+  LAST_SEEN,
+  lineCounts,
+  restoreRequest,
+  sizeLabel,
+} from "./revisions.ts";
 
 test("dayOf says today, yesterday, or neither, across midnight", () => {
   const now = new Date(2026, 9, 1, 0, 30);
@@ -31,4 +38,42 @@ test("lineCounts counts a changed line once as added and once as removed", () =>
     const b = Text.of(text.split("\n"));
     expect(lineCounts(Chunk.build(a, b), a, b)).toEqual(counts);
   }
+});
+
+const listed = [
+  { id: "2000.md", time: 2000, size: 4 },
+  { id: "1000.md", time: 1000, size: 3 },
+];
+
+test("last seen comes first when the file changed", () => {
+  const onDisk = Text.of(["# B", ""]);
+  expect(entries(listed, "# Á\n", onDisk)).toEqual([
+    { id: LAST_SEEN, time: null, size: 5 },
+    ...listed,
+  ]);
+});
+
+test("no last seen entry when the file is unchanged", () => {
+  const onDisk = Text.of(["# A", ""]);
+  expect(entries(listed, "# A\n", onDisk)).toEqual(listed);
+  // The editor's text has `\n` only.
+  expect(entries(listed, "# A\r\n", onDisk)).toEqual(listed);
+  // A file that the view never showed.
+  expect(entries(listed, undefined, onDisk)).toEqual(listed);
+});
+
+test("restoring last seen saves its text", () => {
+  expect(restoreRequest("a b.md", LAST_SEEN, "# A\n", '"v1"')).toEqual({
+    method: "PUT",
+    url: "/api/file?path=a%20b.md",
+    body: { content: "# A\n" },
+    headers: { "If-Match": '"v1"' },
+  });
+  // A revision is restored by the server, from its snapshot.
+  expect(restoreRequest("a.md", "1000.md", "# A\n", '"v1"')).toEqual({
+    method: "POST",
+    url: "/api/history/restore",
+    body: { path: "a.md", id: "1000.md" },
+    headers: {},
+  });
 });

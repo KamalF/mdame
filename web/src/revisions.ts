@@ -1,5 +1,5 @@
 import { type Chunk, getChunks, getOriginalDoc, unifiedMergeView } from "@codemirror/merge";
-import { Compartment, type Text } from "@codemirror/state";
+import { Compartment, Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { api, type ApiError } from "./api.ts";
 import { iconButton } from "./icons.ts";
@@ -12,13 +12,56 @@ export interface Revision {
   size: number;
 }
 
+/** The id of the "Last seen" entry: a snapshot's id is a time. */
+export const LAST_SEEN = "last-seen";
+
+/** A line of the list: a revision, or "Last seen", which has no time. */
+type Entry = Revision | { id: typeof LAST_SEEN; time: null; size: number };
+
+/**
+ * The entries of the list: "Last seen" comes first when the file on disk,
+ * `onDisk`, differs from the version `seen` that the change bars compare
+ * with. Line breaks do not count: the editor's text has `\n` only.
+ */
+export function entries(revisions: Revision[], seen: string | undefined, onDisk: Text): Entry[] {
+  if (seen === undefined || Text.of(seen.split(/\r\n?|\n/)).eq(onDisk)) return revisions;
+  const size = new TextEncoder().encode(seen).length;
+  return [{ id: LAST_SEEN, time: null, size }, ...revisions];
+}
+
+/** The request that writes the entry `id`, whose text is `content`, over
+ * the file at `path`. A revision's restore needs no `If-Match`. "Last
+ * seen" is a normal save from `base`, the version that the editor holds:
+ * an agent that writes the file again meanwhile makes it fail. */
+export function restoreRequest(
+  path: string,
+  id: string,
+  content: string,
+  base: string,
+): { method: string; url: string; body: unknown; headers: Record<string, string> } {
+  if (id === LAST_SEEN) {
+    return {
+      method: "PUT",
+      url: `/api/file?path=${encodeURIComponent(path)}`,
+      body: { content },
+      headers: { "If-Match": base },
+    };
+  }
+  return { method: "POST", url: "/api/history/restore", body: { path, id }, headers: {} };
+}
+
 /** The editor's merge view: empty outside diff mode. */
 export const diffMode = new Compartment();
 
 export interface Actions {
   close: () => void;
-  /** Writes the revision `id`, whose text is `content`, over the file. */
+  /** Writes the entry `id`, whose text is `content`, over the file. */
   restore: (id: string, content: string) => void;
+  /** The text on disk, as the editor last loaded or saved it. */
+  saved: () => Text;
+  /** The version that the change bars compare with, if the view showed
+   * the file. */
+  lastSeen: () => string | undefined;
 }
 
 interface Shown {
@@ -27,7 +70,8 @@ interface Shown {
   aside: HTMLElement;
   error: HTMLElement;
   list: HTMLElement;
-  revisions: Revision[] | null;
+  actions: Actions;
+  revisions: Entry[] | null;
   /** The revision that the text is compared with, or is about to be. */
   chosen: string | null;
   /** The revision in the merge view, and its text. */
@@ -71,6 +115,7 @@ export function show(view: EditorView, path: string, actions: Actions): HTMLElem
     aside,
     error,
     list,
+    actions,
     revisions: null,
     chosen: null,
     compared: null,
@@ -101,14 +146,16 @@ export function isShown(): boolean {
 export async function refresh() {
   const current = shown;
   if (!current) return;
-  let revisions: Revision[];
+  let listed: Revision[];
   try {
-    revisions = await api("GET", `/api/history?path=${encodeURIComponent(current.path)}`);
+    listed = await api("GET", `/api/history?path=${encodeURIComponent(current.path)}`);
   } catch (error) {
     if (shown === current) current.error.textContent = (error as ApiError).message;
     return;
   }
   if (shown !== current) return;
+  const { actions } = current;
+  const revisions = entries(listed, actions.lastSeen(), actions.saved());
   current.revisions = revisions;
   current.error.textContent = "";
   // The chosen revision may be gone: pruning removes the oldest. Or it
@@ -130,7 +177,11 @@ async function choose(current: Shown, id: string) {
   let content: string;
   try {
     const query = `path=${encodeURIComponent(current.path)}&id=${encodeURIComponent(id)}`;
-    ({ content } = await api<{ content: string }>("GET", `/api/history/view?${query}`));
+    content =
+      id === LAST_SEEN
+        ? // The list has "Last seen" only when the view saw the file.
+          current.actions.lastSeen()!
+        : (await api<{ content: string }>("GET", `/api/history/view?${query}`)).content;
   } catch (error) {
     if (shown === current && current.chosen === id) {
       current.error.textContent = (error as ApiError).message;
@@ -157,9 +208,7 @@ function render(current: Shown) {
   current.detail = null;
   const onScreen = revisions?.find((revision) => revision.id === current.compared?.id);
   current.restore.disabled = !onScreen || current.compared?.id !== current.chosen;
-  current.restore.textContent = onScreen
-    ? `Restore ${timeLabel(onScreen.time, new Date())}`
-    : "Restore";
+  current.restore.textContent = onScreen ? `Restore ${label(onScreen, new Date())}` : "Restore";
   if (!revisions) return;
   if (revisions.length === 0) {
     const empty = document.createElement("li");
@@ -174,10 +223,12 @@ function render(current: Shown) {
       const chosen = revision.id === current.chosen;
       const button = document.createElement("button");
       button.className = "mdame-revision";
-      const replaced = new Date(revision.time).toLocaleString();
-      button.title = `The file as it was until mdame saved over it, on ${replaced}`;
+      const replaced = revision.time === null ? null : new Date(revision.time).toLocaleString();
+      button.title = replaced
+        ? `The file as it was until mdame saved over it, on ${replaced}`
+        : "The file as the view showed it when you last left it";
       const time = document.createElement("span");
-      time.textContent = timeLabel(revision.time, now);
+      time.textContent = label(revision, now);
       const detail = document.createElement("small");
       detail.textContent = sizeLabel(revision.size);
       if (chosen) {
@@ -219,6 +270,10 @@ function countSpan(className: string, text: string): HTMLElement {
   span.className = className;
   span.textContent = text;
   return span;
+}
+
+function label(entry: Entry, now: Date): string {
+  return entry.time === null ? "Last seen" : timeLabel(entry.time, now);
 }
 
 function timeLabel(time: number, now: Date): string {

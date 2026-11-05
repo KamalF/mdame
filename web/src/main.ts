@@ -10,6 +10,7 @@ import * as editor from "./editor.ts";
 import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
+import { openSearch } from "./search.ts";
 import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
@@ -285,6 +286,12 @@ async function openFile(path: string, hash = "") {
   if (await mayLeaveEditor()) go(sidebar.viewUrl(path) + hash);
 }
 
+/** Opens the search panel. A line that the user picks opens in the view,
+ * scrolled to its block. */
+function search() {
+  openSearch((path, line) => openFile(path, `#L${line}`));
+}
+
 /** Asks for the path of a new file, creates it and opens it in the editor. */
 async function newFile(folder: string) {
   if (!(await mayLeaveEditor())) return;
@@ -335,8 +342,15 @@ async function showWorkspace(state: State) {
     },
     h: toggleRevisions,
     r: toggleRevisions,
+    s: search,
   });
-  const mounted = sidebar.mount(nav, { root, current, onOpen: openFile, onNewFile: newFile });
+  const mounted = sidebar.mount(nav, {
+    root,
+    current,
+    onOpen: openFile,
+    onNewFile: newFile,
+    onSearch: search,
+  });
   // Only the empty-workspace page needs the tree: a file shows at once.
   if (current) showRoute();
   fileCount = await mounted;

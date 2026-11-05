@@ -1,11 +1,12 @@
 import "../styles/content.css";
 import { Idiomorph } from "idiomorph";
 import { api, type ApiError } from "./api.ts";
-import { clearBars, drawBars } from "./bars.ts";
+import { blocksOf, clearBars, drawBars } from "./bars.ts";
 import { Seen } from "./changes.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
+import { blockAt } from "./search.ts";
 import { encodePath } from "./sidebar.ts";
 
 /** What `/api/file` answers. */
@@ -269,7 +270,8 @@ export function showNothing(el: HTMLElement, empty: boolean) {
   );
 }
 
-/** Scrolls to the heading or footnote that the URL's `#…` names. */
+/** Scrolls to the heading or footnote that the URL's `#…` names, or to
+ * the block of a source line, as `#L12` from the search panel names it. */
 export function scrollToHash() {
   if (!location.hash) return;
   let id: string;
@@ -278,5 +280,13 @@ export function scrollToHash() {
   } catch {
     return;
   }
-  document.getElementById(id)?.scrollIntoView();
+  const target = document.getElementById(id);
+  const line = /^L(\d+)$/.exec(id);
+  if (target || !line) {
+    target?.scrollIntoView();
+    return;
+  }
+  const { blocks, elements } = blocksOf(document.querySelector("#mdame-content > article"));
+  // Other types have no blocks: they stay at the top.
+  elements[blockAt(blocks, Number(line[1]))]?.scrollIntoView({ block: "center" });
 }

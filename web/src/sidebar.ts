@@ -171,11 +171,12 @@ interface MountOptions {
   onOpen: (path: string) => void;
   /** Gets the folder, "" for the workspace folder. */
   onNewFile: (folder: string) => void;
+  onSearch: () => void;
 }
 
 export async function mount(
   el: HTMLElement,
-  { root, current, onOpen, onNewFile }: MountOptions,
+  { root, current, onOpen, onNewFile, onSearch }: MountOptions,
 ) {
   latest = current;
   const openKey = `mdame:open:${root}`;
@@ -195,7 +196,8 @@ export async function mount(
   sortButton.className = "mdame-icon-button";
   const header = document.createElement("div");
   header.className = "mdame-sidebar-header";
-  header.append(filterField, newFileButton(""), sortButton);
+  const searchButton = iconButton("Search in files", "search", onSearch, "Search in files (s)");
+  header.append(filterField, searchButton, newFileButton(""), sortButton);
   const list = document.createElement("ul");
   list.className = "mdame-tree";
   el.replaceChildren(header, list);

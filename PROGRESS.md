@@ -429,7 +429,11 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - The search walks the tree with `tree::build`, so it reads what the tree shows. `document::text` reads each file, with the 1 MB limit and the UTF-8 check. The tests of the matching are unit tests in `search.rs`; `tests/search.rs` checks the route's answer and the 400.
    - `rg -S`: an uppercase letter anywhere in the phrase makes the case count. Without one, both sides go through `to_lowercase`, line by line.
    - After the 20th match, the file's scan stops, and its 2 lines of context still print, as `rg -m20 -C2` does. `more` is true only when a 51st file matches.
-8. The search panel: `s` and a button beside the filter open it. A new keystroke aborts the request in flight. `the match is bold whatever its case`, `the preview breaks where the line numbers jump`, `a line maps to the block that holds it`.
+8. The search panel (done): `s` and a button beside the filter open it. A new keystroke aborts the request in flight. `the match is highlighted whatever its case` (bold in the plan; changed on 5 November 2026), `the preview breaks where the line numbers jump`, `a line maps to the block that holds it`.
+   - `search.ts` holds the panel and its pure functions. The highlight uses a regex with the `i` flag only when the phrase has no uppercase letter, as the server does. The request goes through `request()` with an `AbortController`.
+   - A line opens as `#L<line>`: `scrollToHash` in `view.ts` already runs on each show, after the diagrams and on a move inside the file, so the line needed no other hook. A line in no block, such as a blank line, scrolls to the block that ends nearest above it.
+   - `blocksOf` in `bars.ts` gives the blocks of an article to the bars and to `#L<line>`.
+   - Checked in Chrome on 5 November 2026: `s` opens the panel; `retry` lists two files with their counts and marks "Retry" and "RETRY"; ↓ chooses the next file, whose lines break with a dashed line where the numbers jump; a click on line 27 opens `plan.md#L27` with its code block in the middle of the pane.
 9. The content width: the palette menu gains a Width section, and its tooltip says "View options". `a stored width wins`, `default sets no width`, `an unknown stored width falls back to default`.
 10. The outline: a pure module lists the headings and places the outline. `only h2 and h3 are listed`, `fewer than 3 headings give no outline`, `a section with a change bar gets a dot`, `the outline fits beside a centred column`, `without room the column moves left`, `with full the column narrows`, `when moving is not enough the outline hides`. Its toggle in View options.
 11. Spellcheck: the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
@@ -451,7 +455,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 8 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 9 of its plan.
 
 ## Open points
 

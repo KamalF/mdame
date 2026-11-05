@@ -5,6 +5,19 @@ import { blockOf, marks, type Block, type MarkKind } from "./changes.ts";
 const BLOCKS =
   ":is(p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, table, tr, hr, div, section, ul, ol)[data-sourcepos]";
 
+/** The blocks of `article`, in document order, with their elements. */
+export function blocksOf(article: Element | null): { blocks: Block[]; elements: HTMLElement[] } {
+  const blocks: Block[] = [];
+  const elements: HTMLElement[] = [];
+  for (const element of article?.querySelectorAll<HTMLElement>(BLOCKS) ?? []) {
+    const block = blockOf(element.dataset.sourcepos!);
+    if (!block) continue;
+    blocks.push(block);
+    elements.push(element);
+  }
+  return { blocks, elements };
+}
+
 interface Drawn {
   bar: HTMLElement;
   target: HTMLElement;
@@ -32,15 +45,7 @@ export function drawBars(article: HTMLElement, seen: string, source: string) {
   clearBars(article);
   const before = last;
   last = new WeakMap();
-  const elements = [...article.querySelectorAll<HTMLElement>(BLOCKS)];
-  const blocks: Block[] = [];
-  const targets: HTMLElement[] = [];
-  for (const element of elements) {
-    const block = blockOf(element.dataset.sourcepos!);
-    if (!block) continue;
-    blocks.push(block);
-    targets.push(element);
-  }
+  const { blocks, elements: targets } = blocksOf(article);
   const layer = document.createElement("div");
   layer.className = "mdame-bars";
   layer.setAttribute("aria-hidden", "true");

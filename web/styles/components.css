@@ -453,3 +453,132 @@
   border-top: 1px solid var(--border);
   border-radius: 0;
 }
+
+/* The search panel: the field, then the files beside the lines of the
+   chosen one. */
+.mdame-dialog.mdame-search {
+  width: min(1000px, calc(100% - 32px));
+  height: min(640px, calc(100% - 64px));
+  padding: 16px;
+}
+
+.mdame-search[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.mdame-dialog.mdame-search input[type="search"] {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.mdame-dialog .mdame-search-status {
+  min-height: 1.5em;
+  margin: 6px 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.mdame-search-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+@media (max-width: 899px) {
+  .mdame-search-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 2fr);
+  }
+}
+
+.mdame-search-files {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.mdame-search-preview {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.mdame-dialog .mdame-search-files button,
+.mdame-dialog .mdame-search-line {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+}
+
+.mdame-dialog .mdame-search-files button {
+  justify-content: space-between;
+  padding: 4px 8px;
+}
+
+.mdame-search-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mdame-search-count {
+  color: var(--fg-muted);
+}
+
+.mdame-dialog .mdame-search-files button[aria-current] {
+  background: var(--selection);
+}
+
+.mdame-dialog .mdame-search-files button:hover,
+.mdame-dialog .mdame-search-line:hover {
+  background: var(--hover);
+}
+
+/* A break where the line numbers jump, as `rg` prints `--`. */
+.mdame-search-run + .mdame-search-run {
+  border-top: 1px dashed var(--border);
+}
+
+.mdame-dialog .mdame-search-line {
+  padding: 0 8px;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.mdame-search-number {
+  min-width: 4ch;
+  color: var(--fg-muted);
+  text-align: right;
+}
+
+/* As the browser's find: a yellow from the theme. */
+.mdame-search-text mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--warning) 35%, transparent);
+  color: inherit;
+}
+
+.mdame-search-line:not(.is-match) .mdame-search-text {
+  color: var(--fg-muted);
+}

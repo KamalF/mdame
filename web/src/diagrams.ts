@@ -34,6 +34,10 @@ export async function renderDiagrams(root: HTMLElement) {
     try {
       const { svg } = await mermaid.render(`mdame-mermaid-${++count}`, pre.textContent, box);
       figure.innerHTML = svg;
+      // The change bars find the diagram by its lines.
+      if (pre.hasAttribute("data-sourcepos")) {
+        figure.setAttribute("data-sourcepos", pre.getAttribute("data-sourcepos")!);
+      }
       pre.replaceWith(figure);
     } catch (error) {
       // Keep the source, with the reason below it.

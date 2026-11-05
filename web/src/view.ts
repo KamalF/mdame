@@ -1,6 +1,8 @@
 import "../styles/content.css";
 import { Idiomorph } from "idiomorph";
 import { api, type ApiError } from "./api.ts";
+import { clearBars, drawBars } from "./bars.ts";
+import { Seen } from "./changes.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
@@ -29,6 +31,26 @@ let request = 0;
 /** The file on screen, as `{path, file}`. */
 let shown: { path: string; file: FileView } | undefined;
 
+const seen = new Seen();
+/** The file that the view showed last, with its source. The editor of the
+ * same file does not leave it: diff mode compares with the version that
+ * the view saw before. */
+let onScreen: { path: string; source: string | null } | undefined;
+
+/** Keeps the version last seen of the file that the view leaves. */
+function showing(path: string, source: string | null) {
+  if (onScreen && onScreen.path !== path && onScreen.source !== null) {
+    seen.leave(onScreen.path, onScreen.source);
+  }
+  onScreen = { path, source };
+}
+
+/** Draws the change bars of `file` in `article`. */
+function bars(article: HTMLElement, path: string, file: FileView) {
+  if (file.source === null) clearBars(article);
+  else drawBars(article, seen.baseline(path, file.source), file.source);
+}
+
 export function rawUrl(path: string): string {
   return "/raw/" + encodePath(path);
 }
@@ -52,13 +74,19 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   const file = await fetchFile(el, path, id);
   if (!file) return null;
   shown = { path, file };
+  showing(path, file.source);
   const article = articleFor(file.html);
   el.replaceChildren(article);
   el.scrollTop = 0;
   scrollToHash();
   highlightAll(article);
-  // A diagram above the `#…` target moves it once drawn.
-  renderDiagrams(article).then(() => id === request && scrollToHash());
+  renderDiagrams(article).then(() => {
+    if (id !== request) return;
+    // A diagram above the `#…` target moves it once drawn.
+    scrollToHash();
+    // A bar on a diagram marks the drawing, not its code.
+    bars(article, path, file);
+  });
   return file;
 }
 
@@ -75,7 +103,11 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   const article = await prepare(file.html);
   if (id !== request) return null;
   shown = { path, file };
-  morphInto(el.querySelector<HTMLElement>(":scope > article")!, article);
+  showing(path, file.source);
+  const onPage = el.querySelector<HTMLElement>(":scope > article")!;
+  clearBars(onPage);
+  morphInto(onPage, article);
+  bars(onPage, path, file);
   return file;
 }
 
@@ -114,7 +146,10 @@ export function shownFile(): FileView | undefined {
 
 /** The file on screen moved to `path`: a refresh then patches it in place. */
 export function renameShown(path: string) {
-  if (shown) shown = { ...shown, path };
+  if (!shown) return;
+  seen.rename(shown.path, path);
+  if (onScreen?.path === shown.path) onScreen = { ...onScreen, path };
+  shown = { ...shown, path };
 }
 
 /** The file, or null when it failed or request `id` is no longer the latest. */

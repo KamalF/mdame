@@ -1,5 +1,7 @@
 /* Rendered files. */
 .mdame-document {
+  /* For the change bars. */
+  position: relative;
   max-width: var(--content-width);
   margin: 0 auto;
   padding: 32px 32px 64px;
@@ -240,4 +242,50 @@
 .tok-deleted,
 .tok-invalid {
   color: var(--danger);
+}
+
+/* Change bars, as in a git gutter: in the article's left padding. */
+.mdame-bar {
+  position: absolute;
+  left: 14px;
+  width: 4px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.mdame-bar.is-added {
+  color: var(--success);
+}
+
+.mdame-bar.is-changed {
+  color: var(--accent);
+}
+
+/* A triangle that points at the place of the removed text. */
+.mdame-bar.is-removed {
+  left: 12px;
+  width: 0;
+  height: 0;
+  border-radius: 0;
+  border-block: 5px solid transparent;
+  border-left: 8px solid;
+  color: var(--danger);
+  background: none;
+  transform: translateY(-50%);
+}
+
+.mdame-bar.is-new {
+  animation: mdame-glow 1.2s ease-out;
+}
+
+@keyframes mdame-glow {
+  from {
+    box-shadow: 0 0 6px 2px currentColor;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mdame-bar.is-new {
+    animation: none;
+  }
 }

@@ -412,7 +412,11 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - Each refusal has its own message: "mdame does not edit files in .git or .mdame", or "a hidden file, or a file in a hidden folder, must be markdown". `create_refuses_a_type_that_the_editor_cannot_open` checks both.
 3. The source in `/api/file` (done): `source` holds the text that was rendered, and is `null` for an image and over 1 MB. `file_returns_the_source_that_it_rendered`, `an_image_and_a_large_file_have_no_source`.
    - A file that is not UTF-8 gets the lossy text that was rendered, with U+FFFD, so the bars compare the text on screen.
-4. Change bars: a pure module finds the marks from the version last seen, the current source and the blocks' `data-sourcepos`. The page keeps the version last seen of each file in memory. `an added paragraph is marked added`, `a changed list item marks the item, not the list`, `removed text marks the place where it was`, `an undone change loses its bar`, `a file shown for the first time has no bars`, `leaving a file makes the version on screen the one last seen`.
+4. Change bars (done): a pure module finds the marks from the version last seen, the current source and the blocks' `data-sourcepos`. The page keeps the version last seen of each file in memory. `an added paragraph is marked added`, `a changed list item marks the item, not the list`, `removed text marks the place where it was`, `an undone change loses its bar`, `a file shown for the first time has no bars`, `leaving a file makes the version on screen the one last seen`.
+   - `changes.ts` is the pure module, with `a renamed file keeps the version last seen` too. `bars.ts` draws the bars in a layer of the article, and a `ResizeObserver` on the article moves them when the text wraps again or an image loads. The layer leaves the article before each morph, so that idiomorph does not reuse it as a block.
+   - The line diff gives each distinct line one character, so that `diff` compares whole lines. Its timeout is 100 ms: an exact diff of 10,000 scattered changes took 15 s.
+   - A drawn Mermaid diagram keeps the `data-sourcepos` of its code block, so it can get a bar. The editor's scroll sync now uses it as an anchor too.
+   - Checked in Chrome on 4 November 2026, light and dark, on a sample plan in `.claude/plans/`: a changed paragraph, an added table row, a changed nested item, an added paragraph, a changed Mermaid diagram, and a removed section. All bars sit in one column. On the next change, only the new bar glows, and an undone change loses its bar. A narrower column moves the bars with the text.
 5. "Last seen" in diff mode: the first entry of the revision list when the file differs from the version last seen. Its Restore saves that text through `PUT /api/file` with `If-Match`. `last seen comes first when the file changed`, `no last seen entry when the file is unchanged`, `restoring last seen saves its text`.
 6. The list of changes: a pure module keeps the list, and the status bar shows it, with a menu when it holds several files. `a created or changed markdown file is listed`, `other types are not listed`, `the file on screen is not listed`, `a second change moves the file to the top`, `opening a file removes it`, `a rename keeps the entry under the new name`, `a removed file leaves the list`, `resync adds nothing`, `clear empties the list`.
 7. `GET /api/search`, in a new `search.rs`, with a row in the routes matrix. `a_phrase_matches_in_any_case`, `an_uppercase_letter_makes_the_case_count`, `search_reads_what_the_tree_shows` (gitignored files out, hidden markdown in, `.git` out), `images_and_files_over_1_mb_are_skipped`, `a_file_that_is_not_utf8_is_skipped`, `newest_files_come_first`, `results_stop_at_50_files_and_20_matches_per_file`, `context_lines_are_merged_where_they_overlap`, `an_empty_query_is_400`.
@@ -438,7 +442,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 4 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 5 of its plan.
 
 ## Open points
 

@@ -130,6 +130,16 @@ pub fn source(dir: &Dir, path: &str) -> io::Result<Source> {
     })
 }
 
+/// The text of the file at `path`, for the search. Over `RENDER_LIMIT`
+/// gives `FileTooLarge`, and a file that is not UTF-8 gives `Unsupported`.
+pub fn text(dir: &Dir, path: &str) -> io::Result<String> {
+    let (file, metadata) = open_file(dir, path, OpenOptions::new().read(true))?;
+    if metadata.len() > RENDER_LIMIT {
+        return Err(too_large());
+    }
+    String::from_utf8(read_at_most(&file, RENDER_LIMIT)?).map_err(|_| not_text())
+}
+
 /// The revisions of the file at `path`, newest first.
 pub fn revisions(dir: &Dir, path: &str) -> io::Result<Vec<Revision>> {
     let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;

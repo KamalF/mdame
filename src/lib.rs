@@ -4,6 +4,7 @@ pub mod document;
 pub mod error;
 pub mod history;
 pub mod render;
+pub mod search;
 pub mod server;
 pub mod themes;
 pub mod tree;

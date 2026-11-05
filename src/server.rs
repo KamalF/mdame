@@ -4,6 +4,7 @@ use crate::app::{
 use crate::document::{self, EDIT_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history::{self, Revision};
+use crate::search;
 use crate::themes;
 use crate::tree;
 use crate::watch::Event;
@@ -384,6 +385,27 @@ async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiE
 }
 
 #[derive(Deserialize)]
+struct SearchQuery {
+    q: String,
+}
+
+async fn search(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<SearchQuery>, QueryRejection>,
+) -> Result<Json<search::Results>, ApiError> {
+    let Query(query) = query?;
+    if query.q.is_empty() {
+        return Err(ApiError::BadRequest(
+            "q is empty: give the phrase to search for".to_owned(),
+        ));
+    }
+    // It walks the tree and reads each file.
+    let results =
+        tokio::task::spawn_blocking(move || search::search(&app.workspace, &query.q)).await?;
+    Ok(Json(results))
+}
+
+#[derive(Deserialize)]
 struct FileQuery {
     path: String,
 }
@@ -649,6 +671,7 @@ pub fn router(app_state: Arc<AppState>) -> Router {
         .route("/raw/{*path}", get(raw))
         .route("/api/state", get(state))
         .route("/api/tree", get(tree))
+        .route("/api/search", get(search))
         .route(
             "/api/file",
             // JSON escapes can make the body much longer than the content.

@@ -276,6 +276,7 @@ mdame/
     config.rs           config.toml (settings, read only); config, state and themes dirs
     workspace.rs        Workspace: root, cap-std Dir, starting file; open
     tree.rs             ignore walker → tree JSON
+    search.rs           content search over the files that the tree shows
     watch.rs            debouncer → relative-path events → broadcast
     render.rs           comrak, ammonia, per-type rendering, size guard
     document.rs         read, save (with snapshot), raw bytes for images

@@ -425,7 +425,10 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `changelist.ts` holds the `ChangeList` class and the status bar's item, with `a file saved by renaming a new file over it is listed` too: the watcher reports such a save as a rename.
    - The item stays in the page while its menu is open, so a new change updates the open menu and does not close it.
    - Open point for milestone 10: the watcher reports gitignored files too, so the list can show a markdown file that the tree hides. The watcher that skips gitignored folders fixes most of it.
-7. `GET /api/search`, in a new `search.rs`, with a row in the routes matrix. `a_phrase_matches_in_any_case`, `an_uppercase_letter_makes_the_case_count`, `search_reads_what_the_tree_shows` (gitignored files out, hidden markdown in, `.git` out), `images_and_files_over_1_mb_are_skipped`, `a_file_that_is_not_utf8_is_skipped`, `newest_files_come_first`, `results_stop_at_50_files_and_20_matches_per_file`, `context_lines_are_merged_where_they_overlap`, `an_empty_query_is_400`.
+7. `GET /api/search` (done), in a new `search.rs`, with a row in the routes matrix. `a_phrase_matches_in_any_case`, `an_uppercase_letter_makes_the_case_count`, `search_reads_what_the_tree_shows` (gitignored files out, hidden markdown in, `.git` out), `images_and_files_over_1_mb_are_skipped`, `a_file_that_is_not_utf8_is_skipped`, `newest_files_come_first`, `results_stop_at_50_files_and_20_matches_per_file`, `context_lines_are_merged_where_they_overlap`, `an_empty_query_is_400`.
+   - The search walks the tree with `tree::build`, so it reads what the tree shows. `document::text` reads each file, with the 1 MB limit and the UTF-8 check. The tests of the matching are unit tests in `search.rs`; `tests/search.rs` checks the route's answer and the 400.
+   - `rg -S`: an uppercase letter anywhere in the phrase makes the case count. Without one, both sides go through `to_lowercase`, line by line.
+   - After the 20th match, the file's scan stops, and its 2 lines of context still print, as `rg -m20 -C2` does. `more` is true only when a 51st file matches.
 8. The search panel: `s` and a button beside the filter open it. A new keystroke aborts the request in flight. `the match is bold whatever its case`, `the preview breaks where the line numbers jump`, `a line maps to the block that holds it`.
 9. The content width: the palette menu gains a Width section, and its tooltip says "View options". `a stored width wins`, `default sets no width`, `an unknown stored width falls back to default`.
 10. The outline: a pure module lists the headings and places the outline. `only h2 and h3 are listed`, `fewer than 3 headings give no outline`, `a section with a change bar gets a dot`, `the outline fits beside a centred column`, `without room the column moves left`, `with full the column narrows`, `when moving is not enough the outline hides`. Its toggle in View options.
@@ -448,7 +451,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 7 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 8 of its plan.
 
 ## Open points
 

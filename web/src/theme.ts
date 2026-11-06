@@ -1,5 +1,6 @@
 import { api, type State } from "./api.ts";
 import { icon, iconButton } from "./icons.ts";
+import { chooseOutline, outlineOn } from "./outline.ts";
 import { load, store } from "./storage.ts";
 import { chooseWidth, currentWidth, WIDTHS } from "./width.ts";
 
@@ -71,7 +72,7 @@ function label(theme: string): string {
 }
 
 /** The View options button of the status bar: its menu holds the theme,
- * with the user `themes`, and the content width. */
+ * with the user `themes`, the content width and the outline. */
 export function themeButton(themes: readonly string[]): HTMLElement {
   const menu = document.createElement("div");
   menu.className = "mdame-menu";
@@ -115,6 +116,8 @@ export function themeButton(themes: readonly string[]): HTMLElement {
           chooseWidth(choice),
         ),
       ),
+      heading("Show"),
+      item("Outline", outlineOn(), () => chooseOutline(!outlineOn())),
     );
   }
 

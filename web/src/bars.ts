@@ -1,4 +1,4 @@
-import { blockOf, marks, type Block, type MarkKind } from "./changes.ts";
+import { blockOf, marks, type Block, type Mark, type MarkKind } from "./changes.ts";
 
 /** The elements that a bar can mark. comrak also gives a `data-sourcepos`
  * to inline elements and to table cells, which no bar marks. */
@@ -38,18 +38,23 @@ let last = new WeakMap<HTMLElement, Set<string>>();
 let observer: ResizeObserver | undefined;
 
 /**
- * Draws in `article` the bars that show how `source` differs from `seen`.
- * A bar that was not on screen before glows once.
+ * Draws in `article` the bars that show how `source` differs from `seen`,
+ * and returns their marks. A bar that was not on screen before glows once.
  */
-export function drawBars(article: HTMLElement, seen: string, source: string) {
+export function drawBars(
+  article: HTMLElement,
+  seen: string,
+  source: string,
+): { marks: Mark[]; blocks: Block[] } {
   clearBars(article);
   const before = last;
   last = new WeakMap();
   const { blocks, elements: targets } = blocksOf(article);
+  const found = marks(seen, source, blocks);
   const layer = document.createElement("div");
   layer.className = "mdame-bars";
   layer.setAttribute("aria-hidden", "true");
-  for (const { kind, block } of marks(seen, source, blocks)) {
+  for (const { kind, block } of found) {
     const below = block === targets.length;
     const target = targets[below ? block - 1 : block];
     const bar = document.createElement("div");
@@ -60,11 +65,12 @@ export function drawBars(article: HTMLElement, seen: string, source: string) {
     drawn.push({ bar, target, kind, below });
     layer.append(bar);
   }
-  if (drawn.length === 0) return;
+  if (drawn.length === 0) return { marks: found, blocks };
   article.append(layer);
   place(article);
   observer ??= new ResizeObserver(([entry]) => place(entry.target as HTMLElement));
   observer.observe(article);
+  return { marks: found, blocks };
 }
 
 /** Removes the bars: before a morph, which would drop the layer or reuse

@@ -6,6 +6,7 @@ import { Seen } from "./changes.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { renderDiagrams } from "./diagrams.ts";
+import { scrolledTo, showOutline } from "./outline.ts";
 import { blockAt } from "./search.ts";
 import { encodePath } from "./sidebar.ts";
 
@@ -52,10 +53,16 @@ export function lastSeen(path: string): string | undefined {
   return seen.version(path);
 }
 
-/** Draws the change bars of `file` in `article`. */
+/** Draws the change bars of `file` in `article`, and their dots in the
+ * outline. */
 function bars(article: HTMLElement, path: string, file: FileView) {
-  if (file.source === null) clearBars(article);
-  else drawBars(article, seen.baseline(path, file.source), file.source);
+  if (file.source === null) {
+    clearBars(article);
+    showOutline(article);
+    return;
+  }
+  const { marks, blocks } = drawBars(article, seen.baseline(path, file.source), file.source);
+  showOutline(article, marks, blocks);
 }
 
 export function rawUrl(path: string): string {
@@ -85,6 +92,9 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   const article = articleFor(file.html);
   el.replaceChildren(article);
   el.scrollTop = 0;
+  // Before the scroll: with Full, the outline narrows the column, and the
+  // text wraps again. The dots come with the bars.
+  showOutline(article);
   scrollToHash();
   highlightAll(article);
   renderDiagrams(article).then(() => {
@@ -282,10 +292,12 @@ export function scrollToHash() {
   }
   const target = document.getElementById(id);
   const line = /^L(\d+)$/.exec(id);
-  if (target || !line) {
-    target?.scrollIntoView();
+  if (target) {
+    target.scrollIntoView();
+    scrolledTo(target);
     return;
   }
+  if (!line) return;
   const { blocks, elements } = blocksOf(document.querySelector("#mdame-content > article"));
   // Other types have no blocks: they stay at the top.
   elements[blockAt(blocks, Number(line[1]))]?.scrollIntoView({ block: "center" });

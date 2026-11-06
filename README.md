@@ -39,6 +39,9 @@ View options also sets the width of the text: Default (the theme's width, 60
 characters in the built-in themes), Wide (80 characters) or Full (the whole
 pane).
 
+At the right of the text, an outline lists the h2 and h3 headings of the file.
+View options hides it.
+
 ## Credits
 
 mdame is a rebuild of [mdlive](https://github.com/bearded-giant/mdlive), itself

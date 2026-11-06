@@ -436,7 +436,13 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - Checked in Chrome on 5 November 2026: `s` opens the panel; `retry` lists two files with their counts and marks "Retry" and "RETRY"; ↓ chooses the next file, whose lines break with a dashed line where the numbers jump; a click on line 27 opens `plan.md#L27` with its code block in the middle of the pane.
 9. The content width (done): the palette menu gains a Width section, and its tooltip says "View options". `a stored width wins`, `default sets no width`, `an unknown stored width falls back to default`.
    - `width.ts` holds the choice. Full sets `--content-width: none`, so the article's `max-width` goes and its 32 px padding stays. The menu gains a "Theme" and a "Width" label, as in the mockup, and its button is named "View options". The README's themes section says so.
-10. The outline: a pure module lists the headings and places the outline. `only h2 and h3 are listed`, `fewer than 3 headings give no outline`, `a section with a change bar gets a dot`, `the outline fits beside a centred column`, `without room the column moves left`, `with full the column narrows`, `when moving is not enough the outline hides`. Its toggle in View options.
+10. The outline (done): a pure module lists the headings and places the outline. `only h2 and h3 are listed`, `fewer than 3 headings give no outline`, `a section with a change bar gets a dot`, `the outline fits beside a centred column`, `without room the column moves left`, `with full the column narrows`, `when moving is not enough the outline hides`. Its toggle in View options.
+   - `outline.ts` holds the outline, with `entries` and `place` as its pure functions. `drawBars` now returns its marks and blocks, for the dots. The view shows the outline at once, then again with the dots once the bars are drawn.
+   - `scrollToHash` calls `scrolledTo` with the heading that it scrolled to. The outline keeps that heading highlighted while the pane's `scrollTop` stays the same. Kamal found the case: in a tall window, a click on "Backoff" in the sample plan scrolled to the end of the file, and "Open questions" got the highlight.
+   - The outline sits in a wrapper of no height, sticky at the top of the pane, before the article. The mouse wheel over the outline therefore scrolls the pane, and a morph of the article leaves the outline alone.
+   - Two variables on the pane, `--outline-left` and `--outline-right`, set the column's margins. A rule applies them only to an article that follows the wrapper, so a page without an outline never gets them.
+   - A `ResizeObserver` on the pane and on the article places the outline again: the pane changes with the window and the sidebar, the article with the width choice and the fonts. It places it in the next frame, as a move of the column inside the callback would resize the article again.
+   - Checked in Chrome on 5 November 2026, light and dark, on a sample plan, with a pane of 1017 px. Default moves the column 18 px left, Wide 108 px, and Full narrows it to 793 px. With no sidebar, the column stays centred. With a sidebar of 480 px, the outline hides. With Full, it shows in a pane of 797 px and hides in one of 677 px. A click on "Backoff" opens `#backoff` and highlights it; the end of the file highlights the last heading. After a rewrite, the 3 changed sections get dots, and the column stays in place. The toggle, the editor and a not-found page leave no outline and no moved column behind. The console stays empty. On 6 November, in a pane 1200 px tall, a click on "Backoff" scrolls to the end of the file, and "Backoff" stays highlighted until the pane scrolls.
 11. Spellcheck: the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
 12. Shortcut help: one list of the keys, and `?` opens the dialog, with the footer line. `every key that the page binds is in the help`, `macos shows ⌘ and the others ctrl`.
 13. Manual checklist, `cargo mutants`, review loop.
@@ -456,7 +462,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 10 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 11 of its plan.
 
 ## Open points
 

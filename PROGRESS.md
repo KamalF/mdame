@@ -443,7 +443,9 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - Two variables on the pane, `--outline-left` and `--outline-right`, set the column's margins. A rule applies them only to an article that follows the wrapper, so a page without an outline never gets them.
    - A `ResizeObserver` on the pane and on the article places the outline again: the pane changes with the window and the sidebar, the article with the width choice and the fonts. It places it in the next frame, as a move of the column inside the callback would resize the article again.
    - Checked in Chrome on 5 November 2026, light and dark, on a sample plan, with a pane of 1017 px. Default moves the column 18 px left, Wide 108 px, and Full narrows it to 793 px. With no sidebar, the column stays centred. With a sidebar of 480 px, the outline hides. With Full, it shows in a pane of 797 px and hides in one of 677 px. A click on "Backoff" opens `#backoff` and highlights it; the end of the file highlights the last heading. After a rewrite, the 3 changed sections get dots, and the column stays in place. The toggle, the editor and a not-found page leave no outline and no moved column behind. The console stays empty. On 6 November, in a pane 1200 px tall, a click on "Backoff" scrolls to the end of the file, and "Backoff" stays highlighted until the pane scrolls.
-11. Spellcheck: the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
+11. Spellcheck (done): the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
+   - `spellcheck.ts` holds the choice, the compartment and the extension that the editor adds. A view plugin in the extension keeps the set of open editors, so the menu reaches them without importing `editor.ts`. That import would make a cycle: `editor.ts` imports `view.ts`, which reaches `theme.ts` through `diagrams.ts`.
+   - Checked in Chrome on 6 November 2026, through the `spellcheck` attribute of the editor's text: it is on by default. The menu item turns it off and on at once, in the editor and in diff mode, and a reload keeps the choice. The console stays empty.
 12. Shortcut help: one list of the keys, and `?` opens the dialog, with the footer line. `every key that the page binds is in the help`, `macos shows ⌘ and the others ctrl`.
 13. Manual checklist, `cargo mutants`, review loop.
    - For the "done when" check: this repository's `.git/info/exclude` lists `/.claude/`, and ignore rules apply in hidden folders too, so its `.claude/plans` stays out of the tree. Run the check in another workspace.
@@ -462,7 +464,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 11 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 12 of its plan.
 
 ## Open points
 

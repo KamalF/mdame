@@ -1,1 +1,0 @@
-import{Ge,Sa,$a,Ea,ms}from"./main-rg1ep8t4.js";import"./main-6rt5k06g.js";import"./main-qanvg3wg.js";export{ms as javascript,Ge as javascriptLanguage,$a as jsxLanguage,Ea as tsxLanguage,Sa as typescriptLanguage};

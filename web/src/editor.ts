@@ -13,6 +13,7 @@ import * as preview from "./preview.ts";
 import * as revisions from "./revisions.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
 import { type Queue, serial } from "./serial.ts";
+import { spellcheck } from "./spellcheck.ts";
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
 import { lastSeen, message } from "./view.ts";
@@ -177,6 +178,7 @@ export async function mount(
       palette,
       notice.of([]),
       revisions.diffMode.of([]),
+      spellcheck(),
       // GitHub-flavoured, as the view renders it.
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),

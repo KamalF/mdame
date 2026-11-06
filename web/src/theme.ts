@@ -1,6 +1,7 @@
 import { api, type State } from "./api.ts";
 import { icon, iconButton } from "./icons.ts";
 import { chooseOutline, outlineOn } from "./outline.ts";
+import { chooseSpellcheck, spellcheckOn } from "./spellcheck.ts";
 import { load, store } from "./storage.ts";
 import { chooseWidth, currentWidth, WIDTHS } from "./width.ts";
 
@@ -72,7 +73,8 @@ function label(theme: string): string {
 }
 
 /** The View options button of the status bar: its menu holds the theme,
- * with the user `themes`, the content width and the outline. */
+ * with the user `themes`, the content width, the outline and the
+ * spellcheck. */
 export function themeButton(themes: readonly string[]): HTMLElement {
   const menu = document.createElement("div");
   menu.className = "mdame-menu";
@@ -118,6 +120,7 @@ export function themeButton(themes: readonly string[]): HTMLElement {
       ),
       heading("Show"),
       item("Outline", outlineOn(), () => chooseOutline(!outlineOn())),
+      item("Spellcheck", spellcheckOn(), () => chooseSpellcheck(!spellcheckOn())),
     );
   }
 

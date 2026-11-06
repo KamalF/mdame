@@ -42,6 +42,9 @@ pane).
 At the right of the text, an outline lists the h2 and h3 headings of the file.
 View options hides it.
 
+The editor underlines spelling mistakes, with your browser's dictionary. View
+options turns this off.
+
 ## Credits
 
 mdame is a rebuild of [mdlive](https://github.com/bearded-giant/mdlive), itself

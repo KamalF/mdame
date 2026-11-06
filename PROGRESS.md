@@ -534,7 +534,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. Git guards the same aliases. Not checked.
   - A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A limit such as `rg --max-columns` would bound it.
   - Spellcheck is on by default. A browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor. The README could say so.
-  - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Skipping a folder that holds a `.git` file would fix it. Not checked.
+  - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`. The list of changes still shows writes there until the watcher skips ignored folders, in milestone 10.
 - Nits deferred by the review of milestone 9:
   - `marks()` costs blocks × lines, and the outline's `entries()` costs marks × headings. A crafted file can block the tab for seconds at each change.
   - The version last seen follows a rename only for the file on screen.

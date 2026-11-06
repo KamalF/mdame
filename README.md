@@ -34,6 +34,11 @@ lists the options.
   restores them. Its diff mode also shows the version that you last saw, and
   restores it.
 
+Files that `.gitignore` hides stay out of the tree and the search. To hide
+more, such as the git worktrees that an agent keeps in `.claude/worktrees/`,
+list them in a `.ignore` file at the root of the folder, or in
+`.git/info/exclude`. Both use the syntax of `.gitignore`.
+
 For the keyboard shortcuts, press `?` or click the keyboard button in the status bar.
 
 ## Themes

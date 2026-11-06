@@ -452,8 +452,64 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `bindKeys` now ignores the keys while a dialog is open. Without it, `e` in the help opened the editor behind the dialog.
    - `web/dist/THIRD-PARTY-LICENSES.txt` moved to `web/dist/assets/`, so that the footer's "Licences" link opens the copy that mdame serves. The server now sends `.txt` as `text/plain`, so the browser shows the file instead of downloading it: `the_licences_show_as_text` in `tests/assets.rs`.
    - Checked in Chrome on 6 November 2026: `?` opens the help, with the focus on Close, and the actions of the three groups line up. A second `?` opens no second dialog, and `e` does not open the editor behind it. Closing the dialog removes it. The footer reads "mdame 0.0.1 · Repository · Licences". The console stays empty.
-13. Manual checklist, `cargo mutants`, review loop.
+13. Review loop (done), `cargo mutants` (done), manual checklist.
    - For the "done when" check: this repository's `.git/info/exclude` lists `/.claude/`, and ignore rules apply in hidden folders too, so its `.claude/plans` stays out of the tree. Run the check in another workspace.
+   - Review loop, done on 6 November 2026: a simplify pass, then 11 rounds of a code reviewer and a security reviewer, until a round found no blocker and no should-fix. Decided on the way:
+     - The search panel searches 150 ms after typing stops. The server cannot stop a search, so one search per keystroke would pile up.
+     - `/api/search` gives each file a `more` flag, so a file with exactly 20 matches no longer shows `20+`.
+     - `.git` and `.mdame` are refused in any letter case, since some file systems ignore case.
+     - Leaving a file from its editor counts as leaving it with the text that the editor held. Esc back to the view of the same file does not leave it.
+     - Markdown in `.github/workflows/` is editable, so an agentic workflow there joins `CLAUDE.md` and the skills in the accepted risks of `docs/SPEC.md`. The other choice: refuse edits under `.github/workflows/`.
+     - Text replaced by blank lines gets a "removed" mark. Blank lines between the items of a loose list, or a lone `>` in a quote, mark no container. Text changed in no block, such as front matter, gets no mark.
+   - `cargo mutants` on the diff of the milestone, 6 November 2026: 50 mutants, 40 caught, 10 unviable, none missed.
+
+### Manual checklist
+
+To run. These checks cover what no unit test covers: the bars, menus and panels on screen, and the agent workflow from end to end. Run mdame on a test folder with `cargo run -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. The folder holds:
+
+- `plan.md`, with front matter, 4 h2 headings, a loose list, a quote and a Mermaid diagram;
+- `.claude/plans/a.md`, `.claude/settings.json` and `.git/notes.md`;
+- `crlf.md`, with CRLF line breaks;
+- `twenty.md` and `more.md`, with 20 and 21 lines that hold "retry".
+
+Agent workflow:
+
+1. In another workspace, set `plansDirectory` to `.claude/plans` in the settings of Claude Code, and ask it for a plan. The plan shows in the tree and in the list of changes, and one click opens it. Ask for a change: the changed blocks get bars, and the outline gets dots. `h` opens diff mode on "Last seen", which shows the change. Its Restore brings back the plan that you saw.
+
+Hidden folders:
+
+2. The tree shows `.claude/plans/a.md`, but not `.claude/settings.json` and not `.git`. `e` opens `a.md` in the editor, and Save writes it.
+
+Change bars and "Last seen":
+
+3. Change `plan.md` on disk while it is on screen: the changed blocks get bars at their left, in one column, and only the new bar glows. Make the window narrower: the bars follow their blocks.
+4. In `plan.md`, add an item to the loose list: only the new item gets a bar. Change the front matter: no bar. Replace the paragraph under "Goal" by a blank line: a red mark shows where it was.
+5. Open `plan.md`, go to `/`, change `plan.md` on disk, then open it again: the bars show only that change. Do the same through the editor of `a.md`.
+6. Open `plan.md` and press `e`. Change the file on disk: the editor reloads it. Click `a.md`, then `plan.md`: no bar for the change that the editor showed. Do the same with `crlf.md`: no bar at all.
+7. In the editor of `plan.md`, type a word, then change the file on disk: the notice shows. Click Reload, then press `h`: "Last seen" is the first entry.
+
+List of changes:
+
+8. Write three markdown files on disk: the status bar shows the newest name and `+2`. A click opens a menu above it, newest first, with Clear. Write 40 more: the menu scrolls, and its top stays in the window.
+9. Write `2026-11-06-implementation-plan-for-the-search.md`: its name ends in "…" inside its button.
+10. Open the menu and move the focus to an item with Tab. Write a `.json` file, then the newest markdown file again: the menu stays as it is, with the focus on the same item.
+11. With `plan.md` on screen, run `mv plan.md plan2.md` in a terminal: the view follows, and the list does not show `plan2.md`.
+
+Search:
+
+12. `s` opens the panel. Type `retry` fast: DevTools shows one request, about 150 ms after the last key. `twenty.md` shows 20, and `more.md` shows `20+`.
+13. One Esc closes the panel, in Chrome too.
+14. Click a file in the list, then press ↓ and Enter: the next file is chosen, and Enter opens it at its first match.
+15. With an input method, such as Japanese, type in the field: Enter converts the text and opens no file, and Esc cancels the composition and keeps the panel open.
+
+View options:
+
+16. With the outline on and a pane of about 900 px, choose Full: the outline shows, and the column narrows. Choose Wide: with no resize, the column is centred again, and the outline hides if it does not fit.
+17. Each choice of Theme, Width and Show applies at once, and stays after a reload. Spellcheck underlines a misspelt word in the editor, and its toggle turns it off.
+
+Help:
+
+18. `?` opens the help. Its footer's Licences link shows the licences as text in the browser.
 
 ## Public repository and crate
 
@@ -469,10 +525,25 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 13 of its plan, the manual checklist, `cargo mutants` and the review loop.
+1. Milestone 9, on the `m9-agent-workflow` branch: the manual checklist, then the merge.
 
 ## Open points
 
+- From the review of milestone 9, for later:
+  - `mdame ~/.claude` lists `settings.json`, and a leaked token can rewrite it: the hidden and `.git`/`.mdame` rules look only below the root. Apply them to the root's own real path too. `main` has the same gap.
+  - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. Git guards the same aliases. Not checked.
+  - A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A limit such as `rg --max-columns` would bound it.
+  - Spellcheck is on by default. A browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor. The README could say so.
+  - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Skipping a folder that holds a `.git` file would fix it. Not checked.
+- Nits deferred by the review of milestone 9:
+  - `marks()` costs blocks × lines, and the outline's `entries()` costs marks × headings. A crafted file can block the tab for seconds at each change.
+  - The version last seen follows a rename only for the file on screen.
+  - "Last seen" of a file that was not UTF-8 holds U+FFFD, and its Restore writes them.
+  - A blank line that splits a paragraph in two gets no bar.
+  - A long name in the list of changes may overflow its button. The manual checklist watches for it.
+  - `spy()` in the outline reads the box of every heading at each scroll frame.
+  - `forget()` keeps the article that the editor replaced in memory until the next file shows.
+  - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.
 - From the review of milestone 8, for milestone 10:
   - CI: pin `jdx/mise-action` and `Swatinem/rust-cache` by commit SHA, and set `persist-credentials: false` on the checkout.
   - `web/themes/README.md`: say to use only themes that you trust. A theme can load images from the web, and so tell its author when mdame is used and which links a page holds.

@@ -7,8 +7,9 @@ else.
 
 Put the file in `~/.config/mdame/themes/`, or in `$XDG_CONFIG_HOME/mdame/themes/`
 if you set that variable. The palette button at the right of the status bar
-opens the theme menu, which lists the file by its name without `.css`. The menu
-reads the folder each time it opens, so a new theme shows without a restart. A
+opens View options, whose Theme section lists the file by its name without
+`.css`. The menu reads the folder each time it opens, so a new theme shows
+without a restart. A
 symbolic link counts too, so a dotfile manager can keep the file elsewhere.
 
 Each browser keeps its own choice for each port: a second mdame, on the next
@@ -25,9 +26,11 @@ A file named `light.css` or `dark.css` replaces that built-in theme, with nothin
 under it, so it must set every variable. Start from a copy of `light.css` or
 `dark.css` in this folder.
 
-A theme sets no diff or hover colours. The diff of revisions mixes `--success`
-and `--danger` into the background, and a hovered row mixes in `--fg`. Shadows
-and backdrops stay translucent black.
+A theme sets no diff, change bar or hover colours. The diff of revisions mixes
+`--success` and `--danger` into the background, and a hovered row mixes in
+`--fg`. The change bars use `--success` for an added block, `--accent` for a
+changed one and `--danger` where text was removed. Shadows and backdrops stay
+translucent black.
 `--content-width-mono` is reserved for a mono mode that mdame does not have yet.
 
 ## Template
@@ -51,17 +54,17 @@ lines that you do not change.
   --selection: #1f6febb3; /* selected text, the current file */
 
   /* Meaning */
-  --accent: #4493f8; /* links, focus, main buttons */
+  --accent: #4493f8; /* links, focus, main buttons, changed blocks, the outline */
   --accent-fg: #010409; /* text on a button of --accent colour */
-  --danger: #f85149; /* errors, removed lines, caution alerts */
-  --warning: #d29922; /* warning alerts */
-  --success: #3fb950; /* added lines */
+  --danger: #f85149; /* errors, removed lines and text, caution alerts */
+  --warning: #d29922; /* warning alerts, search matches */
+  --success: #3fb950; /* added lines and blocks */
 
   /* Type */
   --font-ui: "IBM Plex Sans Variable", system-ui, sans-serif; /* the interface */
   --font-content: var(--font-ui); /* rendered files */
   --font-mono: "IBM Plex Mono", ui-monospace, monospace; /* code */
-  --content-width: 60ch; /* the column of rendered files */
+  --content-width: 60ch; /* the column of rendered files, with Width: Default */
 
   /* Code, in the editor and in rendered files */
   --code-bg: #151b23; /* code blocks and inline code */

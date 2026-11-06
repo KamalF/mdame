@@ -124,3 +124,21 @@ export function askNewFile(folder: string): Promise<string | null> {
     });
   });
 }
+
+/** A menu of the status bar: it opens above `button`, at its right edge.
+ * `onOpen` fills it as it opens. */
+export function statusMenu(button: HTMLElement, onOpen: () => void): HTMLDivElement {
+  const menu = document.createElement("div");
+  menu.className = "mdame-menu";
+  menu.popover = "auto";
+  menu.addEventListener("beforetoggle", (event) => {
+    if ((event as ToggleEvent).newState !== "open") return;
+    onOpen();
+    const rect = button.getBoundingClientRect();
+    menu.style.right = `${innerWidth - rect.right}px`;
+    menu.style.bottom = `${innerHeight - rect.top + 4}px`;
+    // A long menu scrolls, rather than going past the top of the window.
+    menu.style.maxHeight = `${rect.top - 8}px`;
+  });
+  return menu;
+}

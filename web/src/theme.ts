@@ -1,6 +1,7 @@
 import { api, type State } from "./api.ts";
+import { statusMenu } from "./dialogs.ts";
 import { icon, iconButton } from "./icons.ts";
-import { chooseOutline, outlineOn } from "./outline.ts";
+import { chooseOutline, layoutOutline, outlineOn } from "./outline.ts";
 import { chooseSpellcheck, spellcheckOn } from "./spellcheck.ts";
 import { load, store } from "./storage.ts";
 import { chooseWidth, currentWidth, WIDTHS } from "./width.ts";
@@ -68,20 +69,37 @@ function choose(theme: string | null) {
   apply();
 }
 
+function capitalize(word: string): string {
+  return word[0].toUpperCase() + word.slice(1);
+}
+
 function label(theme: string): string {
-  return isBuiltIn(theme) ? theme[0].toUpperCase() + theme.slice(1) : theme;
+  return isBuiltIn(theme) ? capitalize(theme) : theme;
 }
 
 /** The View options button of the status bar: its menu holds the theme,
  * with the user `themes`, the content width, the outline and the
  * spellcheck. */
 export function themeButton(themes: readonly string[]): HTMLElement {
-  const menu = document.createElement("div");
-  menu.className = "mdame-menu";
-  menu.popover = "auto";
   // As the menu's invoker, the button is outside its light dismiss: a click
   // on it closes the open menu rather than opening it again.
   const button = iconButton("View options", "palette", () => {});
+  const menu = statusMenu(button, () => {
+    render();
+    // The server reads the themes folder again: a new theme shows now.
+    api<State>("GET", "/api/state").then(
+      ({ themes }) => {
+        const changed = themes.join("\n") !== known.join("\n");
+        known = themes;
+        // Deleted since it was chosen: the page follows the menu, which
+        // marks System.
+        const stored = load<unknown>(KEY, null);
+        if (stored !== null && chosen(stored, themes) === null) choose(null);
+        if (changed && menu.matches(":popover-open")) render();
+      },
+      () => {},
+    );
+  });
   button.popoverTargetElement = menu;
   let known = themes;
 
@@ -114,9 +132,12 @@ export function themeButton(themes: readonly string[]): HTMLElement {
       ),
       heading("Width"),
       ...WIDTHS.map((choice) =>
-        item(choice[0].toUpperCase() + choice.slice(1), choice === width, () =>
-          chooseWidth(choice),
-        ),
+        item(capitalize(choice), choice === width, () => {
+          chooseWidth(choice);
+          // From Full, the outline's margin keeps the article's width, so
+          // its observer sees no change.
+          layoutOutline();
+        }),
       ),
       heading("Show"),
       item("Outline", outlineOn(), () => chooseOutline(!outlineOn())),
@@ -124,27 +145,6 @@ export function themeButton(themes: readonly string[]): HTMLElement {
     );
   }
 
-  menu.addEventListener("beforetoggle", (event) => {
-    if ((event as ToggleEvent).newState !== "open") return;
-    render();
-    // Above the button, at its right edge: the status bar is at the bottom.
-    const rect = button.getBoundingClientRect();
-    menu.style.right = `${innerWidth - rect.right}px`;
-    menu.style.bottom = `${innerHeight - rect.top + 4}px`;
-    // The server reads the themes folder again: a new theme shows now.
-    api<State>("GET", "/api/state").then(
-      ({ themes }) => {
-        const changed = themes.join("\n") !== known.join("\n");
-        known = themes;
-        // Deleted since it was chosen: the page follows the menu, which
-        // marks System.
-        const stored = load<unknown>(KEY, null);
-        if (stored !== null && chosen(stored, themes) === null) choose(null);
-        if (changed && menu.matches(":popover-open")) render();
-      },
-      () => {},
-    );
-  });
   const wrapper = document.createElement("span");
   wrapper.append(button, menu);
   return wrapper;

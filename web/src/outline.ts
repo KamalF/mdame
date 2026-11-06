@@ -12,7 +12,7 @@ const MIN_FULL_COLUMN = 480;
  * the pane. */
 const REACHED = 48;
 
-export interface Heading {
+interface Heading {
   level: number;
   /** Its line in the source, from 1. */
   line: number;
@@ -137,14 +137,14 @@ function render() {
   wrapper.className = "mdame-outline";
   wrapper.append(nav);
   pane.prepend(wrapper);
-  layout();
+  layoutOutline();
   // The browser keeps one listener, however many times it is added.
   pane.addEventListener("scroll", spy, { passive: true });
   observer ??= new ResizeObserver(() => {
     // A move of the column inside the callback would resize what it
     // observes, in a loop.
     cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(layout);
+    frame = requestAnimationFrame(layoutOutline);
   });
   // The pane for its width, the article for the width choice and the fonts.
   observer.observe(pane);
@@ -152,15 +152,25 @@ function render() {
 }
 
 /** Places the column and the outline, or hides the outline. */
-function layout() {
+export function layoutOutline() {
   if (!shown || !wrapper?.isConnected) return;
   const pane = wrapper.parentElement!;
-  pane.style.removeProperty("--outline-left");
-  pane.style.removeProperty("--outline-right");
   const full = currentWidth() === "full";
-  const spot = place(pane.clientWidth, shown.article.getBoundingClientRect().width, full);
+  let column = 0;
+  // Full needs no width: the column takes what the outline leaves. A read
+  // with the margins off would wrap the whole text again.
+  if (!full) {
+    pane.style.removeProperty("--outline-left");
+    pane.style.removeProperty("--outline-right");
+    column = shown.article.getBoundingClientRect().width;
+  }
+  const spot = place(pane.clientWidth, column, full);
   wrapper.hidden = spot === null;
-  if (!spot) return;
+  if (!spot) {
+    pane.style.removeProperty("--outline-left");
+    pane.style.removeProperty("--outline-right");
+    return;
+  }
   pane.style.setProperty("--outline-left", `${spot.left}px`);
   if (full) pane.style.setProperty("--outline-right", `${ROOM}px`);
   const nav = wrapper.firstElementChild as HTMLElement;
@@ -183,20 +193,17 @@ function spy() {
   if (!shown || !wrapper?.isConnected || wrapper.hidden) return;
   const pane = wrapper.parentElement!;
   if (target && pane.scrollTop !== target.scrollTop) target = undefined;
-  const pinned = shown.entries.findIndex(({ element }) => element === target?.element);
-  if (pinned !== -1) {
-    links.forEach((link, index) => link.setAttribute("aria-current", String(index === pinned)));
-    return;
+  let current = shown.entries.findIndex(({ element }) => element === target?.element);
+  if (current === -1) {
+    const reached = pane.getBoundingClientRect().top + REACHED;
+    shown.entries.forEach(({ element }, index) => {
+      // A heading in a closed `<details>` has no box.
+      if (element.getClientRects().length === 0) return;
+      if (element.getBoundingClientRect().top <= reached) current = index;
+    });
+    // The last sections may be too short to reach the top.
+    const bottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1;
+    if (pane.scrollTop > 0 && bottom) current = shown.entries.length - 1;
   }
-  const reached = pane.getBoundingClientRect().top + REACHED;
-  let current = -1;
-  shown.entries.forEach(({ element }, index) => {
-    // A heading in a closed `<details>` has no box.
-    if (element.getClientRects().length === 0) return;
-    if (element.getBoundingClientRect().top <= reached) current = index;
-  });
-  // The last sections may be too short to reach the top.
-  const bottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1;
-  if (pane.scrollTop > 0 && bottom) current = shown.entries.length - 1;
   links.forEach((link, index) => link.setAttribute("aria-current", String(index === current)));
 }

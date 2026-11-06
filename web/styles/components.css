@@ -26,7 +26,7 @@
   margin: 0 0 16px;
 }
 
-.mdame-dialog input[type="text"] {
+.mdame-dialog :is(input[type="text"], input[type="search"]) {
   box-sizing: border-box;
   width: 100%;
   height: 32px;
@@ -416,8 +416,10 @@
   background: var(--hover);
 }
 
-.mdame-menu-label {
-  padding: 6px 12px 2px 8px;
+/* The small labels of the menu, the help and the outline. */
+.mdame-menu-label,
+.mdame-help h3,
+.mdame-outline-label {
   color: var(--fg-muted);
   font-size: 11px;
   font-weight: 500;
@@ -425,7 +427,12 @@
   text-transform: uppercase;
 }
 
-.mdame-menu-label:not(:first-child) {
+.mdame-menu-label {
+  padding: 6px 12px 2px 8px;
+}
+
+.mdame-menu-label:not(:first-child),
+.mdame-menu .mdame-menu-separated {
   margin-top: 4px;
   border-top: 1px solid var(--border);
 }
@@ -448,13 +455,17 @@
   cursor: pointer;
 }
 
-/* A dot, as the outline marks a changed section. */
-.mdame-changes-button::before {
+/* The dot of a change: in the outline, and before the list of changes. */
+.mdame-changes-button::before,
+.mdame-outline-dot {
   width: 6px;
   height: 6px;
   flex: none;
   border-radius: 50%;
   background: var(--accent);
+}
+
+.mdame-changes-button::before {
   content: "";
 }
 
@@ -463,8 +474,6 @@
 }
 
 .mdame-menu .mdame-menu-separated {
-  margin-top: 4px;
-  border-top: 1px solid var(--border);
   border-radius: 0;
 }
 
@@ -482,15 +491,9 @@
 }
 
 .mdame-dialog.mdame-search input[type="search"] {
-  box-sizing: border-box;
-  width: 100%;
   height: 36px;
+  margin: 0;
   padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
 }
 
 .mdame-dialog .mdame-search-status {
@@ -603,11 +606,6 @@
 
 .mdame-help h3 {
   margin: 16px 0 6px;
-  color: var(--fg-muted);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 /* One width for the keys of every group, so the actions line up. */
@@ -638,11 +636,6 @@
   text-align: center;
 }
 
-.mdame-help-footer {
-  color: var(--fg-muted);
-  font-size: 12px;
-}
-
-.mdame-help-footer a {
+.mdame-help a {
   color: var(--accent);
 }

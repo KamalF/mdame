@@ -25,8 +25,25 @@ test("other types are not listed", () => {
 });
 
 test("the file on screen is not listed", () => {
-  const list = listAfter([{ type: "changed", path: "a.md" }], "a.md");
-  expect(list.paths).toEqual([]);
+  expect(listAfter([{ type: "changed", path: "a.md" }], "a.md").paths).toEqual([]);
+  // Renamed, over a listed file too: the view follows it.
+  const renamed = listAfter(
+    [
+      { type: "changed", path: "b.md" },
+      { type: "renamed", from: "a.md", to: "b.md" },
+    ],
+    "a.md",
+  );
+  expect(renamed.paths).toEqual([]);
+  // A listed file moved over it.
+  const moved = listAfter(
+    [
+      { type: "created", path: "draft.md" },
+      { type: "renamed", from: "draft.md", to: "a.md" },
+    ],
+    "a.md",
+  );
+  expect(moved.paths).toEqual([]);
 });
 
 test("a second change moves the file to the top", () => {

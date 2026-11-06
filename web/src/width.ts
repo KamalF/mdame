@@ -2,7 +2,7 @@ import { load, store } from "./storage.ts";
 
 const KEY = "mdame:width";
 export const WIDTHS = ["default", "wide", "full"] as const;
-export type Width = (typeof WIDTHS)[number];
+type Width = (typeof WIDTHS)[number];
 
 /** The stored width, or default for none or one that mdame does not know. */
 export function chosenWidth(stored: unknown): Width {

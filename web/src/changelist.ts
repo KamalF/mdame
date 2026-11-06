@@ -1,3 +1,4 @@
+import { statusMenu } from "./dialogs.ts";
 import { isWithin, type LiveEvent, movedPath } from "./live.ts";
 
 const MARKDOWN = /\.(md|markdown)$/i;
@@ -16,6 +17,11 @@ export class ChangeList {
   apply(event: LiveEvent, open: string | null) {
     if (event.type === "resync") return;
     if (event.type === "renamed") {
+      // The view follows the file on screen to its new name.
+      if (event.from === open) {
+        this.opened(event.to);
+        return;
+      }
       const moved = this.#paths.map((path) => movedPath(path, event.from, event.to) ?? path);
       // A program that saves by renaming a new file over the path moves
       // nothing that the list holds: that is a change to the path.
@@ -24,11 +30,13 @@ export class ChangeList {
       } else {
         // A file moved over a listed one: the list keeps one entry.
         this.#paths = moved.filter(
-          (path, index) => moved.indexOf(path) === index && MARKDOWN.test(path),
+          (path, index) => moved.indexOf(path) === index && path !== open && MARKDOWN.test(path),
         );
       }
     } else if (event.type === "removed") {
-      this.#paths = this.#paths.filter((path) => !isWithin(path, event.path));
+      const kept = this.#paths.filter((path) => !isWithin(path, event.path));
+      // The same array when nothing left the list: an open menu stays as it is.
+      if (kept.length < this.#paths.length) this.#paths = kept;
     } else {
       this.#add(event.path, open);
     }
@@ -36,7 +44,7 @@ export class ChangeList {
 
   /** The tab opened `path`, from anywhere: it leaves the list. */
   opened(path: string) {
-    this.#paths = this.#paths.filter((listed) => listed !== path);
+    if (this.#paths.includes(path)) this.#paths = this.#paths.filter((listed) => listed !== path);
   }
 
   clear() {
@@ -44,7 +52,7 @@ export class ChangeList {
   }
 
   #add(path: string, open: string | null) {
-    if (path === open || !MARKDOWN.test(path)) return;
+    if (path === open || !MARKDOWN.test(path) || this.#paths[0] === path) return;
     this.#paths = [path, ...this.#paths.filter((listed) => listed !== path)];
   }
 }
@@ -59,9 +67,7 @@ export function changesItem(open: (path: string) => void, clear: () => void) {
   wrapper.className = "mdame-changes";
   const button = document.createElement("button");
   button.className = "mdame-changes-button";
-  const menu = document.createElement("div");
-  menu.className = "mdame-menu";
-  menu.popover = "auto";
+  const menu = statusMenu(button, renderMenu);
   let paths: readonly string[] = [];
 
   // With several files, the button opens the menu as its popover target.
@@ -89,17 +95,10 @@ export function changesItem(open: (path: string) => void, clear: () => void) {
     menu.replaceChildren(...items, clearItem);
   }
 
-  menu.addEventListener("beforetoggle", (event) => {
-    if ((event as ToggleEvent).newState !== "open") return;
-    renderMenu();
-    // Above the button, at its right edge: the status bar is at the bottom.
-    const rect = button.getBoundingClientRect();
-    menu.style.right = `${innerWidth - rect.right}px`;
-    menu.style.bottom = `${innerHeight - rect.top + 4}px`;
-  });
-
   /** Shows `next`, newest first. */
   function update(next: readonly string[]) {
+    // An event that changes nothing must not rebuild an open menu.
+    if (next === paths) return;
     paths = next;
     if (paths.length === 0) {
       if (menu.matches(":popover-open")) menu.hidePopover();

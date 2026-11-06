@@ -223,10 +223,10 @@ function render(current: Shown) {
       const chosen = revision.id === current.chosen;
       const button = document.createElement("button");
       button.className = "mdame-revision";
-      const replaced = revision.time === null ? null : new Date(revision.time).toLocaleString();
-      button.title = replaced
-        ? `The file as it was until mdame saved over it, on ${replaced}`
-        : "The file as the view showed it when you last left it";
+      button.title =
+        revision.time === null
+          ? "The file as the view showed it when you last left it"
+          : `The file as it was until mdame saved over it, on ${new Date(revision.time).toLocaleString()}`;
       const time = document.createElement("span");
       time.textContent = label(revision, now);
       const detail = document.createElement("small");

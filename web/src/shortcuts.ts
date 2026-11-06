@@ -46,14 +46,15 @@ const NAMES: Record<string, string> = { ArrowUp: "↑", ArrowDown: "↓", Escape
 /** How `key` shows in the help: ⌘ and ⇧ on macOS, Ctrl and Shift
  * elsewhere. */
 export function keyLabel(key: string, mac: boolean): string {
-  const [name, ...modifiers] = key.split("-").reverse();
+  const modifiers = key.split("-");
+  const name = modifiers.pop()!;
   if (modifiers.length === 0) return NAMES[name] ?? name;
   const symbols: Record<string, string> = mac
     ? { Mod: "⌘", Shift: "⇧" }
     : { Mod: "Ctrl", Shift: "Shift" };
   // A letter shows in upper case, as on the key.
   const shown = name.length === 1 ? name.toUpperCase() : name;
-  return [...modifiers.reverse().map((modifier) => symbols[modifier]), shown].join(mac ? "" : "+");
+  return [...modifiers.map((modifier) => symbols[modifier]), shown].join(mac ? "" : "+");
 }
 
 /** Opens the shortcut help, with `version` in its footer. */
@@ -84,7 +85,7 @@ export function openHelp(version: string) {
     "The editor also keeps the keys of CodeMirror, such as " +
     `${find} to find and ${undo} to undo.`;
   const footer = document.createElement("p");
-  footer.className = "mdame-help-footer";
+  footer.className = "mdame-dialog-note";
   footer.append(
     `mdame ${version} · `,
     link("Repository", REPOSITORY),

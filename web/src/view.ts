@@ -34,16 +34,22 @@ let request = 0;
 let shown: { path: string; file: FileView } | undefined;
 
 const seen = new Seen();
-/** The file that the view showed last, with its source. The editor of the
- * same file does not leave it: diff mode compares with the version that
- * the view saw before. */
+/** The file that the view showed last, with its source, until the view
+ * leaves it. */
 let onScreen: { path: string; source: string | null } | undefined;
 
-/** Keeps the version last seen of the file that the view leaves. */
-function showing(path: string, source: string | null) {
-  if (onScreen && onScreen.path !== path && onScreen.source !== null) {
-    seen.leave(onScreen.path, onScreen.source);
-  }
+/** The view leaves the file on screen for `next`, and keeps its version
+ * last seen. The editor of the same file does not leave it: diff mode
+ * compares with the version that the view saw before. */
+function leaveFor(next: string | null) {
+  if (!onScreen || onScreen.path === next) return;
+  if (onScreen.source !== null) seen.leave(onScreen.path, onScreen.source);
+  onScreen = undefined;
+}
+
+/** The editor of `path` closes, with `source` on disk as it held it: that
+ * text was on screen last. */
+export function editorClosed(path: string, source: string) {
   onScreen = { path, source };
 }
 
@@ -85,10 +91,14 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   }
   const id = ++request;
   shown = undefined;
+  leaveFor(path);
   const file = await fetchFile(el, path, id);
   if (!file) return null;
   shown = { path, file };
-  showing(path, file.source);
+  onScreen = { path, source: file.source };
+  // Now, not with the bars: a change on disk while the diagrams draw would
+  // become the version last seen.
+  if (file.source !== null) seen.baseline(path, file.source);
   const article = articleFor(file.html);
   el.replaceChildren(article);
   el.scrollTop = 0;
@@ -120,7 +130,7 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   const article = await prepare(file.html);
   if (id !== request) return null;
   shown = { path, file };
-  showing(path, file.source);
+  onScreen = { path, source: file.source };
   const onPage = el.querySelector<HTMLElement>(":scope > article")!;
   clearBars(onPage);
   morphInto(onPage, article);
@@ -165,7 +175,8 @@ export function shownFile(): FileView | undefined {
 export function renameShown(path: string) {
   if (!shown) return;
   seen.rename(shown.path, path);
-  if (onScreen?.path === shown.path) onScreen = { ...onScreen, path };
+  // Set with `shown`, so on the same file.
+  onScreen = { ...onScreen!, path };
   shown = { ...shown, path };
 }
 
@@ -263,10 +274,11 @@ function notFound(el: HTMLElement, path: string, error: ApiError) {
 }
 
 /** Forgets the file on screen, as another screen replaces it: the next
- * `showFile` renders it anew. */
-export function forget() {
+ * `showFile` renders it anew. `editing` is the file that the editor opens. */
+export function forget(editing: string | null = null) {
   request++;
   shown = undefined;
+  leaveFor(editing);
 }
 
 /** The page with no file chosen; `empty` when the workspace shows none. */

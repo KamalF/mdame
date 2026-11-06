@@ -67,7 +67,7 @@ export function drawBars(
   }
   if (drawn.length === 0) return { marks: found, blocks };
   article.append(layer);
-  place(article);
+  // Its first callback places the bars, before the next paint.
   observer ??= new ResizeObserver(([entry]) => place(entry.target as HTMLElement));
   observer.observe(article);
   return { marks: found, blocks };
@@ -83,10 +83,16 @@ export function clearBars(article: HTMLElement) {
 
 function place(article: HTMLElement) {
   const top = article.getBoundingClientRect().top;
-  for (const { bar, target, kind, below } of drawn) {
+  // All the reads, then all the writes: a read after a write lays the page
+  // out again.
+  const rects = drawn.map(({ target }) =>
     // A block in a closed `<details>` has no box.
-    bar.hidden = target.getClientRects().length === 0;
-    const rect = target.getBoundingClientRect();
+    target.getClientRects().length === 0 ? null : target.getBoundingClientRect(),
+  );
+  drawn.forEach(({ bar, kind, below }, index) => {
+    const rect = rects[index];
+    bar.hidden = rect === null;
+    if (!rect) return;
     if (kind === "removed") {
       // In the gap above the block, or below the last one.
       bar.style.top = `${(below ? rect.bottom + 8 : rect.top - 8) - top}px`;
@@ -94,5 +100,5 @@ function place(article: HTMLElement) {
       bar.style.top = `${rect.top - top + 2}px`;
       bar.style.height = `${Math.max(rect.height - 4, 2)}px`;
     }
-  }
+  });
 }

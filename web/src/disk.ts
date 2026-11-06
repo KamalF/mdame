@@ -1,5 +1,6 @@
 import { diff } from "@codemirror/merge";
 import type { ChangeSpec } from "@codemirror/state";
+import { encodeLines } from "./changes.ts";
 
 /**
  * What the editor does when its file may have changed on disk. `disk` is
@@ -35,23 +36,12 @@ export function reloadChanges(text: string, next: string): ChangeSpec[] {
   next = next.replace(/\r\n?/g, "\n");
   // Lines first, then characters inside the changed lines. Above about
   // 16 KB of changes, a character diff alone gives one change for the
-  // whole text, and the cursor jumps. As in diff-match-patch, each
-  // distinct line becomes one character.
+  // whole text, and the cursor jumps.
   const linesA = text.split(/(?<=\n)/);
   const linesB = next.split(/(?<=\n)/);
-  const codes = new Map<string, string>();
-  const encode = (lines: string[]) =>
-    lines
-      .map((line) => {
-        let code = codes.get(line);
-        if (code === undefined) codes.set(line, (code = String.fromCharCode(codes.size)));
-        return code;
-      })
-      .join("");
-  const a = encode(linesA);
-  const b = encode(linesB);
-  // From 0xD800 on, the codes would form surrogate pairs.
-  if (codes.size > 0xd800) return charChanges(text, next, 0);
+  const encoded = encodeLines(linesA, linesB);
+  if (!encoded) return charChanges(text, next, 0);
+  const [a, b] = encoded;
   const startA = starts(linesA);
   const startB = starts(linesB);
   // A higher limit keeps the cursor across more changed lines. Timed on

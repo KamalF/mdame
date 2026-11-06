@@ -25,7 +25,7 @@ fileStatus.className = "mdame-file-status";
 
 const changes = new ChangeList();
 const changesStatus = changesItem(
-  (path) => openFile(path),
+  openFile,
   () => {
     changes.clear();
     changesStatus.update(changes.paths);
@@ -133,7 +133,9 @@ function showRoute(withRevisions = false) {
   }
   if (editing && path) {
     fileStatus.replaceChildren();
-    view.forget();
+    // Before `forget`: the editor of another file leaves it.
+    editor.unmount();
+    view.forget(path);
     editor.mount(content, path, showEditStatus, withRevisions);
   } else {
     editor.unmount();

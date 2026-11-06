@@ -39,6 +39,30 @@ test("a changed list item marks the item, not the list", () => {
   ]);
 });
 
+test("a block added to a loose list or a quote marks the block, not its container", () => {
+  // The heading, the list, then each item and its paragraph, then "After.".
+  const list = [{ start: 1, end: 1 }, { start: 3, end: 9 }];
+  for (const line of [3, 5, 7, 9]) list.push({ start: line, end: line }, { start: line, end: line });
+  list.push({ start: 11, end: 11 });
+  const loose = "# Plan\n\n- one\n\n- two\n\n- three\n\nAfter.\n";
+  const added = "# Plan\n\n- one\n\n- two\n\n- new\n\n- three\n\nAfter.\n";
+  expect(marks(loose, added, list)).toEqual([{ kind: "added", block: 7 }]);
+  // The quote, then its paragraphs.
+  const quote = [
+    { start: 1, end: 5 },
+    { start: 1, end: 1 },
+    { start: 3, end: 3 },
+    { start: 5, end: 5 },
+  ];
+  expect(marks("> one\n>\n> two\n", "> one\n>\n> two\n>\n> three\n", quote)).toEqual([
+    { kind: "added", block: 3 },
+  ]);
+  // In a code block, an added blank line alone shows.
+  expect(marks("```\na\nb\n```\n", "```\na\n\nb\n```\n", [{ start: 1, end: 5 }])).toEqual([
+    { kind: "changed", block: 0 },
+  ]);
+});
+
 test("removed text marks the place where it was", () => {
   const two = [
     { start: 1, end: 1 },
@@ -47,8 +71,33 @@ test("removed text marks the place where it was", () => {
   expect(marks("A.\n\nB.\n\nC.\n", "A.\n\nC.\n", two)).toEqual([{ kind: "removed", block: 1 }]);
   // At the end: below the last block.
   expect(marks("A.\n\nC.\n\nD.\n", "A.\n\nC.\n", two)).toEqual([{ kind: "removed", block: 2 }]);
+  // Replaced by blank lines.
+  const apart = [
+    { start: 1, end: 1 },
+    { start: 5, end: 5 },
+  ];
+  expect(marks("A.\n\nB.\n\nC.\n", "A.\n\n\n\nC.\n", apart)).toEqual([
+    { kind: "removed", block: 1 },
+  ]);
+  // Changed in lines that no block shows, such as front matter: no mark.
+  expect(marks("---\na: 1\n---\n\nA.\n", "---\na: 2\n---\n\nA.\n", [{ start: 5, end: 5 }])).toEqual(
+    [],
+  );
   // Inside a block, the block changed.
   expect(marks("a\nb\nc\n", "a\nc\n", [{ start: 1, end: 2 }])).toEqual([
+    { kind: "changed", block: 0 },
+  ]);
+});
+
+test("removed blank lines between blocks mark nothing", () => {
+  const two = [
+    { start: 1, end: 1 },
+    { start: 3, end: 3 },
+  ];
+  expect(marks("A.\n\nB.\n", "A.\n\nB.", two)).toEqual([]);
+  expect(marks("A.\n\n\nB.\n", "A.\n\nB.\n", two)).toEqual([]);
+  // In a code block, a blank line shows.
+  expect(marks("```\na\n\nb\n```\n", "```\na\nb\n```\n", [{ start: 1, end: 4 }])).toEqual([
     { kind: "changed", block: 0 },
   ]);
 });

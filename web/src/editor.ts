@@ -16,7 +16,7 @@ import { type Queue, serial } from "./serial.ts";
 import { spellcheck } from "./spellcheck.ts";
 import { setupSplit } from "./split.ts";
 import { load, store } from "./storage.ts";
-import { lastSeen, message } from "./view.ts";
+import { editorClosed, lastSeen, message } from "./view.ts";
 
 /** What `/api/source` answers, with its `ETag` as the version. */
 interface Source {
@@ -302,6 +302,10 @@ export function togglePreview() {
 }
 
 export function unmount() {
+  if (open && !open.gone) {
+    const { path, saved, lineBreak } = open;
+    editorClosed(path, saved.sliceString(0, saved.length, lineBreak));
+  }
   request++;
   revisions.hide();
   preview.stop();
@@ -492,6 +496,8 @@ function noticePanel(current: Open, disk: Source | null): Panel {
     reloadButton.addEventListener("click", () => {
       reload(current, disk);
       setNotice(current, null);
+      // "Last seen" compares with the text on disk.
+      revisions.refresh();
       current.view.focus();
     });
     const overwrite = noticeButton(

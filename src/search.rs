@@ -24,6 +24,8 @@ pub struct FileMatches {
     /// The matching lines and the lines around them, in order. Where the
     /// numbers jump, lines were left out.
     pub lines: Vec<Line>,
+    /// The file has more matches than `lines` holds.
+    pub more: bool,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -44,7 +46,6 @@ pub fn search(workspace: &Workspace, phrase: &str) -> Results {
             .cmp(&a.modified)
             .then_with(|| a.path.cmp(&b.path))
     });
-    let matcher = Matcher::new(phrase);
     let mut results = Results {
         files: Vec::new(),
         more: false,
@@ -57,10 +58,9 @@ pub fn search(workspace: &Workspace, phrase: &str) -> Results {
         let Ok(text) = document::text(&workspace.dir, &file.path) else {
             continue;
         };
-        let lines = matching_lines(&text, &matcher);
-        if lines.is_empty() {
+        let Some((lines, more)) = matching_lines(&text, phrase) else {
             continue;
-        }
+        };
         if results.files.len() == MAX_FILES {
             results.more = true;
             break;
@@ -69,6 +69,7 @@ pub fn search(workspace: &Workspace, phrase: &str) -> Results {
             path: file.path,
             modified: file.modified,
             lines,
+            more,
         });
     }
     results
@@ -85,38 +86,37 @@ fn collect(node: Node, files: &mut Vec<Node>) {
     }
 }
 
-enum Matcher {
-    Exact(String),
-    /// The phrase in lowercase.
-    AnyCase(String),
-}
-
-impl Matcher {
-    fn new(phrase: &str) -> Matcher {
-        if phrase.chars().any(char::is_uppercase) {
-            Matcher::Exact(phrase.to_owned())
-        } else {
-            Matcher::AnyCase(phrase.to_lowercase())
-        }
+/// The first `MAX_MATCHES` lines of `text` that hold `phrase`, each with
+/// `CONTEXT` lines around it, as `rg -S -m20 -C2` prints them: context
+/// that overlaps is printed once. Also whether more lines match. `None`
+/// when no line matches.
+fn matching_lines(text: &str, phrase: &str) -> Option<(Vec<Line>, bool)> {
+    let lowercase;
+    let (haystack, needle) = if phrase.chars().any(char::is_uppercase) {
+        (text, phrase.to_owned())
+    } else {
+        lowercase = text.to_lowercase();
+        (lowercase.as_str(), phrase.to_lowercase())
+    };
+    // Most files do not match: they are not split into lines.
+    if !haystack.contains(&needle) {
+        return None;
     }
-
-    fn is_match(&self, line: &str) -> bool {
-        match self {
-            Matcher::Exact(phrase) => line.contains(phrase.as_str()),
-            Matcher::AnyCase(phrase) => line.to_lowercase().contains(phrase.as_str()),
-        }
-    }
-}
-
-/// The first `MAX_MATCHES` matching lines of `text`, each with `CONTEXT`
-/// lines around it, as `rg -C2` prints them: context that overlaps is
-/// printed once.
-fn matching_lines(text: &str, matcher: &Matcher) -> Vec<Line> {
-    let all: Vec<&str> = text.lines().collect();
-    let hits: Vec<usize> = (0..all.len())
-        .filter(|&index| matcher.is_match(all[index]))
-        .take(MAX_MATCHES)
+    // Lowercasing keeps each line break, so the lines of `haystack` pair
+    // with those of `text`.
+    let mut hits: Vec<usize> = haystack
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.contains(&needle))
+        .map(|(index, _)| index)
+        .take(MAX_MATCHES + 1)
         .collect();
+    if hits.is_empty() {
+        return None;
+    }
+    let more = hits.len() > MAX_MATCHES;
+    hits.truncate(MAX_MATCHES);
+    let all: Vec<&str> = text.lines().collect();
     let mut lines = Vec::new();
     // The first line that is not printed yet.
     let mut next = 0;
@@ -133,7 +133,7 @@ fn matching_lines(text: &str, matcher: &Matcher) -> Vec<Line> {
         }
         next = end;
     }
-    lines
+    Some((lines, more))
 }
 
 #[cfg(test)]
@@ -254,6 +254,9 @@ mod tests {
         assert_eq!(lines.iter().filter(|line| line.matched).count(), 20);
         // The 21st line is printed as the context of the 20th.
         assert_eq!(lines.last().unwrap(), &line(21, "needle", false));
+        assert!(results.files[0].more);
+        let (_, more) = matching_lines(&"needle\n".repeat(20), "needle").unwrap();
+        assert!(!more);
 
         fs::remove_file(root.path().join("00.md")).unwrap();
         assert!(!search(&workspace, "needle").more);
@@ -262,7 +265,7 @@ mod tests {
     #[test]
     fn context_lines_are_merged_where_they_overlap() {
         let text = "1\n2\nneedle 3\n4\nneedle 5\n6\n7\n8\n9\n10\nneedle 11\n";
-        let lines = matching_lines(text, &Matcher::new("needle"));
+        let (lines, _) = matching_lines(text, "needle").unwrap();
         let numbers: Vec<usize> = lines.iter().map(|line| line.number).collect();
 
         assert_eq!(numbers, [1, 2, 3, 4, 5, 6, 7, 9, 10, 11]);

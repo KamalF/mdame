@@ -557,7 +557,7 @@
   color: var(--fg-muted);
 }
 
-.mdame-dialog .mdame-search-files button[aria-current] {
+.mdame-dialog .mdame-search-files button[aria-current="true"] {
   background: var(--selection);
 }
 

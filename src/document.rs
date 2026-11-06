@@ -52,10 +52,11 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
             Err(error) => return Err(error),
         },
     };
-    let html = match (family, &source) {
-        (Family::Image, _) => Some(render::file(family, path, "")),
-        (_, Some(text)) => Some(render::file(family, path, text)),
-        (_, None) => None,
+    let html = match family {
+        Family::Image => Some(render::file(family, path, "")),
+        _ => source
+            .as_deref()
+            .map(|text| render::file(family, path, text)),
     };
     let too_large = html.is_none();
     let html = html.unwrap_or_else(|| {

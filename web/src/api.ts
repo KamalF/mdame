@@ -57,8 +57,13 @@ export function request(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, init);
 }
 
-export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const response = await send(method, path, body);
+export async function api<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await send(method, path, body, {}, signal);
   return response.json().catch(() => null);
 }
 
@@ -68,8 +73,9 @@ export async function send(
   path: string,
   body?: unknown,
   headers: Record<string, string> = {},
+  signal?: AbortSignal,
 ): Promise<Response> {
-  const options: RequestInit = { method, headers };
+  const options: RequestInit = { method, headers, signal };
   if (body !== undefined) {
     options.headers = { ...headers, "content-type": "application/json" };
     options.body = JSON.stringify(body);

@@ -1,17 +1,19 @@
-import { errorFrom, request } from "./api.ts";
+import { api } from "./api.ts";
 import type { Block } from "./changes.ts";
 
 /** What `/api/search` answers. */
-export interface Results {
+interface Results {
   files: FileMatches[];
   /** More files match than `files` holds. */
   more: boolean;
 }
 
-export interface FileMatches {
+interface FileMatches {
   path: string;
   modified: number;
   lines: Line[];
+  /** The file has more matches than `lines` holds. */
+  more: boolean;
 }
 
 export interface Line {
@@ -19,9 +21,6 @@ export interface Line {
   text: string;
   matched: boolean;
 }
-
-/** The server stops a file at this many matches. */
-const MAX_MATCHES = 20;
 
 /**
  * `text` cut into parts, each marked when it matches `phrase`. As on the
@@ -99,6 +98,7 @@ export function openSearch(onOpen: (path: string, line: number) => void) {
   let files: FileMatches[] = [];
   let chosen = 0;
   let inFlight: AbortController | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   function open(path: string, line: number) {
     dialog.close();
@@ -108,7 +108,7 @@ export function openSearch(onOpen: (path: string, line: number) => void) {
   function choose(index: number) {
     chosen = index;
     for (const [at, item] of [...list.children].entries()) {
-      item.querySelector("button")!.toggleAttribute("aria-current", at === chosen);
+      item.querySelector("button")!.setAttribute("aria-current", String(at === chosen));
     }
     list.children[chosen]?.scrollIntoView({ block: "nearest" });
     showPreview();
@@ -171,9 +171,13 @@ export function openSearch(onOpen: (path: string, line: number) => void) {
         path.textContent = file.path;
         const number = document.createElement("span");
         number.className = "mdame-search-count";
-        number.textContent = matches === MAX_MATCHES ? `${MAX_MATCHES}+` : String(matches);
+        number.textContent = `${matches}${file.more ? "+" : ""}`;
         button.append(path, number);
-        button.addEventListener("click", () => choose(index));
+        button.addEventListener("click", () => {
+          choose(index);
+          // ↑↓ and Enter work in the field.
+          field.focus();
+        });
         const item = document.createElement("li");
         item.append(button);
         return item;
@@ -196,25 +200,31 @@ export function openSearch(onOpen: (path: string, line: number) => void) {
     const controller = new AbortController();
     inFlight = controller;
     try {
-      const response = await request(`/api/search?q=${encodeURIComponent(phrase)}`, {
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw errorFrom(response.status, await response.json().catch(() => null));
-      }
-      const results: Results = await response.json();
+      const url = `/api/search?q=${encodeURIComponent(phrase)}`;
+      const results = await api<Results>("GET", url, undefined, controller.signal);
       if (inFlight === controller) show(results);
     } catch (error) {
       if (inFlight === controller) status.textContent = (error as Error).message;
     }
   }
 
-  field.addEventListener("input", search);
+  field.addEventListener("input", () => {
+    clearTimeout(timer);
+    // The server does not stop a search that the page aborts: only a pause
+    // in typing starts one.
+    timer = setTimeout(search, 150);
+  });
   field.addEventListener("keydown", (event) => {
+    // Enter, Esc and the arrows belong to the input method while it composes.
+    if (event.isComposing) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
       if (files.length > 0) choose((chosen + step + files.length) % files.length);
+    } else if (event.key === "Escape") {
+      // In Chrome, Esc in a search field first clears it.
+      event.preventDefault();
+      dialog.close();
     } else if (event.key === "Enter" && files[chosen]) {
       event.preventDefault();
       const first = files[chosen].lines.find((line) => line.matched);
@@ -222,6 +232,7 @@ export function openSearch(onOpen: (path: string, line: number) => void) {
     }
   });
   dialog.addEventListener("close", () => {
+    clearTimeout(timer);
     inFlight?.abort();
     dialog.remove();
   });

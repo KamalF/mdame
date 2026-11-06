@@ -1,5 +1,6 @@
-import { indentMore } from "@codemirror/commands";
+import { indentLess, indentMore } from "@codemirror/commands";
 import { EditorSelection, type StateCommand } from "@codemirror/state";
+import type { KeyBinding } from "@codemirror/view";
 
 /**
  * The run of `*` that starts `text`, where `before` is the text in front of
@@ -102,3 +103,10 @@ export const tab: StateCommand = ({ state, dispatch }) => {
   );
   return true;
 };
+
+/** The editor's own keys. The shortcut help lists each one. */
+export const formatKeys: KeyBinding[] = [
+  { key: "Mod-b", run: toggleMarker("**") },
+  { key: "Mod-i", run: toggleMarker("*") },
+  { key: "Tab", run: tab, shift: indentLess },
+];

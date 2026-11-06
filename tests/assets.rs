@@ -52,6 +52,16 @@ async fn unchanged_asset_answers_not_modified() {
 }
 
 #[tokio::test]
+async fn the_licences_show_as_text() {
+    let response = send(local(), "/assets/THIRD-PARTY-LICENSES.txt", &[HOST]).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "text/plain; charset=utf-8"
+    );
+}
+
+#[tokio::test]
 async fn unknown_asset_is_not_found() {
     let response = send(local(), "/assets/nothing.js", &[HOST]).await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);

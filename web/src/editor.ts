@@ -1,4 +1,4 @@
-import { indentLess, isolateHistory } from "@codemirror/commands";
+import { isolateHistory } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
@@ -8,7 +8,7 @@ import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { type ApiError, isHeld, send } from "./api.ts";
 import { lineBreakOf, reactToDisk, reloadChanges } from "./disk.ts";
-import { tab, toggleMarker } from "./format.ts";
+import { formatKeys } from "./format.ts";
 import * as preview from "./preview.ts";
 import * as revisions from "./revisions.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
@@ -167,13 +167,7 @@ export async function mount(
     doc: source.content,
     extensions: [
       // High precedence: basicSetup binds Mod-i to "select the enclosing syntax".
-      Prec.high(
-        keymap.of([
-          { key: "Mod-b", run: toggleMarker("**") },
-          { key: "Mod-i", run: toggleMarker("*") },
-          { key: "Tab", run: tab, shift: indentLess },
-        ]),
-      ),
+      Prec.high(keymap.of(formatKeys)),
       basicSetup,
       palette,
       notice.of([]),

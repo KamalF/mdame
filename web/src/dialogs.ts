@@ -1,7 +1,7 @@
 import { api } from "./api.ts";
 
 /** Shows a modal dialog: its title, `body`, then `buttons`. */
-function modal(id: string, heading: string, body: Node[], buttons: HTMLButtonElement[]) {
+export function modal(id: string, heading: string, body: Node[], buttons: HTMLButtonElement[]) {
   const dialog = document.createElement("dialog");
   dialog.className = "mdame-dialog";
   dialog.setAttribute("aria-labelledby", id);

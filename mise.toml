@@ -20,7 +20,7 @@ run = [
   "cp node_modules/@fontsource-variable/ibm-plex-sans/files/*-wght-*.woff2 node_modules/@fontsource/ibm-plex-mono/files/*-400-*.woff2 web/dist/assets/files/",
   "mkdir web/dist/themes",
   "cp web/themes/light.css web/themes/dark.css web/dist/themes/",
-  "bun web/notices.ts target/web-meta.json web/dist/THIRD-PARTY-LICENSES.txt",
+  "bun web/notices.ts target/web-meta.json web/dist/assets/THIRD-PARTY-LICENSES.txt",
 ]
 
 [tasks.dev]

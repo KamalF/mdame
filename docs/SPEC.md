@@ -328,7 +328,7 @@ The browser is a single page that talks JSON to `/api`, gets raw workspace files
 | Method and path | Purpose | Returns |
 | --- | --- | --- |
 | `GET /`, `/view/*`, `/edit/*` | The single page; the browser routes from the URL | `index.html` |
-| `GET /assets/*` | Bundled JS and CSS | embedded files, with ETag |
+| `GET /assets/*` | Bundled JS and CSS, and the licences of the bundled packages | embedded files, with ETag |
 | `GET /themes/{name}.css` | The user theme of that name, else the built-in | CSS |
 | `GET /raw/*path` | Workspace images, and other files as plain text | images with their type, anything else as `text/plain`; always sandboxed (see Security); 413 over 64 MB, since the file is read whole |
 | `GET /api/state` | Workspace as `{root, start}`, version, and `themes`: the built-ins, then the user themes by name. The themes folder is read at each request | JSON |
@@ -503,7 +503,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | `s` | Search the contents of the files |
 | `?` | Shortcut help |
 
-Shortcuts are ignored while typing in an input or CodeMirror, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the revisions panel first, then the editor, unless a dialog, the theme menu or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
+Shortcuts are ignored while typing in an input or CodeMirror, while a dialog is open, and when a modifier other than the listed ones is held. `keys.ts` implements this as one `keydown` listener and a map from key to handler. Esc and Cmd/Ctrl+S have their own listeners, since they must work inside CodeMirror: CodeMirror uses Esc first, to clear a selection or to close its search panel or completion list. Otherwise Esc closes the revisions panel first, then the editor, unless a dialog, the theme menu or the sidebar overlay is open. Cmd/Ctrl+S saves from anywhere on the page.
 
 ### Theme contract
 
@@ -548,6 +548,7 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
 - Spellcheck: the editor turns on the browser's spellcheck, with the browser's dictionary. It underlines words in code too. A toggle in View options turns it off, with no reload. Decided 3 November 2026.
   - Settled on 6 November 2026, with the code: the toggle is the Spellcheck item, under Show, after Outline. It applies to the open editor at once, diff mode included.
 - Shortcut help: `?` opens a dialog with the keys in three groups: Anywhere, Editor, and Filter and search. One list in the code feeds it, and a test checks that each key that the page binds is in it. It shows ⌘ on macOS and Ctrl elsewhere. One line says that the editor keeps CodeMirror's own keys, such as Ctrl+F and Ctrl+Z. A footer line gives the version and links to the repository and to the licences. Decided 3 November 2026.
+  - Settled on 6 November 2026, with the code: the dialog is titled "Keyboard shortcuts". A keyboard button in the status bar, before View options, opens it too, so that a user who does not know `?` finds it. "Licences" opens `/assets/THIRD-PARTY-LICENSES.txt`, which mdame serves, so it matches the running version; the file moved into `web/dist/assets/` for this. The test covers the keys of `bindKeys` and of the editor's keymap. The keys of the filter, of the search panel, Esc and Cmd/Ctrl+S have their own listeners, and the list holds them by hand.
 - Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.
 - Default theme: follow the system. Until the user picks a theme, the page uses the built-in light or dark theme according to `prefers-color-scheme`, and switches live when the OS does; a picked theme is stored and wins. Decided 15 October 2026.
@@ -562,7 +563,7 @@ mise manages the repo. `mise.toml` pins the tools (Rust toolchain, Bun) and defi
 
 | Task | Does |
 | --- | --- |
-| `web` | `bun ci` (frozen lockfile), then bundle `web/src` into `web/dist`. `web/notices.ts` then writes `web/dist/THIRD-PARTY-LICENSES.txt` from the bundle's metafile: for each npm package in the bundle, its licence files, its NOTICE file, and its source URL. A package with no licence file stops the task |
+| `web` | `bun ci` (frozen lockfile), then bundle `web/src` into `web/dist`. `web/notices.ts` then writes `web/dist/assets/THIRD-PARTY-LICENSES.txt` from the bundle's metafile: for each npm package in the bundle, its licence files, its NOTICE file, and its source URL. A package with no licence file stops the task |
 | `dev` | The bundler in watch mode in the background, plus `cargo run`. The Rust server is restarted by hand and the browser refreshed by hand; in debug builds rust-embed reads `web/dist` from disk on each request |
 | `fmt` | `cargo fmt` |
 | `lint` | `cargo clippy -- -D warnings` |

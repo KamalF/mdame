@@ -446,7 +446,12 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 11. Spellcheck (done): the editor's `spellcheck` attribute sits in a CodeMirror compartment, so its toggle in View options applies with no reload. `spellcheck follows the stored choice`.
    - `spellcheck.ts` holds the choice, the compartment and the extension that the editor adds. A view plugin in the extension keeps the set of open editors, so the menu reaches them without importing `editor.ts`. That import would make a cycle: `editor.ts` imports `view.ts`, which reaches `theme.ts` through `diagrams.ts`.
    - Checked in Chrome on 6 November 2026, through the `spellcheck` attribute of the editor's text: it is on by default. The menu item turns it off and on at once, in the editor and in diff mode, and a reload keeps the choice. The console stays empty.
-12. Shortcut help: one list of the keys, and `?` opens the dialog, with the footer line. `every key that the page binds is in the help`, `macos shows ⌘ and the others ctrl`.
+12. Shortcut help (done): one list of the keys, and `?` opens the dialog, with the footer line. `every key of bindKeys and of the editor keymap is in the help` (`every key that the page binds is in the help` in the plan), `macos shows ⌘ and the others ctrl`.
+   - `shortcuts.ts` holds the list, `keyLabel` and the dialog. `keys.ts` exports `PAGE_KEYS`, the type of the map of `bindKeys`, so a key that `main.ts` binds and the list misses fails the test. The editor's keymap moved to `format.ts` as `formatKeys`, so the test reads it too. The test name changed: the keys of the filter, of the search panel, Esc and Cmd/Ctrl+S have their own listeners, and no test reads them.
+   - A keyboard button in the status bar, before View options, opens the help too: its tooltip teaches `?`, and the footer's version and links need no key.
+   - `bindKeys` now ignores the keys while a dialog is open. Without it, `e` in the help opened the editor behind the dialog.
+   - `web/dist/THIRD-PARTY-LICENSES.txt` moved to `web/dist/assets/`, so that the footer's "Licences" link opens the copy that mdame serves. The server now sends `.txt` as `text/plain`, so the browser shows the file instead of downloading it: `the_licences_show_as_text` in `tests/assets.rs`.
+   - Checked in Chrome on 6 November 2026: `?` opens the help, with the focus on Close, and the actions of the three groups line up. A second `?` opens no second dialog, and `e` does not open the editor behind it. Closing the dialog removes it. The footer reads "mdame 0.0.1 · Repository · Licences". The console stays empty.
 13. Manual checklist, `cargo mutants`, review loop.
    - For the "done when" check: this repository's `.git/info/exclude` lists `/.claude/`, and ignore rules apply in hidden folders too, so its `.claude/plans` stays out of the tree. Run the check in another workspace.
 
@@ -464,7 +469,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: commit 12 of its plan.
+1. Milestone 9, on the `m9-agent-workflow` branch: commit 13 of its plan, the manual checklist, `cargo mutants` and the review loop.
 
 ## Open points
 

@@ -596,3 +596,53 @@
 .mdame-search-line:not(.is-match) .mdame-search-text {
   color: var(--fg-muted);
 }
+
+.mdame-dialog.mdame-help {
+  width: min(520px, calc(100% - 32px));
+}
+
+.mdame-help h3 {
+  margin: 16px 0 6px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* One width for the keys of every group, so the actions line up. */
+.mdame-help dl {
+  display: grid;
+  grid-template-columns: 136px 1fr;
+  gap: 6px 16px;
+  margin: 0 0 16px;
+}
+
+.mdame-help dt {
+  display: flex;
+  gap: 4px;
+}
+
+.mdame-help dd {
+  margin: 0;
+}
+
+.mdame-help kbd {
+  min-width: 1em;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  font: 12px var(--font-mono);
+  text-align: center;
+}
+
+.mdame-help-footer {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.mdame-help-footer a {
+  color: var(--accent);
+}

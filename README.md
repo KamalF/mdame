@@ -27,6 +27,8 @@ lists the options.
 - It keeps revisions of each file that it saves (the last 20 by default), and
   restores them.
 
+For the keyboard shortcuts, press `?` or click the keyboard button in the status bar.
+
 ## Themes
 
 The palette button at the right of the status bar opens View options. There,
@@ -55,7 +57,7 @@ and some of them derive from [Feather](https://github.com/feathericons/feather)
 from GitHub's [Primer](https://primer.style) (`@primer/primitives`, MIT). The
 fonts are IBM Plex Sans and IBM Plex Mono, under the SIL Open Font License 1.1.
 The page bundles them and other npm packages, such as CodeMirror and Mermaid:
-`web/dist/THIRD-PARTY-LICENSES.txt` carries their licence texts.
+`web/dist/assets/THIRD-PARTY-LICENSES.txt` carries their licence texts.
 
 ## License
 

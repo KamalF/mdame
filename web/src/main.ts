@@ -11,6 +11,7 @@ import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
 import { openSearch } from "./search.ts";
+import { openHelp } from "./shortcuts.ts";
 import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
@@ -42,6 +43,12 @@ function showStatus(state: State) {
     fileStatus,
     changesStatus.el,
     version,
+    iconButton(
+      "Keyboard shortcuts",
+      "keyboard",
+      () => openHelp(state.version),
+      "Keyboard shortcuts (?)",
+    ),
     theme.themeButton(state.themes),
   );
 }
@@ -344,6 +351,7 @@ async function showWorkspace(state: State) {
     h: toggleRevisions,
     r: toggleRevisions,
     s: search,
+    "?": () => openHelp(state.version),
   });
   const mounted = sidebar.mount(nav, {
     root,

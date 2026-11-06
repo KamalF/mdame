@@ -14,10 +14,15 @@ export function isPlainClick(event: MouseEvent): boolean {
   return !(event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0);
 }
 
-export function bindKeys(map: Record<string, () => void>) {
+/** The keys of `bindKeys`. The shortcut help lists each one. */
+export const PAGE_KEYS = ["e", "h", "r", "s", "/", "b", "?"] as const;
+
+export function bindKeys(map: Record<(typeof PAGE_KEYS)[number], () => void>) {
   addEventListener("keydown", (event: KeyboardEvent) => {
-    const handler = map[event.key];
+    const handler = (map as Record<string, () => void>)[event.key];
     if (!handler || !shouldHandle(event)) return;
+    // The page behind a dialog waits until it closes.
+    if (document.querySelector("dialog[open]")) return;
     event.preventDefault();
     handler();
   });

@@ -34,9 +34,10 @@ async fn source_of_a_missing_file_is_not_found() {
 #[tokio::test]
 async fn source_refuses_what_the_editor_may_not_open() {
     let dir = tempfile::tempdir().unwrap();
-    let files: [(&str, &[u8]); 4] = [
+    let files: [(&str, &[u8]); 5] = [
         ("Makefile", b"all:\n"),
         (".git/x.md", b"# A\n"),
+        (".Git/x.md", b"# A\n"),
         (".mdame/history/a.md/1.md", b"# A\n"),
         (".claude/settings.json", b"{}\n"),
     ];

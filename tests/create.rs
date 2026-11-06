@@ -49,7 +49,9 @@ async fn create_of_an_existing_file_is_refused() {
 async fn create_refuses_a_type_that_the_editor_cannot_open() {
     let dir = tempfile::tempdir().unwrap();
     fs::create_dir_all(dir.path().join("ws/.git")).unwrap();
+    fs::create_dir_all(dir.path().join("ws/.claude")).unwrap();
     symlink(".git", dir.path().join("ws/git-link")).unwrap();
+    symlink(".claude", dir.path().join("ws/claude-link")).unwrap();
     for path in [
         "b.png",
         "notes",
@@ -57,6 +59,7 @@ async fn create_refuses_a_type_that_the_editor_cannot_open() {
         ".mdame/b.md",
         ".claude/b.json",
         "git-link/b.md",
+        "claude-link/b.json",
     ] {
         let (status, _) = create(workspace(dir.path()), path).await;
 

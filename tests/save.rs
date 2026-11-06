@@ -380,6 +380,11 @@ async fn save_refuses_what_the_editor_may_not_open() {
     let response = put(state, "notes.md", Some(&etag(b"# A\n")), "new\n").await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     assert_eq!(read(dir.path(), ".git/x.md"), "# A\n");
+    let state = common::workspace(dir.path(), &files);
+    symlink(".claude/settings.json", dir.path().join("ws/plan.md")).unwrap();
+    let response = put(state, "plan.md", Some(&etag(b"{}\n")), "new\n").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(read(dir.path(), ".claude/settings.json"), "{}\n");
     // A name that the editor does not open, linked to a file that it does.
     let state = common::workspace(dir.path(), &files);
     fs::write(dir.path().join("ws/a.md"), "# A\n").unwrap();

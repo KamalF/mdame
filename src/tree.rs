@@ -262,6 +262,7 @@ mod tests {
         write(root.path(), ".mdame/history/a.md/1.md", 1);
         write(root.path(), "sub/.git/b.md", 1);
         write(root.path(), "sub/.mdame/c.md", 1);
+        write(root.path(), "sub/.GIT/e.md", 1);
         write(root.path(), "sub/d.md", 1);
 
         assert_eq!(tree_paths(&walk(root.path())), ["", "sub", "sub/d.md"]);

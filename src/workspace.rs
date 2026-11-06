@@ -22,7 +22,8 @@ pub fn fd_path(handle: &impl AsFd) -> io::Result<PathBuf> {
 /// Whether a folder is `.git` or `.mdame`, at any depth: the tree never
 /// enters them, and the editor never opens a file in them.
 pub fn is_git_or_mdame(name: &OsStr) -> bool {
-    name == ".git" || name == OWN_DIR
+    // Some file systems ignore case: there, `.GIT` is the `.git` folder.
+    name.eq_ignore_ascii_case(".git") || name.eq_ignore_ascii_case(OWN_DIR)
 }
 
 /// Whether a part of `path` is hidden: there, the tree and the editor take

@@ -463,7 +463,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
      - Text replaced by blank lines gets a "removed" mark. Blank lines between the items of a loose list, or a lone `>` in a quote, mark no container. Text changed in no block, such as front matter, gets no mark.
    - `cargo mutants` on the diff of the milestone, 6 November 2026: 50 mutants, 40 caught, 10 unviable, none missed.
 
-- After the manual checklist, on 7 November 2026: a long name in the list of changes ends in "…", and its `+N` count stays visible. A long menu of the status bar no longer goes 6 px past the top of the window: its `max-height` now holds its padding and border.
+- After the manual checklist, on 7 November 2026: a long name in the list of changes ends in "…", and its `+N` count stays visible. A long menu of the status bar no longer goes 6 px past the top of the window: its `max-height` now holds its padding and border. In the help, the group of the letter keys is named "Outside the editor", not "Anywhere": in the editor, these keys type text. Esc has a row in both groups.
 
 ### Manual checklist
 

@@ -11,7 +11,7 @@ interface Shortcut {
 
 export const HELP: { group: string; shortcuts: Shortcut[] }[] = [
   {
-    group: "Anywhere",
+    group: "Outside the editor",
     shortcuts: [
       { keys: ["e"], action: "Edit the file" },
       { keys: ["h", "r"], action: "Compare with a revision" },
@@ -19,12 +19,13 @@ export const HELP: { group: string; shortcuts: Shortcut[] }[] = [
       { keys: ["/"], action: "Filter the files by name" },
       { keys: ["b"], action: "Hide or show the sidebar" },
       { keys: ["?"], action: "Show this help" },
-      { keys: ["Escape"], action: "Close a dialog, a panel or the editor" },
+      { keys: ["Escape"], action: "Close a dialog or a panel" },
     ],
   },
   {
     group: "Editor",
     shortcuts: [
+      { keys: ["Escape"], action: "Close a panel, or the editor" },
       { keys: ["Mod-s"], action: "Save" },
       { keys: ["Mod-b"], action: "Bold" },
       { keys: ["Mod-i"], action: "Italic" },

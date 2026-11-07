@@ -18,8 +18,8 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
 | 8 | Themes and polish | Done 3 November 2026, merged into `main` the same day | 31, with the review fixes |
-| 9 | Agent workflow | Done 7 November 2026 | 22, with the review fixes |
-| 10 | Release, then Show HN | — | About 10, without the review fixes |
+| 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
+| 10 | Release, then Show HN | Planned 7 November 2026 | About 9, without the review fixes |
 | 11 | Small Later items | — | About 10, without the review fixes |
 
 The commits of milestones 9 to 11 are estimates, made on 3 November 2026. Before their reviews, milestones 7 and 8 made one commit for each commit of their plan. The plan of milestone 9 has 12 commits before its review. Milestones 10 and 11 have no plan yet; each has about 10 items in the build order of `docs/SPEC.md`.
@@ -513,6 +513,35 @@ Help:
 
 18. `?` opens the help. Its footer's Licences link shows the licences as text in the browser.
 
+## Milestone 10: release
+
+Decided on 7 November 2026, before the milestone started. `docs/SPEC.md` holds the scope: milestone 10 in the build order, and Distribution.
+
+- No npm wrapper. The install script, Homebrew and `cargo install` cover Linux and macOS, and npm would need its own account and token.
+- The Linux binaries are static, built with musl, for x86_64 and aarch64. One file runs on any distribution, since mdame has no C dependency. macOS gets x86_64 and aarch64 binaries.
+- The watcher skips gitignored folders. On Linux, inotify costs one watch per folder, so mdame watches only the folders that the tree shows. On macOS, FSEvents watches the whole root at one cost, so mdame drops the events under ignored folders.
+- No Mac is at hand. After the release, a CI job on a macOS runner installs mdame with the script and with Homebrew, starts it, and requests `/api/state`. Editing on macOS gets no check in a browser.
+
+Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: the install script and `brew install` give a working mdame on Linux and macOS.
+
+1. Editing on macOS. `fd_path` asks the kernel with `F_GETPATH`, through `rustix::fs::getpath`, where Linux reads `/proc/self/fd`. macOS adds no " (deleted)" to the name of a deleted file, so a link count of 0 marks it on both systems. `fd_path_names_the_open_file`, `a_deleted_file_is_reported_deleted`.
+   - `rustix` becomes a direct dependency on macOS only. It is in the lock file already, through cap-std. Kamal approved it on 7 November 2026; this commit adds its line in Libraries.
+   - Without a Mac, `cargo clippy --target aarch64-apple-darwin` checks that the macOS code compiles.
+2. CI on macOS. A second job on a macOS runner runs the same steps. The actions are pinned by commit SHA, and the checkout sets `persist-credentials: false`.
+   - The macOS runner may find failures that Linux hides: the temporary folder behind a symlink, or a file system that ignores case. Their fixes come in this commit or right after it.
+3. The watcher skips gitignored folders. `a_change_in_a_gitignored_folder_sends_nothing`, `a_new_folder_is_watched`, `a_file_written_right_after_its_folder_is_created_is_seen`, `a_folder_that_a_gitignore_change_shows_is_watched`, `a_folder_that_a_gitignore_change_hides_sends_nothing`.
+   - The same tests run on macOS, through the event filter.
+   - It closes the open point of milestone 9: the list of changes no longer shows gitignored files.
+   - `watch.rs` has 471 lines already. The folder watches may go to a module of their own.
+4. Release binaries with dist. `dist init` writes the release workflow and its config: the four targets above, a shell installer and a Homebrew formula. `dist plan` lists the archives, the installer and the formula.
+   - The formula goes to a tap repository, `KamalF/homebrew-tap`. Before this commit, Kamal and Claude set up the tap and a token that the release workflow can use.
+5. A job after each release, on Linux and on a macOS runner: it installs mdame with the script and with Homebrew, starts it with `--no-open`, and requests `/api/state` with the token. On macOS, this job is the "done when" check.
+6. The open points of milestone 8: `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
+7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README.
+8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`.
+9. Review loop, `cargo mutants`, manual checklist.
+10. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
+
 ## Public repository and crate
 
 Decided on 29 October 2026, before milestone 8:
@@ -527,7 +556,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Merge milestone 9 into `main`.
+1. Milestone 10, on the `m10-release` branch: commit 1 of its plan.
 
 ## Open points
 

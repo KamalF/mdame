@@ -104,7 +104,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 - Change bars: each block that changed since you last saw the file gets a bar in the margin, as in a git gutter. Diff mode compares the text with that version, and can restore it.
 - Search: a panel searches the contents of the files, and shows the matching lines beside the list of files.
 
-**Distribution.** Release binaries for Linux and macOS through cargo-dist: an install script, a Homebrew tap and an npm wrapper. A public GitHub repository, and the crate on crates.io.
+**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist): an install script and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. A public GitHub repository, and the crate on crates.io.
 
 ### Later, by cost
 
@@ -645,7 +645,7 @@ Ten milestones for v1, the version for a Show HN, then an eleventh, each ending 
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
 9. **Agent workflow.** Markdown in hidden folders, shown and editable; the list of changes in the status bar; the change bars and "Last seen" in diff mode; the search panel; the content width; the outline; spellcheck in the editor; the shortcut help with its footer line.
    - Done when: Claude Code, with `plansDirectory` set to `.claude/plans`, writes a plan. The plan shows in the tree and in the list of changes, and one click opens it. When the agent rewrites it, the changed blocks get bars and the outline gets dots. In diff mode, "Last seen" shows what changed and restores it.
-10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through cargo-dist, and release 0.1.0 of the crate on crates.io. The watcher stops watching gitignored folders. The memory of mdame and of its tab is measured against VS Code, idle and on a large repository. The open points of milestone 8 close: CI actions pinned by SHA, a warning to use only themes that you trust, and the notice of `@primer/primitives`. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, and its demo of the agent loop sets `plansDirectory`. Then the Show HN.
+10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through dist, and release 0.1.0 of the crate on crates.io. The watcher stops watching gitignored folders. With no Mac at hand, a CI job checks the release on macOS. The memory of mdame and of its tab is measured against VS Code, idle and on a large repository. The open points of milestone 8 close: CI actions pinned by SHA, a warning to use only themes that you trust, and the notice of `@primer/primitives`. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, and its demo of the agent loop sets `plansDirectory`. Then the Show HN.
    - Done when: the install script and `brew install` give a working mdame on Linux and macOS.
 11. **Small Later items.** Custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
 
@@ -694,6 +694,7 @@ After milestone 11, the medium Later items wait.
 | What the browser or the terminal already does, mdame does not rebuild. Dropped: the font size presets, clickable task lists, file operations, the right-click menu, tabs, and the agent snippet and skill. The About dialog becomes a footer line of the shortcut help | 3 November 2026 |
 | Milestone 9: markdown in hidden folders is shown and editable, except under `.git` and `.mdame`. The handoff goes to Later, and a list of changes in the status bar replaces it. Change bars compare with the version that you last saw. A search panel, the content width, an outline and spellcheck come in. Copy as quote and wide blocks go to Later | 3 November 2026 |
 | Milestone 10 also measures memory against VS Code, stops watching gitignored folders, takes the open points of milestone 8, and leads the README with VS Code | 3 November 2026 |
+| Milestone 10: no npm wrapper; static Linux binaries built with musl; on Linux the watcher skips gitignored folders, on macOS it drops their events; a CI job checks the release on macOS | 7 November 2026 |
 
 ### Review log, 14 October 2026
 

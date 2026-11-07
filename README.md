@@ -43,6 +43,20 @@ use the syntax of `.gitignore`.
 
 For the keyboard shortcuts, press `?` or click the keyboard button in the status bar.
 
+## Memory
+
+Measured on Linux on 7 November 2026, with
+[scripts/memory.sh](scripts/memory.sh), as PSS: a page that several processes
+share counts once, split between them. For mdame, the server and the process
+of its tab in Chromium count; your browser is open anyway. For VS Code, every
+process counts. It ran with no extension, and with the preview of the file
+open beside the text.
+
+| Folder and file | mdame 0.1.0-rc.2 | VS Code 1.145.2 |
+| --- | --- | --- |
+| This repository, `README.md`, after one minute | 64 MB | 1,003 MB |
+| [mdn/content](https://github.com/mdn/content) (14,751 folders), the page of `Array`, after two minutes | 144 MB | 1,138 MB |
+
 ## Themes
 
 The palette button at the right of the status bar opens View options. There,

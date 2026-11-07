@@ -560,7 +560,12 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - Checked by hand on Linux x86_64 instead: the install script of `v0.1.0-rc.2`, with `MDAME_INSTALL_DIR` in a temporary folder, then `.github/check-release.sh` on it. It passes. The binary is static, 18 MB with its symbols. macOS gets its first check with 0.1.0.
 6. The open points of milestone 8 (done): `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
    - The notice is the one of `@primer/primitives` 11.10.0, the version that the themes copy: "Copyright (c) 2018 GitHub Inc." and the MIT text. `LICENSE` goes into the crate and into each release archive.
-7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README.
+7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README. (done)
+   - Measured by Kamal on 7 November 2026, with `~/dev/claude/runbooks/2026-11-07-mdame-memory.md`. Small: this repository and `README.md`, after one minute. Large: `mdn/content` (14,751 folders) and the page of `Array`, after two minutes.
+   - mdame: the server and the process of its tab in Chromium. 64 MB (8 and 55) small, 144 MB (22 and 122) large. Chromium's own "memory footprint" of the large tab, 109 MB, agrees.
+   - VS Code 1.145.2, from Microsoft's tarball, with its own data folder, no extension, and the preview of the file beside the text: every process. 1,003 MB small, 1,138 MB large.
+   - `scripts/memory.sh` sums the PSS of each process given and its children. It needs sudo: Chromium and VS Code hide the memory of their sandboxed processes from the account that runs them. The shared processes of the browser do not count for mdame, since the browser is open anyway.
+   - The mdame is the musl binary of `v0.1.0-rc.2`, as the install script gives it.
 8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`.
 9. Review loop, `cargo mutants`, manual checklist.
 10. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
@@ -579,7 +584,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 7 of its plan, the memory measured by hand.
+1. Milestone 10, on the `m10-release` branch: commit 8 of its plan, the README.
 
 ## Open points
 

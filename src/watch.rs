@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, PoisonError, Weak, mpsc};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode, WatcherKind,
@@ -116,6 +116,7 @@ fn forward(
     drop(first);
     *started.done.lock().unwrap_or_else(PoisonError::into_inner) = true;
     started.changed.notify_all();
+    let mut renamed = Vec::new();
     for batch in received {
         let batch: Vec<_> = match batch {
             Ok(batch) => batch.into_iter().map(|event| event.event).collect(),
@@ -134,11 +135,32 @@ fn forward(
             let mut debouncer = debouncer.lock().unwrap_or_else(PoisonError::into_inner);
             found = folders.update(&mut debouncer);
         }
-        for event in events(&folders, &batch, &found) {
+        let mut events = events(&folders, &batch, &found);
+        drop_echoes(&mut events, &mut renamed, Instant::now());
+        for event in events {
             // An error only means that no tab is connected.
             let _ = sender.send(event);
         }
     }
+}
+
+/// How long a renamed path can still get the echo of its rename.
+const ECHO: Duration = Duration::from_secs(1);
+
+/// A watched folder reports its own move too, as a removal, a moment after
+/// its parent reports the rename: maybe in the next batch. A removal of a
+/// path renamed less than `ECHO` ago is that echo. `renamed` keeps the
+/// paths renamed in the batches before.
+fn drop_echoes(events: &mut Vec<Event>, renamed: &mut Vec<(String, Instant)>, now: Instant) {
+    renamed.retain(|(_, at)| now.duration_since(*at) < ECHO);
+    for event in events.iter() {
+        if let Event::Renamed { from, .. } = event {
+            renamed.push((from.clone(), now));
+        }
+    }
+    events.retain(|event| {
+        !matches!(event, Event::Removed { path } if renamed.iter().any(|(from, _)| from == path))
+    });
 }
 
 /// A write changes the folders that the tree shows only in an ignore file.
@@ -300,21 +322,14 @@ fn events(folders: &Folders, batch: &[notify::Event], found: &[PathBuf]) -> Vec<
     events
 }
 
-/// Sends each event once, no change to a file created in the batch, and
-/// no removal of a path that the batch renamed: inotify reports the move of
-/// a watched folder from the folder itself too, after its parent does.
+/// Sends each event once, and no change to a file created in the batch.
 /// Nothing else is merged: a delete then create, or a rename to a backup
 /// then create, can be a save or a folder swapped for another, and the
 /// browser tells them apart by asking for the open file again.
 fn push(events: &mut Vec<Event>, event: Event) {
-    let seen = match &event {
-        Event::Changed { path } => events.contains(&Event::Created { path: path.clone() }),
-        Event::Removed { path } => events
-            .iter()
-            .any(|seen| matches!(seen, Event::Renamed { from, .. } if from == path)),
-        _ => false,
-    };
-    if seen {
+    if let Event::Changed { path } = &event
+        && events.contains(&Event::Created { path: path.clone() })
+    {
         return;
     }
     if !events.contains(&event) {
@@ -538,6 +553,26 @@ mod tests {
         assert!(!can_skip(&notify::Error::new(
             notify::ErrorKind::MaxFilesWatch
         )));
+    }
+
+    #[test]
+    fn a_removal_of_a_path_renamed_less_than_a_second_ago_is_dropped() {
+        let start = Instant::now();
+        let mut renamed = Vec::new();
+        let mut batch = vec![Event::Renamed {
+            from: path("sub"),
+            to: path("moved"),
+        }];
+        drop_echoes(&mut batch, &mut renamed, start);
+        assert_eq!(batch.len(), 1);
+
+        let removed = || vec![Event::Removed { path: path("sub") }];
+        let mut echo = removed();
+        drop_echoes(&mut echo, &mut renamed, start + ECHO / 2);
+        assert_eq!(echo, []);
+        let mut later = removed();
+        drop_echoes(&mut later, &mut renamed, start + ECHO);
+        assert_eq!(later, removed());
     }
 
     #[test]

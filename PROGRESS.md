@@ -558,7 +558,8 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `v0.1.0-rc.1`, 7 November 2026: the Linux and Intel macOS builds passed, but GitHub has retired the `macos-14` image that dist 0.33.1 picks for Apple Silicon, so nothing was published. That build now runs on `macos-15`, through `github-custom-runners`. The CI run of the tag found the flaky echo of a folder's move, above. Then `v0.1.0-rc.2`.
    - `v0.1.0-rc.2`, 7 November 2026: the four builds passed, and the prerelease is on GitHub. The check job was skipped. GitHub skips a job when a job that it needs, even through another, was skipped, unless its condition says `always()`. The check job needs `announce`, which needs the Homebrew job, skipped for a prerelease, and dist writes the check job with no condition. On a release, the Homebrew job runs, and so does the check job.
    - Checked by hand on Linux x86_64 instead: the install script of `v0.1.0-rc.2`, with `MDAME_INSTALL_DIR` in a temporary folder, then `.github/check-release.sh` on it. It passes. The binary is static, 18 MB with its symbols. macOS gets its first check with 0.1.0.
-6. The open points of milestone 8: `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
+6. The open points of milestone 8 (done): `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
+   - The notice is the one of `@primer/primitives` 11.10.0, the version that the themes copy: "Copyright (c) 2018 GitHub Inc." and the MIT text. `LICENSE` goes into the crate and into each release archive.
 7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README.
 8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`.
 9. Review loop, `cargo mutants`, manual checklist.
@@ -578,7 +579,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 6 of its plan.
+1. Milestone 10, on the `m10-release` branch: commit 7 of its plan, the memory measured by hand.
 
 ## Open points
 
@@ -610,10 +611,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - `spy()` in the outline reads the box of every heading at each scroll frame.
   - `forget()` keeps the article that the editor replaced in memory until the next file shows.
   - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.
-- From the review of milestone 8, for milestone 10:
-  - `web/themes/README.md`: say to use only themes that you trust. A theme can load images from the web, and so tell its author when mdame is used and which links a page holds.
 - Nits deferred by the review and the over-engineering check of milestone 8:
-  - `LICENSE` has no notice for `@primer/primitives` (MIT), whose colour values the built-in themes copy. For milestone 10.
   - A stored theme applies only when `main.js` runs, so a reload may show the system's theme first. Check 2 of the manual checklist watches for it.
   - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 

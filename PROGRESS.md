@@ -18,7 +18,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 6 | Editor | Done 25 October 2026, merged into `main` the same day | 68, with the review fixes |
 | 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
 | 8 | Themes and polish | Done 3 November 2026, merged into `main` the same day | 31, with the review fixes |
-| 9 | Agent workflow | Planned 3 November 2026 | About 12, without the review fixes |
+| 9 | Agent workflow | Done 7 November 2026 | 22, with the review fixes |
 | 10 | Release, then Show HN | — | About 10, without the review fixes |
 | 11 | Small Later items | — | About 10, without the review fixes |
 
@@ -452,7 +452,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `bindKeys` now ignores the keys while a dialog is open. Without it, `e` in the help opened the editor behind the dialog.
    - `web/dist/THIRD-PARTY-LICENSES.txt` moved to `web/dist/assets/`, so that the footer's "Licences" link opens the copy that mdame serves. The server now sends `.txt` as `text/plain`, so the browser shows the file instead of downloading it: `the_licences_show_as_text` in `tests/assets.rs`.
    - Checked in Chrome on 6 November 2026: `?` opens the help, with the focus on Close, and the actions of the three groups line up. A second `?` opens no second dialog, and `e` does not open the editor behind it. Closing the dialog removes it. The footer reads "mdame 0.0.1 · Repository · Licences". The console stays empty.
-13. Review loop (done), `cargo mutants` (done), manual checklist.
+13. Review loop (done), `cargo mutants` (done), manual checklist (done).
    - For the "done when" check: this repository's `.git/info/exclude` lists `/.claude/`, and ignore rules apply in hidden folders too, so its `.claude/plans` stays out of the tree. Run the check in another workspace.
    - Review loop, done on 6 November 2026: a simplify pass, then 11 rounds of a code reviewer and a security reviewer, until a round found no blocker and no should-fix. Decided on the way:
      - The search panel searches 150 ms after typing stops. The server cannot stop a search, so one search per keystroke would pile up.
@@ -467,7 +467,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 
 ### Manual checklist
 
-To run. These checks cover what no unit test covers: the bars, menus and panels on screen, and the agent workflow from end to end. Run mdame on a test folder with `cargo run -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. The folder holds:
+Run on 7 November 2026: all 18 checks passed. Claude ran them in Chrome through agent-browser, except checks 1 and 15. Kamal ran them all in Firefox. Checks 8 and 9 failed at first; after the fixes above, they passed in both browsers. Check 15 used ibus with Anthy, in Firefox and in Chromium. These checks cover what no unit test covers: the bars, menus and panels on screen, and the agent workflow from end to end. Run mdame on a test folder with `cargo run -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. The folder holds:
 
 - `plan.md`, with front matter, 4 h2 headings, a loose list, a quote and a Mermaid diagram;
 - `.claude/plans/a.md`, `.claude/settings.json` and `.git/notes.md`;
@@ -486,9 +486,9 @@ Change bars and "Last seen":
 
 3. Change `plan.md` on disk while it is on screen: the changed blocks get bars at their left, in one column, and only the new bar glows. Make the window narrower: the bars follow their blocks.
 4. In `plan.md`, add an item to the loose list: only the new item gets a bar. Change the front matter: no bar. Replace the paragraph under "Goal" by a blank line: a red mark shows where it was.
-5. Open `plan.md`, go to `/`, change `plan.md` on disk, then open it again: the bars show only that change. Do the same through the editor of `a.md`.
+5. Open `plan.md`, go to `/` with Back, change `plan.md` on disk, then open it again: the bars show only that change. Do the same through the editor of `a.md`.
 6. Open `plan.md` and press `e`. Change the file on disk: the editor reloads it. Click `a.md`, then `plan.md`: no bar for the change that the editor showed. Do the same with `crlf.md`: no bar at all.
-7. In the editor of `plan.md`, type a word, then change the file on disk: the notice shows. Click Reload, then press `h`: "Last seen" is the first entry.
+7. In the editor of `plan.md`, type a word, then change the file on disk: the notice shows. Click Reload, then Revisions: "Last seen" is the first entry.
 
 List of changes:
 
@@ -527,7 +527,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 9, on the `m9-agent-workflow` branch: the manual checklist, then the merge.
+1. Merge milestone 9 into `main`.
 
 ## Open points
 
@@ -542,6 +542,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - The version last seen follows a rename only for the file on screen.
   - "Last seen" of a file that was not UTF-8 holds U+FFFD, and its Restore writes them.
   - A blank line that splits a paragraph in two gets no bar.
+  - A list item added two lines above another change gets a "changed" bar, not "added": the line diff merges the two changes. Found by check 4 of the manual checklist.
   - `spy()` in the outline reads the box of every heading at each scroll frame.
   - `forget()` keeps the article that the editor replaced in memory until the next file shows.
   - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.

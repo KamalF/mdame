@@ -524,7 +524,8 @@ Decided on 7 November 2026, before the milestone started. `docs/SPEC.md` holds t
 
 Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: the install script and `brew install` give a working mdame on Linux and macOS.
 
-1. Editing on macOS. `fd_path` asks the kernel with `F_GETPATH`, through `rustix::fs::getpath`, where Linux reads `/proc/self/fd`. macOS adds no " (deleted)" to the name of a deleted file, so a link count of 0 marks it on both systems. `fd_path_names_the_open_file`, `a_deleted_file_is_reported_deleted`.
+1. Editing on macOS (done). `fd_path` asks the kernel with `F_GETPATH`, through `rustix::fs::getpath`, where Linux reads `/proc/self/fd`. macOS adds no " (deleted)" to the name of a deleted file, so a link count of 0 marks it on both systems. `fd_path_names_the_open_file`, `a_deleted_file_is_reported_deleted`.
+   - `is_at` counts a deleted file as gone. During a rename over a file, the file loses its last link a moment before the path leads to the new file. In that moment, `a_file_renamed_over_after_the_open_is_opened_again` failed in 2 runs of 3.
    - `rustix` becomes a direct dependency on macOS only. It is in the lock file already, through cap-std. Kamal approved it on 7 November 2026; this commit adds its line in Libraries.
    - Without a Mac, `cargo clippy --target aarch64-apple-darwin` checks that the macOS code compiles.
 2. CI on macOS. A second job on a macOS runner runs the same steps. The actions are pinned by commit SHA, and the checkout sets `persist-credentials: false`.
@@ -556,7 +557,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 1 of its plan.
+1. Milestone 10, on the `m10-release` branch: commit 2 of its plan.
 
 ## Open points
 
@@ -594,7 +595,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - From the review of milestone 6, for later:
   - No header-read or idle timeout: idle connections can hold every file descriptor, and keep the browser out after a theft.
   - Above about 55,000 distinct lines, or a changed middle of 160,000 lines, the silent reload replaces the whole text and the cursor jumps. A patience diff would lift the limit.
-  - The editor's routes read `/proc/self/fd`, so on macOS every edit is refused. `F_GETPATH` would do there.
   - The editor uses the markdown language for every file family.
   - `e` opens the editor at line 1, and Esc shows the view from the top.
   - `split.ts` copies the sidebar's resize handle and its CSS.

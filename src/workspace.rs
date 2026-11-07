@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::io::{self, ErrorKind};
-use std::os::fd::{AsFd, AsRawFd};
+use std::os::fd::{AsFd, BorrowedFd};
 use std::path::{Component, Path, PathBuf};
 
 use cap_std::ambient_authority;
@@ -14,9 +14,34 @@ pub const OWN_DIR: &str = ".mdame";
 
 /// Where the file or folder of `handle` is, as the kernel knows it. A link
 /// or a swapped entry in the path that opened it does not count. A file
-/// deleted or renamed over since then ends in " (deleted)".
+/// deleted or renamed over since then gives `NotFound`.
 pub fn fd_path(handle: &impl AsFd) -> io::Result<PathBuf> {
-    std::fs::read_link(format!("/proc/self/fd/{}", handle.as_fd().as_raw_fd()))
+    match path_and_links(handle.as_fd())? {
+        (_, 0) => Err(io::Error::new(ErrorKind::NotFound, "deleted")),
+        (path, _) => Ok(path),
+    }
+}
+
+// The link count is read after the path: a file deleted between the two
+// reads still counts as deleted.
+
+#[cfg(not(target_os = "macos"))]
+fn path_and_links(handle: BorrowedFd) -> io::Result<(PathBuf, u64)> {
+    use std::os::fd::AsRawFd;
+    use std::os::unix::fs::MetadataExt;
+
+    let link = format!("/proc/self/fd/{}", handle.as_raw_fd());
+    let path = std::fs::read_link(&link)?;
+    Ok((path, std::fs::metadata(&link)?.nlink()))
+}
+
+#[cfg(target_os = "macos")]
+fn path_and_links(handle: BorrowedFd) -> io::Result<(PathBuf, u64)> {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let path = OsString::from_vec(rustix::fs::getpath(handle)?.into_bytes());
+    Ok((path.into(), rustix::fs::fstat(handle)?.st_nlink.into()))
 }
 
 /// Whether a folder is `.git` or `.mdame`, at any depth: the tree never
@@ -65,8 +90,8 @@ impl Workspace {
         };
         let dir = Dir::open_ambient_dir(&root, ambient_authority())?;
         // The folder that the Dir holds: a link swapped after the
-        // canonicalize must not leave `root` naming another one. Without
-        // /proc, as on macOS, the resolved path stands.
+        // canonicalize must not leave `root` naming another one. If the
+        // kernel cannot tell, as without /proc, the resolved path stands.
         let root = fd_path(&dir).unwrap_or(root);
         Ok(Workspace {
             root,
@@ -117,5 +142,27 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let error = Workspace::open(&dir.path().join("missing")).err().unwrap();
         assert_eq!(error.kind(), ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn fd_path_names_the_open_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        fs::write(root.join("a.md"), "").unwrap();
+        std::os::unix::fs::symlink("a.md", root.join("link.md")).unwrap();
+
+        let file = fs::File::open(root.join("link.md")).unwrap();
+        fs::rename(root.join("a.md"), root.join("b.md")).unwrap();
+        assert_eq!(fd_path(&file).unwrap(), root.join("b.md"));
+    }
+
+    #[test]
+    fn a_deleted_file_is_reported_deleted() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("a.md"), "").unwrap();
+
+        let file = fs::File::open(dir.path().join("a.md")).unwrap();
+        fs::remove_file(dir.path().join("a.md")).unwrap();
+        assert_eq!(fd_path(&file).unwrap_err().kind(), ErrorKind::NotFound);
     }
 }

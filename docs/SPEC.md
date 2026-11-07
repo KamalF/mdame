@@ -219,6 +219,7 @@ Each part of the app maps to one focused library; custom code is limited to snap
 | tracing, tracing-subscriber | 0.1.44; 0.3.23 | Logging and timing spans; `-v` sets debug level | log + env_logger (no spans, while axum and tower speak tracing), println |
 | thiserror | 2.0 | Typed API errors | none |
 | getrandom | 0.4.3 | Secure random bytes from the OS for the token and its codes | rand (far more than the one call that mdame needs), reading `/dev/urandom` (no Windows) |
+| rustix | 1.1.5 | macOS only: the path of an open file (`F_GETPATH`) and its link count, for the editor's checks. cap-std already depends on it | the `libc` crate (unsafe calls) |
 
 Written ourselves instead of a crate:
 

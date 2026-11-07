@@ -314,12 +314,11 @@ fn open_editable(
 ) -> io::Result<(File, Metadata, PathBuf)> {
     let (file, metadata) = open_file(dir, path, options)?;
     editable_name(Path::new(path))?;
-    let real = real_path(dir, &file)?;
-    match editable_name(&real) {
-        // A program that saves by renaming a new file over the path did so
-        // after the open. The kernel now names the open file "… (deleted)".
+    match real_path(dir, &file).and_then(|real| editable_name(&real).map(|()| real)) {
+        // A program saved the file by a rename after the open: the open file
+        // is deleted, or now has the name of a backup.
         Err(_) if !is_at(dir, path, &file) => open_editable(dir, path, options),
-        checked => checked.map(|()| (file, metadata, real)),
+        checked => checked.map(|real| (file, metadata, real)),
     }
 }
 
@@ -328,7 +327,9 @@ fn is_at(dir: &Dir, path: &str, file: &File) -> bool {
     let (Ok(opened), Ok(on_path)) = (file.metadata(), dir.metadata(path)) else {
         return false;
     };
-    (opened.dev(), opened.ino()) == (on_path.dev(), on_path.ino())
+    // A file renamed over loses its last link a moment before the path
+    // leads to the new file.
+    opened.nlink() > 0 && (opened.dev(), opened.ino()) == (on_path.dev(), on_path.ino())
 }
 
 /// Where `handle` is, relative to the workspace root, as the kernel knows it.

@@ -554,8 +554,10 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `.github/workflows/check-release.yml`, which dist calls after the release is announced, through `post-announce-jobs`. It takes the tag and the prerelease flag from dist's plan.
    - `.github/check-release.sh` starts the mdame that it is given on an empty folder, with its own config and state folders, and reads the token from the state folder. It passes on a local build; it runs on any binary.
    - dist publishes no formula for a prerelease, so the Homebrew part runs only for a release.
-   - Rehearsal, before commit 6: the version `0.1.0-rc.1`, then its tag, which Kamal pushes. The prerelease checks the release workflow and the script part of this job.
+   - Rehearsal, before commit 6: the version `0.1.0-rc.1`, then its tag, which Kamal pushes. The prerelease checks the release workflow.
    - `v0.1.0-rc.1`, 7 November 2026: the Linux and Intel macOS builds passed, but GitHub has retired the `macos-14` image that dist 0.33.1 picks for Apple Silicon, so nothing was published. That build now runs on `macos-15`, through `github-custom-runners`. The CI run of the tag found the flaky echo of a folder's move, above. Then `v0.1.0-rc.2`.
+   - `v0.1.0-rc.2`, 7 November 2026: the four builds passed, and the prerelease is on GitHub. The check job was skipped. GitHub skips a job when a job that it needs, even through another, was skipped, unless its condition says `always()`. The check job needs `announce`, which needs the Homebrew job, skipped for a prerelease, and dist writes the check job with no condition. On a release, the Homebrew job runs, and so does the check job.
+   - Checked by hand on Linux x86_64 instead: the install script of `v0.1.0-rc.2`, with `MDAME_INSTALL_DIR` in a temporary folder, then `.github/check-release.sh` on it. It passes. The binary is static, 18 MB with its symbols. macOS gets its first check with 0.1.0.
 6. The open points of milestone 8: `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
 7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README.
 8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`.
@@ -576,7 +578,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: the rehearsal with `v0.1.0-rc.2`, then commit 6 of its plan.
+1. Milestone 10, on the `m10-release` branch: commit 6 of its plan.
 
 ## Open points
 
@@ -585,6 +587,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.
   - A change to `.git/info/exclude`, or to the global gitignore, updates the watches only at the next walk.
 - CI runs twice for a release: on the branch and on the tag. `ci.yml` could leave tags out.
+- The install script writes dist's receipt, `mdame-receipt.json`, into `~/.config/mdame/`, beside `config.toml`, although mdame installs no updater.
+- The release binaries keep their symbols: `strip = true` in the `dist` profile would make them smaller than 18 MB.
 - Live updates on macOS, a known issue of 0.1.0. FSEvents merges the kinds of the events of a path, and gives the two sides of a rename apart. On the CI run of 7 November 2026:
   - A write gives `created`, a delete `changed`, and a folder delete nothing.
   - A rename, a vim or emacs save, and a folder moved in give `resync`. Two renames in one batch give `created` for the new names only.

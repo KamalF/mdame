@@ -535,10 +535,14 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - cargo-mutants and nextest install on Linux only. They serve only mutation testing, and cargo-mutants has no build for ARM macOS.
    - The first run on macOS: `a_save_succeeds_when_pruning_fails` now runs on Linux only. Its history folder has write permission but no read permission. Without `O_PATH`, cap-std cannot open such a folder, so on macOS the snapshot fails too. `cargo test` now runs every test binary, even after one fails.
    - The second run on macOS: 14 of the 16 tests of `tests/watch.rs` and one test of `tests/ws.rs` fail. They now run on Linux only. The failures are under Open points.
-3. The watcher skips gitignored folders. `a_change_in_a_gitignored_folder_sends_nothing`, `a_new_folder_is_watched`, `a_file_written_right_after_its_folder_is_created_is_seen`, `a_folder_that_a_gitignore_change_shows_is_watched`, `a_folder_that_a_gitignore_change_hides_sends_nothing`.
-   - On macOS, the event filter drops the events under ignored folders. Its tests run on Linux only, as the other watcher tests do.
-   - It closes the open point of milestone 9: the list of changes no longer shows gitignored files.
-   - `watch.rs` has 471 lines already. The folder watches may go to a module of their own.
+3. The watcher skips gitignored folders (done). `a_change_in_a_gitignored_folder_sends_nothing`, `a_new_folder_is_watched`, `a_file_written_right_after_its_folder_is_created_is_seen`, `a_folder_that_a_gitignore_change_shows_is_watched`, `a_folder_that_a_gitignore_change_hides_sends_nothing`, and `a_renamed_folder_stays_watched`.
+   - The watcher walks the workspace with the walker of the tree, `tree::walker`. It walks again after each batch with a creation, a removal or a rename, or with a write to a `.gitignore` or `.ignore` file.
+   - On macOS, the event filter drops the events under ignored folders. Its tests run on Linux only, as the other watcher tests do. A unit test, `a_path_in_a_folder_that_the_tree_hides_is_skipped`, checks the filter on both systems.
+   - A folder created or moved in sends `created` for its entries too: they may have been written before its watch. `populated_folder_moved_in_is_created` now expects the file in the folder.
+   - inotify reports the move of a watched folder from the folder itself too, as a removal: `push` drops a removal of a path that the batch renamed.
+   - notify-debouncer-full 0.7 takes quadratic time to watch folders one by one: 12 s for 15,000 folders, where notify alone takes 0.46 s. Decided on 7 November 2026: the first walk runs on the watcher's thread, so mdame opens at once, and live updates start later on a large workspace. Tests wait for it with `Watcher::wait_started`. The release candidate 0.8.0-rc.2 fixes it, but needs notify 9.0.0-rc.7.
+   - `watch.rs` stays one module: 555 lines, of which 230 are tests. The code that watched around an unreadable folder is gone, since each folder now has its own watch.
+   - It closes most of the open point of milestone 9: the list of changes no longer shows the files of gitignored folders.
 4. Release binaries with dist. `dist init` writes the release workflow and its config: the four targets above, a shell installer and a Homebrew formula. `dist plan` lists the archives, the installer and the formula.
    - The formula goes to a tap repository, `KamalF/homebrew-tap`. Before this commit, Kamal and Claude set up the tap and a token that the release workflow can use.
 5. A job after each release, on Linux and on a macOS runner: it installs mdame with the script and with Homebrew, starts it with `--no-open`, and requests `/api/state` with the token. On macOS, this job is the "done when" check.
@@ -562,10 +566,14 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: a green CI run on macOS, then commit 3 of its plan.
+1. Milestone 10, on the `m10-release` branch: commit 4 of its plan.
 
 ## Open points
 
+- From milestone 10, the watcher:
+  - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace.
+  - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.
+  - A change to `.git/info/exclude`, or to the global gitignore, updates the watches only at the next walk.
 - Live updates on macOS, a known issue of 0.1.0. FSEvents merges the kinds of the events of a path, and gives the two sides of a rename apart. On the CI run of 7 November 2026:
   - A write gives `created`, a delete `changed`, and a folder delete nothing.
   - A rename, a vim or emacs save, and a folder moved in give `resync`. Two renames in one batch give `created` for the new names only.
@@ -577,7 +585,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. Git guards the same aliases. Not checked.
   - A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A limit such as `rg --max-columns` would bound it.
   - Spellcheck is on by default. A browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor. The README could say so.
-  - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`. The list of changes still shows writes there until the watcher skips ignored folders, in milestone 10.
+  - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`.
 - Nits deferred by the review of milestone 9:
   - `marks()` costs blocks × lines, and the outline's `entries()` costs marks × headings. A crafted file can block the tab for seconds at each change.
   - The version last seen follows a rename only for the file on screen.
@@ -635,10 +643,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs.
   - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
-  - A folder deleted between notify's inotify add and its stat gives `Io(NotFound)` with no path, which still turns live updates off; skipping it needs a retry.
   - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
-- The watcher watches gitignored folders too (`target/`, `node_modules/`: 2 600 of this repo's 2 900 folders), so a `cargo build` in the workspace sends events and `resync`s for files the tree never shows. Measure in the browser after milestone 5 before filtering.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
 - From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread; "Copy content" fetches before it writes to the clipboard, which Safari may refuse, and the failure tooltip then blames localhost.
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.

@@ -133,8 +133,6 @@ pub async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let events = broadcast::channel(EVENT_CAPACITY).0;
     let workspace = open_workspace(&args.path, events.clone())
         .map_err(|error| format!("{}: {}", args.path.display(), io_message(&error)))?;
-    // After the open: the watcher's first walk of a large folder can take
-    // longer than a code lives.
     let (opened, printed) = (new_token()?, new_token()?);
     let state = Arc::new(AppState {
         addr,

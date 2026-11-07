@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use cap_std::fs::Dir;
-use ignore::WalkBuilder;
+use ignore::{Walk, WalkBuilder};
 use serde::Serialize;
 
 use crate::document::modified_secs;
@@ -34,22 +34,8 @@ pub struct Node {
 /// file are left out.
 pub fn build(workspace: &Workspace) -> Node {
     let root = &workspace.root;
-    // A notes folder can have a .gitignore without being a git repository.
-    // Ignore files above the root count only inside a repository, as in
-    // git: a `.gitignore` in a home folder without `.git` must not hide
-    // the notes below it.
-    let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
-    let walker = WalkBuilder::new(root)
-        // In a repository, true stops the parent scan at its root.
-        .require_git(in_repo)
-        // Git reads core.excludesFile only in a repository, too.
-        .git_global(in_repo)
-        .parents(in_repo)
-        .hidden(false)
-        .filter_entry(|entry| !is_git_or_mdame(entry.file_name()))
-        .build();
     let mut top = Folder::default();
-    for entry in walker.filter_map(Result::ok) {
+    for entry in walker(root).filter_map(Result::ok) {
         // Paths that are not UTF-8 could not be asked for again by the page.
         let Some(relative) = entry.path().strip_prefix(root).ok().and_then(Path::to_str) else {
             continue;
@@ -61,6 +47,25 @@ pub fn build(workspace: &Workspace) -> Node {
         top.insert(&parts, file);
     }
     top.into_node(String::new(), String::new())
+}
+
+/// The entries of the workspace that the tree may show, folders included:
+/// gitignored entries, `.git` and `.mdame` stay out.
+pub fn walker(root: &Path) -> Walk {
+    // A notes folder can have a .gitignore without being a git repository.
+    // Ignore files above the root count only inside a repository, as in
+    // git: a `.gitignore` in a home folder without `.git` must not hide
+    // the notes below it.
+    let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
+    WalkBuilder::new(root)
+        // In a repository, true stops the parent scan at its root.
+        .require_git(in_repo)
+        // Git reads core.excludesFile only in a repository, too.
+        .git_global(in_repo)
+        .parents(in_repo)
+        .hidden(false)
+        .filter_entry(|entry| !is_git_or_mdame(entry.file_name()))
+        .build()
 }
 
 /// The family and modified time of a viewable file, or `None` for

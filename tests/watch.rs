@@ -206,7 +206,9 @@ async fn populated_folder_moved_in_is_created() {
     fs::create_dir(&source).unwrap();
     fs::write(source.join("inner.md"), "# Inner\n").unwrap();
     fs::rename(&source, watched.path("moved")).unwrap();
-    watched.assert_next(&[created("moved")]).await;
+    watched
+        .assert_next(&[created("moved"), created("moved/inner.md")])
+        .await;
 }
 
 #[tokio::test]
@@ -249,4 +251,62 @@ async fn burst_gives_resync() {
     // A batch can be split over two ticks, so one part holds over 100.
     let events = watched.next().await;
     assert!(events.contains(&Event::Resync), "got {events:?}");
+}
+
+#[tokio::test]
+async fn a_change_in_a_gitignored_folder_sends_nothing() {
+    let mut watched = Watched::new(&[(".gitignore", b"build/\n"), ("build/a.md", b"")]);
+    fs::write(watched.path("build/a.md"), "# Built\n").unwrap();
+    fs::create_dir(watched.path("build/sub")).unwrap();
+    watched.assert_next(&[]).await;
+}
+
+#[tokio::test]
+async fn a_new_folder_is_watched() {
+    let mut watched = Watched::new(&[A]);
+    fs::create_dir(watched.path("notes")).unwrap();
+    watched.assert_next(&[created("notes")]).await;
+    fs::write(watched.path("notes/b.md"), "# B\n").unwrap();
+    watched.assert_next(&[created("notes/b.md")]).await;
+}
+
+#[tokio::test]
+async fn a_file_written_right_after_its_folder_is_created_is_seen() {
+    let mut watched = Watched::new(&[A]);
+    fs::create_dir_all(watched.path("notes/deep")).unwrap();
+    fs::write(watched.path("notes/deep/b.md"), "# B\n").unwrap();
+    watched
+        .assert_next(&[
+            created("notes"),
+            created("notes/deep"),
+            created("notes/deep/b.md"),
+        ])
+        .await;
+}
+
+#[tokio::test]
+async fn a_renamed_folder_stays_watched() {
+    let mut watched = Watched::new(&[A, ("sub/b.md", b"")]);
+    fs::rename(watched.path("sub"), watched.path("moved")).unwrap();
+    watched.assert_next(&[renamed("sub", "moved")]).await;
+    fs::write(watched.path("moved/b.md"), "# B\n").unwrap();
+    watched.assert_next(&[changed("moved/b.md")]).await;
+}
+
+#[tokio::test]
+async fn a_folder_that_a_gitignore_change_shows_is_watched() {
+    let mut watched = Watched::new(&[(".gitignore", b"build/\n"), ("build/a.md", b"")]);
+    fs::write(watched.path(".gitignore"), "").unwrap();
+    watched.assert_next(&[changed(".gitignore")]).await;
+    fs::write(watched.path("build/a.md"), "# Built\n").unwrap();
+    watched.assert_next(&[changed("build/a.md")]).await;
+}
+
+#[tokio::test]
+async fn a_folder_that_a_gitignore_change_hides_sends_nothing() {
+    let mut watched = Watched::new(&[A, ("build/a.md", b"")]);
+    fs::write(watched.path(".gitignore"), "build/\n").unwrap();
+    watched.assert_next(&[created(".gitignore")]).await;
+    fs::write(watched.path("build/a.md"), "# Built\n").unwrap();
+    watched.assert_next(&[]).await;
 }

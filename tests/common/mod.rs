@@ -116,5 +116,6 @@ pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {
     fs::write(dir.join("secret.md"), "secret\n").unwrap();
     let events = broadcast::channel(EVENT_CAPACITY).0;
     let workspace = open_workspace(&root, events.clone()).unwrap();
+    workspace.watcher.as_ref().unwrap().wait_started();
     on(workspace, events)
 }

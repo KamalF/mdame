@@ -143,6 +143,9 @@ async fn a_save_keeps_its_snapshot_when_later_names_fill_the_history() {
 }
 
 #[tokio::test]
+// cap-std opens a folder that it may not read only through O_PATH, which
+// macOS lacks. There, the snapshot fails too.
+#[cfg_attr(not(target_os = "linux"), ignore = "needs O_PATH")]
 async fn a_save_succeeds_when_pruning_fails() {
     let dir = tempfile::tempdir().unwrap();
     let mut state = workspace(dir.path());

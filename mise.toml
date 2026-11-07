@@ -36,7 +36,7 @@ run = "cargo fmt"
 run = ["cargo clippy --all-targets -- -D warnings", "bunx tsc"]
 
 [tasks.test]
-run = ["cargo test", "bun test --pass-with-no-tests"]
+run = ["cargo test --no-fail-fast", "bun test --pass-with-no-tests"]
 
 [tasks.check-dist]
 description = "Fail if the committed web/dist is not what web/ builds"

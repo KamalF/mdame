@@ -532,6 +532,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - The macOS runner may find failures that Linux hides: the temporary folder behind a symlink, or a file system that ignores case. Their fixes come in this commit or right after it.
    - One failing runner does not cancel the other: `fail-fast: false`.
    - cargo-mutants and nextest install on Linux only. They serve only mutation testing, and cargo-mutants has no build for ARM macOS.
+   - The first run on macOS: `a_save_succeeds_when_pruning_fails` now runs on Linux only. Its history folder has write permission but no read permission. Without `O_PATH`, cap-std cannot open such a folder, so on macOS the snapshot fails too. `cargo test` now runs every test binary, even after one fails.
 3. The watcher skips gitignored folders. `a_change_in_a_gitignored_folder_sends_nothing`, `a_new_folder_is_watched`, `a_file_written_right_after_its_folder_is_created_is_seen`, `a_folder_that_a_gitignore_change_shows_is_watched`, `a_folder_that_a_gitignore_change_hides_sends_nothing`.
    - The same tests run on macOS, through the event filter.
    - It closes the open point of milestone 9: the list of changes no longer shows gitignored files.

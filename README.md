@@ -3,7 +3,8 @@
 A local markdown viewer and editor, served to your browser by one Rust binary.
 
 mdame is early work. Version 0.0.1 holds the name on crates.io, and the first
-real release is 0.1.0. It is tested on Linux only.
+real release is 0.1.0. Its tests run on Linux and macOS, but it has been used
+on Linux only.
 
 ## Install
 

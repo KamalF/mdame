@@ -528,8 +528,10 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `is_at` counts a deleted file as gone. During a rename over a file, the file loses its last link a moment before the path leads to the new file. In that moment, `a_file_renamed_over_after_the_open_is_opened_again` failed in 2 runs of 3.
    - `rustix` becomes a direct dependency on macOS only. It is in the lock file already, through cap-std. Kamal approved it on 7 November 2026; this commit adds its line in Libraries.
    - Without a Mac, `cargo clippy --target aarch64-apple-darwin` checks that the macOS code compiles.
-2. CI on macOS. A second job on a macOS runner runs the same steps. The actions are pinned by commit SHA, and the checkout sets `persist-credentials: false`.
+2. CI on macOS (done). A second job on a macOS runner runs the same steps. The actions are pinned by commit SHA, and the checkout sets `persist-credentials: false`.
    - The macOS runner may find failures that Linux hides: the temporary folder behind a symlink, or a file system that ignores case. Their fixes come in this commit or right after it.
+   - One failing runner does not cancel the other: `fail-fast: false`.
+   - cargo-mutants and nextest install on Linux only. They serve only mutation testing, and cargo-mutants has no build for ARM macOS.
 3. The watcher skips gitignored folders. `a_change_in_a_gitignored_folder_sends_nothing`, `a_new_folder_is_watched`, `a_file_written_right_after_its_folder_is_created_is_seen`, `a_folder_that_a_gitignore_change_shows_is_watched`, `a_folder_that_a_gitignore_change_hides_sends_nothing`.
    - The same tests run on macOS, through the event filter.
    - It closes the open point of milestone 9: the list of changes no longer shows gitignored files.
@@ -557,7 +559,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 2 of its plan.
+1. Milestone 10, on the `m10-release` branch: push it, and fix what the first CI run on macOS finds. Then commit 3 of its plan.
 
 ## Open points
 
@@ -577,7 +579,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - `forget()` keeps the article that the editor replaced in memory until the next file shows.
   - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.
 - From the review of milestone 8, for milestone 10:
-  - CI: pin `jdx/mise-action` and `Swatinem/rust-cache` by commit SHA, and set `persist-credentials: false` on the checkout.
   - `web/themes/README.md`: say to use only themes that you trust. A theme can load images from the web, and so tell its author when mdame is used and which links a page holds.
 - Nits deferred by the review and the over-engineering check of milestone 8:
   - `LICENSE` has no notice for `@primer/primitives` (MIT), whose colour values the built-in themes copy. For milestone 10.

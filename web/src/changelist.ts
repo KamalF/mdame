@@ -106,8 +106,11 @@ export function changesItem(open: (path: string) => void, clear: () => void) {
       return;
     }
     const newest = paths[0];
-    const name = newest.slice(newest.lastIndexOf("/") + 1);
-    button.textContent = paths.length === 1 ? name : `${name} +${paths.length - 1}`;
+    const name = document.createElement("span");
+    name.className = "mdame-changes-name";
+    name.textContent = newest.slice(newest.lastIndexOf("/") + 1);
+    button.replaceChildren(name);
+    if (paths.length > 1) button.append(` +${paths.length - 1}`);
     button.title =
       paths.length === 1
         ? `Changed on disk: ${newest}`

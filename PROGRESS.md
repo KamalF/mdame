@@ -463,6 +463,8 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
      - Text replaced by blank lines gets a "removed" mark. Blank lines between the items of a loose list, or a lone `>` in a quote, mark no container. Text changed in no block, such as front matter, gets no mark.
    - `cargo mutants` on the diff of the milestone, 6 November 2026: 50 mutants, 40 caught, 10 unviable, none missed.
 
+- After the manual checklist, on 7 November 2026: a long name in the list of changes ends in "…", and its `+N` count stays visible. A long menu of the status bar no longer goes 6 px past the top of the window: its `max-height` now holds its padding and border.
+
 ### Manual checklist
 
 To run. These checks cover what no unit test covers: the bars, menus and panels on screen, and the agent workflow from end to end. Run mdame on a test folder with `cargo run -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. The folder holds:
@@ -540,7 +542,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - The version last seen follows a rename only for the file on screen.
   - "Last seen" of a file that was not UTF-8 holds U+FFFD, and its Restore writes them.
   - A blank line that splits a paragraph in two gets no bar.
-  - A long name in the list of changes may overflow its button. The manual checklist watches for it.
   - `spy()` in the outline reads the box of every heading at each scroll frame.
   - `forget()` keeps the article that the editor replaced in memory until the next file shows.
   - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.

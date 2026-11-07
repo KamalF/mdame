@@ -387,7 +387,10 @@
   cursor: default;
 }
 
+/* The max-height that statusMenu sets must include the padding and the
+   border. Otherwise the menu goes past the top of the window. */
 .mdame-menu {
+  box-sizing: border-box;
   inset: auto;
   margin: 0;
   padding: 4px;
@@ -453,6 +456,12 @@
   font: inherit;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* A long name ends in "…", and the count after it stays visible. */
+.mdame-changes-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The dot of a change: in the outline, and before the list of changes. */

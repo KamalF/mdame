@@ -550,7 +550,11 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - The install script puts mdame in `~/.local/bin`, not in dist's default `~/.cargo/bin`: most users of the script have no Rust.
    - The actions of the release workflow are pinned by commit, through `github-action-commits`. dist writes the checkouts with `persist-credentials: false`, except the one that pushes the formula to the tap.
    - `Cargo.toml` gains `homepage`, for the formula, and the `dist` profile: the release profile with thin LTO.
-5. A job after each release, on Linux and on a macOS runner: it installs mdame with the script and with Homebrew, starts it with `--no-open`, and requests `/api/state` with the token. On macOS, this job is the "done when" check.
+5. A job after each release, on Linux and on a macOS runner: it installs mdame with the script and with Homebrew, starts it with `--no-open`, and requests `/api/state` with the token. On macOS, this job is the "done when" check. (done)
+   - `.github/workflows/check-release.yml`, which dist calls after the release is announced, through `post-announce-jobs`. It takes the tag and the prerelease flag from dist's plan.
+   - `.github/check-release.sh` starts the mdame that it is given on an empty folder, with its own config and state folders, and reads the token from the state folder. It passes on a local build; it runs on any binary.
+   - dist publishes no formula for a prerelease, so the Homebrew part runs only for a release.
+   - Rehearsal, before commit 6: the version `0.1.0-rc.1`, then its tag, which Kamal pushes. The prerelease checks the release workflow and the script part of this job.
 6. The open points of milestone 8: `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
 7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README.
 8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`.
@@ -571,7 +575,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 5 of its plan.
+1. Milestone 10, on the `m10-release` branch: the rehearsal with `v0.1.0-rc.1`, then commit 6 of its plan.
 
 ## Open points
 

@@ -1,0 +1,38 @@
+# Called by release.yml once a release is published: installs it as a user
+# would, on Linux and on macOS, and checks that mdame starts.
+name: Check release
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install with the script
+        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/KamalF/mdame/releases/download/$TAG/mdame-installer.sh" | sh
+      - run: .github/check-release.sh "$HOME/.local/bin/mdame"
+      # dist publishes no formula for a prerelease.
+      - name: Install with Homebrew
+        if: ${{ !fromJson(inputs.plan).announcement_is_prerelease }}
+        run: |
+          # On the Linux runner, brew is installed but not on PATH.
+          test -x /home/linuxbrew/.linuxbrew/bin/brew && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install KamalF/tap/mdame
+          .github/check-release.sh "$(brew --prefix)/bin/mdame"

@@ -621,7 +621,7 @@ Each test states one rule, and its name is that rule. The rules are:
 | WebSocket | a test client against a bound server | events arrive with relative paths; `resync` after lag |
 | Front-end unit | `bun test` on modules with no DOM | scroll-sync line-to-block mapping and interpolation, the key-map rules (ignore while typing, modifiers), API error mapping, what the page does for each live event |
 
-Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on the set of events, not their exact order. CI on Linux and macOS runs `mise run fmt`, `lint`, `test` and `check-dist`.
+Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on the set of events, not their exact order. CI on Linux and macOS runs `mise run fmt`, `lint`, `test` and `check-dist`. After each release, a job installs it with the script and with Homebrew, on Linux and on macOS, and checks that mdame starts and answers `/api/state`.
 
 ## Build order
 

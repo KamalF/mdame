@@ -37,6 +37,10 @@ async fn next_text(client: &mut Client) -> String {
 }
 
 #[tokio::test]
+#[cfg_attr(
+    not(target_os = "linux"),
+    ignore = "FSEvents reports this write as created: a known issue"
+)]
 async fn file_change_reaches_the_tab_with_a_relative_path() {
     let dir = tempfile::tempdir().unwrap();
     let (_state, url) = serve(common::workspace(dir.path(), &[("docs/a.md", b"# A\n")])).await;

@@ -696,6 +696,7 @@ After milestone 11, the medium Later items wait.
 | Milestone 9: markdown in hidden folders is shown and editable, except under `.git` and `.mdame`. The handoff goes to Later, and a list of changes in the status bar replaces it. Change bars compare with the version that you last saw. A search panel, the content width, an outline and spellcheck come in. Copy as quote and wide blocks go to Later | 3 November 2026 |
 | Milestone 10 also measures memory against VS Code, stops watching gitignored folders, takes the open points of milestone 8, and leads the README with VS Code | 3 November 2026 |
 | Milestone 10: no npm wrapper; static Linux binaries built with musl; on Linux the watcher skips gitignored folders, on macOS it drops their events; a CI job checks the release on macOS | 7 November 2026 |
+| Live updates on macOS are a known issue of 0.1.0: FSEvents merges the kinds of the events of a path. The watcher tests run on Linux only | 7 November 2026 |
 
 ### Review log, 14 October 2026
 

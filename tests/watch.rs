@@ -1,5 +1,9 @@
 //! Watcher cases ported from mdlive's `tests/websocket_test.rs`.
 
+// On macOS, FSEvents merges the kinds of the events of a path: a known
+// issue, listed in the README.
+#![cfg(target_os = "linux")]
+
 mod common;
 
 use std::fs;

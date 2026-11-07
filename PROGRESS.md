@@ -543,8 +543,13 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - notify-debouncer-full 0.7 takes quadratic time to watch folders one by one: 12 s for 15,000 folders, where notify alone takes 0.46 s. Decided on 7 November 2026: the first walk runs on the watcher's thread, so mdame opens at once, and live updates start later on a large workspace. Tests wait for it with `Watcher::wait_started`. The release candidate 0.8.0-rc.2 fixes it, but needs notify 9.0.0-rc.7.
    - `watch.rs` stays one module: 555 lines, of which 230 are tests. The code that watched around an unreadable folder is gone, since each folder now has its own watch.
    - It closes most of the open point of milestone 9: the list of changes no longer shows the files of gitignored folders.
-4. Release binaries with dist. `dist init` writes the release workflow and its config: the four targets above, a shell installer and a Homebrew formula. `dist plan` lists the archives, the installer and the formula.
-   - The formula goes to a tap repository, `KamalF/homebrew-tap`. Before this commit, Kamal and Claude set up the tap and a token that the release workflow can use.
+4. Release binaries with dist (done). `dist init` writes the release workflow and its config: the four targets above, a shell installer and a Homebrew formula. `dist plan` lists the archives, the installer and the formula.
+   - The formula goes to a tap repository, `KamalF/homebrew-tap`. Before this commit, Kamal and Claude set up the tap and a token that the release workflow can use. The token, the secret `HOMEBREW_TAP_TOKEN`, can write the contents of the tap only, and has no expiration.
+   - dist 0.33.1, from `mise.toml`: 0.34.0 was 5 days old. Its config is in `dist-workspace.toml`. `dist init` kept its default targets beside the four, so the targets were set by hand.
+   - Each target builds on a native GitHub runner: `ubuntu-22.04`, `ubuntu-22.04-arm`, `macos-14` and `macos-15-intel`. No crate of mdame compiles C, so musl needs only `musl-tools`.
+   - The install script puts mdame in `~/.local/bin`, not in dist's default `~/.cargo/bin`: most users of the script have no Rust.
+   - The actions of the release workflow are pinned by commit, through `github-action-commits`. dist writes the checkouts with `persist-credentials: false`, except the one that pushes the formula to the tap.
+   - `Cargo.toml` gains `homepage`, for the formula, and the `dist` profile: the release profile with thin LTO.
 5. A job after each release, on Linux and on a macOS runner: it installs mdame with the script and with Homebrew, starts it with `--no-open`, and requests `/api/state` with the token. On macOS, this job is the "done when" check.
 6. The open points of milestone 8: `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
 7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README.
@@ -566,7 +571,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 4 of its plan.
+1. Milestone 10, on the `m10-release` branch: commit 5 of its plan.
 
 ## Open points
 

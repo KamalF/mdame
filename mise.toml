@@ -1,5 +1,6 @@
 [tools]
 bun = "1.4.3"
+cargo-dist = "0.33.1"
 cargo-insta = "1.49.0"
 # Mutation testing runs on Linux only: cargo-mutants has no build for ARM macOS.
 "github:nextest-rs/nextest" = { version = "cargo-nextest-0.9.148", os = ["linux"] }

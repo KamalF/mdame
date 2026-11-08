@@ -118,9 +118,9 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
 }
 
 /**
- * Shows the new content of the file on screen, replacing only what changed:
- * the scroll position, a text selection and open `<details>` stay. A file
- * that failed to show, such as a deleted one now back, is shown anew.
+ * Shows the new content of the file on screen, replacing only what changed,
+ * as `morphInto` does. A file that failed to show, such as a deleted one
+ * now back, is shown anew.
  */
 export async function refreshFile(el: HTMLElement, path: string): Promise<FileView | null> {
   if (shown?.path !== path) return showFile(el, path);
@@ -148,8 +148,9 @@ export async function prepare(html: string): Promise<HTMLElement> {
   return article;
 }
 
-/** Replaces only what differs between `shown` and `next`: the scroll
- * position, a text selection and open `<details>` stay. */
+/** Replaces only what differs between `shown` and `next`. The scroll
+ * position stays. A text selection and an open `<details>` stay if no
+ * block changes above them, or none below them. */
 export function morphInto(shown: HTMLElement, next: HTMLElement) {
   const config = {
     callbacks: {
@@ -161,11 +162,11 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
   };
   // idiomorph over the whole article costs more than linear time in its
   // blocks: 4 s for a dense 1 MB file. An edit changes a few blocks, so
-  // the unchanged ones at the start and the end stay as they are.
-  const old = [...shown.children];
-  const neu = [...next.children];
-  const keys = new Map<Element, string>();
-  const same = (a: Element, b: Element) => key(a, keys) === key(b, keys);
+  // the unchanged ones at the start and the end stay as they are. Nodes,
+  // not elements: an HTML block can leave text between the blocks.
+  const old = [...shown.childNodes];
+  const neu = [...next.childNodes];
+  const same = (a: Node, b: Node) => a.nodeType === b.nodeType && key(a) === key(b);
   let start = 0;
   while (start < old.length && start < neu.length && same(old[start], neu[start])) start++;
   let end = 0;
@@ -182,7 +183,11 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
   const oldMiddle = old.slice(start, old.length - end);
   const newMiddle = neu.slice(start, neu.length - end);
   const pairs = Math.min(oldMiddle.length, newMiddle.length);
-  for (let i = 0; i < pairs; i++) Idiomorph.morph(oldMiddle[i], newMiddle[i], config);
+  for (let i = 0; i < pairs; i++) {
+    const [was, now] = [oldMiddle[i], newMiddle[i]];
+    if (was instanceof Element && now instanceof Element) Idiomorph.morph(was, now, config);
+    else was.replaceWith(now);
+  }
   for (const removed of oldMiddle.slice(pairs)) removed.remove();
   const before = end > 0 ? old[old.length - end] : null;
   for (const added of newMiddle.slice(pairs)) shown.insertBefore(added, before);
@@ -193,18 +198,20 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
   }
 }
 
-/** A block's HTML without its line numbers, which an edit above it moves. */
-function key(block: Element, keys: Map<Element, string>): string {
-  let found = keys.get(block);
-  if (found === undefined) {
-    found = block.outerHTML.replace(/ data-sourcepos="[^"]*"/g, "");
-    keys.set(block, found);
-  }
-  return found;
+/** A node's HTML without what a fresh render does not decide: the values
+ * of the line numbers, which an edit above moves, and the `open` that the
+ * reader gives a `<details>`. The attribute of a line number stays, so
+ * that equal nodes have the same elements to copy lines between. Inside
+ * tags only: a text can hold the same words, but its `<` and `>` are
+ * escaped. */
+function key(node: Node): string {
+  if (!(node instanceof Element)) return node.textContent ?? "";
+  return node.outerHTML.replace(/( data-sourcepos)="[^"]*"(?=[^<>]*>)| open=""(?=[^<>]*>)/g, "$1");
 }
 
-/** Gives `shown` the line numbers of `next`, an equal block. */
-function copyLines(shown: Element, next: Element) {
+/** Gives `shown` the line numbers of `next`, an equal node. */
+function copyLines(shown: Node, next: Node) {
+  if (!(shown instanceof Element && next instanceof Element)) return;
   const from = [next, ...next.querySelectorAll("[data-sourcepos]")];
   const to = [shown, ...shown.querySelectorAll("[data-sourcepos]")];
   from.forEach((element, i) => {

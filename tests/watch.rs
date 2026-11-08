@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use mdame::app::AppState;
-use mdame::watch::Event;
-use tokio::sync::broadcast::Receiver;
+use mdame::watch::{EVENT_CAPACITY, Event};
+use tokio::sync::broadcast::{self, Receiver};
 use tokio::time::timeout;
 
 const FIRST_EVENT: Duration = Duration::from_secs(2);
@@ -184,7 +184,7 @@ async fn folder_swapped_through_moves_is_removed_and_created() {
     fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
     fs::rename(outside.path().join("new"), watched.path("docs")).unwrap();
     watched
-        .assert_next(&[removed("docs"), created("docs")])
+        .assert_next(&[removed("docs"), created("docs"), created("docs/b.md")])
         .await;
 }
 
@@ -297,7 +297,9 @@ async fn a_renamed_folder_stays_watched() {
 async fn a_folder_that_a_gitignore_change_shows_is_watched() {
     let mut watched = Watched::new(&[(".gitignore", b"build/\n"), ("build/a.md", b"")]);
     fs::write(watched.path(".gitignore"), "").unwrap();
-    watched.assert_next(&[changed(".gitignore")]).await;
+    watched
+        .assert_next(&[changed(".gitignore"), created("build/a.md")])
+        .await;
     fs::write(watched.path("build/a.md"), "# Built\n").unwrap();
     watched.assert_next(&[changed("build/a.md")]).await;
 }
@@ -309,4 +311,39 @@ async fn a_folder_that_a_gitignore_change_hides_sends_nothing() {
     watched.assert_next(&[created(".gitignore")]).await;
     fs::write(watched.path("build/a.md"), "# Built\n").unwrap();
     watched.assert_next(&[]).await;
+}
+
+#[tokio::test]
+async fn a_folder_created_again_stays_watched() {
+    let mut watched = Watched::new(&[A, ("docs/a.md", b"")]);
+    fs::remove_dir_all(watched.path("docs")).unwrap();
+    fs::create_dir(watched.path("docs")).unwrap();
+    watched
+        .assert_next(&[removed("docs"), created("docs")])
+        .await;
+    fs::write(watched.path("docs/b.md"), "# B\n").unwrap();
+    watched.assert_next(&[created("docs/b.md")]).await;
+}
+
+#[tokio::test]
+async fn a_folder_swapped_through_moves_stays_watched() {
+    let mut watched = Watched::new(&[A, ("docs/a.md", b"")]);
+    let outside = tempfile::tempdir().unwrap();
+    fs::create_dir(outside.path().join("new")).unwrap();
+    fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
+    fs::rename(outside.path().join("new"), watched.path("docs")).unwrap();
+    watched
+        .assert_next(&[removed("docs"), created("docs")])
+        .await;
+    fs::write(watched.path("docs/b.md"), "# B\n").unwrap();
+    watched.assert_next(&[created("docs/b.md")]).await;
+}
+
+#[tokio::test]
+async fn a_tab_connected_during_the_first_walk_gets_a_resync() {
+    let dir = tempfile::tempdir().unwrap();
+    let (sender, mut events) = broadcast::channel(EVENT_CAPACITY);
+    let _watcher = mdame::watch::start(dir.path(), sender).unwrap();
+    let event = timeout(FIRST_EVENT, events.recv()).await.unwrap().unwrap();
+    assert_eq!(event, Event::Resync);
 }

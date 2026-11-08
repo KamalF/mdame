@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Condvar, Mutex, PoisonError, Weak, mpsc};
+use std::sync::{Arc, Mutex, PoisonError, Weak, mpsc};
 use std::time::{Duration, Instant};
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode, WatcherKind,
     event::{EventKind, ModifyKind, RenameMode},
 };
-use notify_debouncer_full::{DebounceEventResult, Debouncer, RecommendedCache, new_debouncer_opt};
+use notify_debouncer_full::{DebounceEventResult, Debouncer, NoCache, new_debouncer_opt};
 use serde::Serialize;
 use tokio::sync::broadcast;
 
@@ -23,27 +23,23 @@ const BURST_THRESHOLD: usize = 100;
 
 const DEBOUNCE: Duration = Duration::from_millis(200);
 
-type Debounced = Debouncer<RecommendedWatcher, RecommendedCache>;
+// The cache of file ids that macOS would get pairs renames, but it walks
+// the root on each rescan, through symlinks and ignored folders.
+type Debounced = Debouncer<RecommendedWatcher, NoCache>;
 
 /// Watches the workspace until it is dropped.
 pub struct Watcher {
     _debouncer: Arc<Mutex<Debounced>>,
-    started: Arc<Started>,
+    started: Mutex<mpsc::Receiver<()>>,
 }
 
 impl Watcher {
     /// Blocks until the folders of the workspace are watched.
     pub fn wait_started(&self) {
-        let done = self.started.done.lock();
-        let done = done.unwrap_or_else(PoisonError::into_inner);
-        drop(self.started.changed.wait_while(done, |done| !*done));
+        // The sender is dropped then.
+        let started = self.started.lock().unwrap_or_else(PoisonError::into_inner);
+        let _ = started.recv();
     }
-}
-
-#[derive(Default)]
-struct Started {
-    done: Mutex<bool>,
-    changed: Condvar,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -65,13 +61,8 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
     // A symlinked folder can point out of the workspace: its events would
     // leak outside names, and a link to `/` would watch the whole disk.
     let config = notify::Config::default().with_follow_symlinks(false);
-    let mut debouncer = new_debouncer_opt::<_, RecommendedWatcher, _>(
-        DEBOUNCE,
-        None,
-        handler,
-        RecommendedCache::new(),
-        config,
-    )?;
+    let mut debouncer =
+        new_debouncer_opt::<_, RecommendedWatcher, _>(DEBOUNCE, None, handler, NoCache, config)?;
     if watches_whole_trees() {
         debouncer.watch(root, RecursiveMode::Recursive)?;
     }
@@ -81,13 +72,12 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
     };
     let debouncer = Arc::new(Mutex::new(debouncer));
     let weak = Arc::downgrade(&debouncer);
-    let started = Arc::<Started>::default();
-    let done = Arc::clone(&started);
+    let (done, started) = mpsc::channel();
     // Walking the workspace blocks: not on a thread of tokio.
-    std::thread::spawn(move || forward(&received, &weak, folders, &sender, &done));
+    std::thread::spawn(move || forward(&received, &weak, folders, &sender, done));
     Ok(Watcher {
         _debouncer: debouncer,
-        started,
+        started: Mutex::new(started),
     })
 }
 
@@ -105,41 +95,56 @@ fn forward(
     debouncer: &Weak<Mutex<Debounced>>,
     mut folders: Folders,
     sender: &broadcast::Sender<Event>,
-    started: &Started,
+    started: mpsc::Sender<()>,
 ) {
+    // `None` once the watcher is dropped.
+    let update = |folders: &mut Folders, batch: &[notify::Event]| {
+        let debouncer = debouncer.upgrade()?;
+        let mut debouncer = debouncer.lock().unwrap_or_else(PoisonError::into_inner);
+        Some(folders.update(&mut debouncer, batch))
+    };
     // Here, not in `start`: notify-debouncer-full 0.7 takes quadratic time
     // to watch folders one by one, 12 s for 15,000.
-    let Some(first) = debouncer.upgrade() else {
+    if update(&mut folders, &[]).is_none() {
         return;
-    };
-    folders.update(&mut first.lock().unwrap_or_else(PoisonError::into_inner));
-    drop(first);
-    *started.done.lock().unwrap_or_else(PoisonError::into_inner) = true;
-    started.changed.notify_all();
+    }
+    // A tab may have connected during the first walk, and missed changes.
+    // Sent before `wait_started` returns, so that a receiver that
+    // subscribes after it gets only later events.
+    let _ = sender.send(Event::Resync);
+    drop(started);
     let mut renamed = Vec::new();
-    for batch in received {
-        let batch: Vec<_> = match batch {
-            Ok(batch) => batch.into_iter().map(|event| event.event).collect(),
-            Err(errors) => {
-                for error in errors {
-                    tracing::warn!("watcher: {error}");
-                }
-                continue;
-            }
-        };
-        let mut found = Vec::new();
-        if batch.iter().any(changes_folders) {
-            let Some(debouncer) = debouncer.upgrade() else {
+    for first in received {
+        // A walk can take a second: one walk serves every batch that waits.
+        let batch: Vec<_> = std::iter::once(first)
+            .chain(received.try_iter())
+            .flat_map(unpack)
+            .collect();
+        let found = if batch.iter().any(|event| folders.changed_by(event)) {
+            let Some(found) = update(&mut folders, &batch) else {
                 return;
             };
-            let mut debouncer = debouncer.lock().unwrap_or_else(PoisonError::into_inner);
-            found = folders.update(&mut debouncer);
-        }
+            found
+        } else {
+            Vec::new()
+        };
         let mut events = events(&folders, &batch, &found);
         drop_echoes(&mut events, &mut renamed, Instant::now());
         for event in events {
             // An error only means that no tab is connected.
             let _ = sender.send(event);
+        }
+    }
+}
+
+fn unpack(batch: DebounceEventResult) -> Vec<notify::Event> {
+    match batch {
+        Ok(batch) => batch.into_iter().map(|event| event.event).collect(),
+        Err(errors) => {
+            for error in errors {
+                tracing::warn!("watcher: {error}");
+            }
+            Vec::new()
         }
     }
 }
@@ -163,18 +168,6 @@ fn drop_echoes(events: &mut Vec<Event>, renamed: &mut Vec<(String, Instant)>, no
     });
 }
 
-/// A write changes the folders that the tree shows only in an ignore file.
-fn changes_folders(event: &notify::Event) -> bool {
-    match event.kind {
-        EventKind::Access(_) => false,
-        EventKind::Modify(ModifyKind::Data(_)) => event.paths.iter().any(|path| {
-            path.file_name()
-                .is_some_and(|name| name == ".gitignore" || name == ".ignore")
-        }),
-        _ => true,
-    }
-}
-
 /// The folders that the tree shows, as of the last walk.
 struct Folders {
     root: PathBuf,
@@ -182,30 +175,79 @@ struct Folders {
 }
 
 impl Folders {
-    /// Walks the workspace again, and watches what it finds. Gives the
-    /// entries of the folders that were not watched before: they may have
-    /// been written before their folder's watch.
-    fn update(&mut self, debouncer: &mut Debounced) -> Vec<PathBuf> {
-        // At the start, no event can be missed yet.
+    /// Walks the workspace again after `batch`, and watches what it finds.
+    /// Gives the entries of the folders that were not watched before: they
+    /// may have been written before their folder's watch.
+    fn update(&mut self, debouncer: &mut Debounced, batch: &[notify::Event]) -> Vec<PathBuf> {
+        // Events were lost, and with them the removals that dropped
+        // watches: every folder is watched again.
+        let rescan = batch.iter().any(notify::Event::need_rescan);
+        // notify drops the watches of a folder removed or moved away, and
+        // of the folders below it, even if the path is back by now.
+        let gone: HashSet<&Path> = batch
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event.kind,
+                    EventKind::Remove(_)
+                        | EventKind::Modify(ModifyKind::Name(RenameMode::From | RenameMode::Both))
+                )
+            })
+            .filter_map(|event| event.paths.first().map(PathBuf::as_path))
+            .collect();
+        self.watched
+            .retain(|folder| !folder.ancestors().any(|path| gone.contains(path)));
+        // At the start, the resync after the first walk covers what was
+        // written before the watches.
         let start = self.watched.is_empty();
-        let mut folders = HashSet::new();
+        let before = self.watched.clone();
         let mut found = Vec::new();
-        for entry in tree::walker(&self.root).filter_map(Result::ok) {
-            let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
-            let path = entry.into_path();
-            let parent = path.parent().filter(|parent| folders.contains(*parent));
-            if !start && parent.is_some_and(|parent| !self.watched.contains(parent)) {
-                found.push(path.clone());
+        // A folder may have changed between the walk and its watch: a
+        // second walk finds it. Not more, so that a stream of new folders
+        // cannot hold the events back.
+        for walk in 0..2 {
+            let mut folders = HashSet::new();
+            found.clear();
+            for entry in tree::walker(&self.root).filter_map(Result::ok) {
+                let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
+                let path = entry.into_path();
+                let parent = path.parent().filter(|parent| folders.contains(*parent));
+                if !start && parent.is_some_and(|parent| !before.contains(parent)) {
+                    found.push(path.clone());
+                }
+                if is_folder {
+                    folders.insert(path);
+                }
             }
-            if is_folder {
-                folders.insert(path);
+            let all = rescan && walk == 0;
+            let added = !watches_whole_trees()
+                && watch_folders(debouncer, &self.watched, &mut folders, all);
+            self.watched = folders;
+            if !added {
+                break;
             }
         }
-        if !watches_whole_trees() {
-            watch_folders(debouncer, &self.watched, &folders);
-        }
-        self.watched = folders;
         found
+    }
+
+    /// Whether `event` may change the folders that the tree shows: only a
+    /// shown folder, a new folder or an ignore file can, and only in a
+    /// shown folder. After a rescan, events were lost.
+    fn changed_by(&self, event: &notify::Event) -> bool {
+        let is_ignore_file = |path: &Path| {
+            path.file_name()
+                .is_some_and(|name| name == ".gitignore" || name == ".ignore")
+        };
+        let changes = |path: &PathBuf| match event.kind {
+            EventKind::Access(_) | EventKind::Modify(ModifyKind::Metadata(_)) => false,
+            EventKind::Modify(ModifyKind::Data(_)) => is_ignore_file(path),
+            _ => is_ignore_file(path) || self.watched.contains(path) || path.is_dir(),
+        };
+        event.need_rescan()
+            || event
+                .paths
+                .iter()
+                .any(|path| self.relative(path).is_some() && changes(path))
     }
 
     /// `None` for paths outside the folders that the tree shows, under
@@ -226,31 +268,62 @@ impl Folders {
     }
 }
 
-fn watch_folders(debouncer: &mut Debounced, old: &HashSet<PathBuf>, new: &HashSet<PathBuf>) {
-    for gone in old.difference(new) {
-        // notify has removed the watch of a folder deleted or moved away.
-        let _ = debouncer.unwatch(gone);
+/// Watches the folders of `new` that `old` lacks, or all of them, and
+/// leaves out of `new` those that are gone. Gives whether it watched any.
+fn watch_folders(
+    debouncer: &mut Debounced,
+    old: &HashSet<PathBuf>,
+    new: &mut HashSet<PathBuf>,
+    all: bool,
+) -> bool {
+    // notify has dropped the watch of a folder deleted or moved away, and
+    // each call waits for its thread, busy with the events of the removal.
+    for hidden in old.difference(new).filter(|folder| folder.exists()) {
+        let _ = debouncer.unwatch(hidden);
     }
-    for folder in new.difference(old) {
-        match debouncer.watch(folder, RecursiveMode::NonRecursive) {
-            Ok(()) => {}
-            Err(error) if can_skip(&error) => {
+    // The debouncer looks for the watch of each event's path in the order
+    // of the watches. Sorted, the root comes first and matches at once.
+    // Otherwise, with 15,000 folders, the 30,000 events of one tree walk
+    // overflowed the inotify queue, and each overflow made the tabs walk
+    // the tree again.
+    let mut added: Vec<PathBuf> = if all {
+        new.iter().cloned().collect()
+    } else {
+        new.difference(old).cloned().collect()
+    };
+    added.sort();
+    let mut watched = false;
+    for folder in added {
+        match debouncer.watch(&folder, RecursiveMode::NonRecursive) {
+            Ok(()) => watched = true,
+            // Watched if it comes back.
+            Err(error) if vanished(&error) => {
+                new.remove(&folder);
+            }
+            // Left in `new`, so that the warning is not repeated.
+            Err(error) if denied(&error) => {
                 tracing::warn!("not watched: {}", folder.display());
             }
             Err(error) => {
-                tracing::warn!("live updates miss new folders: {error}");
-                return;
+                tracing::warn!("live updates miss some folders: {error}");
+                break;
             }
         }
     }
+    watched
 }
 
-fn can_skip(error: &notify::Error) -> bool {
+/// Also when the folder goes between the watch and notify's check of it.
+fn vanished(error: &notify::Error) -> bool {
     match &error.kind {
         notify::ErrorKind::PathNotFound => true,
-        notify::ErrorKind::Io(io) => io.kind() == ErrorKind::PermissionDenied,
+        notify::ErrorKind::Io(io) => io.kind() == ErrorKind::NotFound,
         _ => false,
     }
+}
+
+fn denied(error: &notify::Error) -> bool {
+    matches!(&error.kind, notify::ErrorKind::Io(io) if io.kind() == ErrorKind::PermissionDenied)
 }
 
 /// Turns one debounced batch into events with workspace-relative paths.
@@ -258,10 +331,18 @@ fn can_skip(error: &notify::Error) -> bool {
 /// after the batch.
 fn events(folders: &Folders, batch: &[notify::Event], found: &[PathBuf]) -> Vec<Event> {
     // Reads count for nothing: mdame's own tree walk opens every folder,
-    // and a resync makes each tab walk it again.
+    // and a resync makes each tab walk it again. Nor do the events of the
+    // folders that the tree hides, which reach the watcher on macOS.
     let batch: Vec<_> = batch
         .iter()
         .filter(|event| !matches!(event.kind, EventKind::Access(_)))
+        .filter(|event| {
+            event.need_rescan()
+                || event
+                    .paths
+                    .iter()
+                    .any(|path| folders.relative(path).is_some())
+        })
         .collect();
     if batch.len() > BURST_THRESHOLD {
         return vec![Event::Resync];
@@ -299,41 +380,55 @@ fn events(folders: &Folders, batch: &[notify::Event], found: &[PathBuf]) -> Vec<
             push(&mut events, event);
         }
     }
-    // A folder created or moved in may hold entries written before its
-    // watch. A renamed folder holds none.
-    let created: Vec<PathBuf> = events
+    // A new folder may hold entries written before its watch, even if its
+    // own event comes in a later batch. Not a renamed folder: its entries
+    // are the same. notify drops its watch, so what is written into it
+    // before the walk sends nothing.
+    let renamed: Vec<PathBuf> = events
         .iter()
         .filter_map(|event| match event {
-            Event::Created { path } => Some(PathBuf::from(path)),
+            Event::Renamed { to, .. } => Some(PathBuf::from(to)),
             _ => None,
         })
         .collect();
     for path in found.iter().filter_map(|path| folders.relative(path)) {
-        if created
+        if !renamed
             .iter()
             .any(|folder| Path::new(&path).starts_with(folder))
         {
             push(&mut events, Event::Created { path });
+            if events.len() > BURST_THRESHOLD {
+                return vec![Event::Resync];
+            }
         }
-    }
-    if events.len() > BURST_THRESHOLD {
-        return vec![Event::Resync];
     }
     events
 }
 
-/// Sends each event once, and no change to a file created in the batch.
-/// Nothing else is merged: a delete then create, or a rename to a backup
-/// then create, can be a save or a folder swapped for another, and the
-/// browser tells them apart by asking for the open file again.
+/// Sends no event twice in a row for a path, and no change to a file just
+/// created. Nothing else is merged: a delete then create, or a rename to a
+/// backup then create, can be a save or a folder swapped for another, and
+/// the browser tells them apart by asking for the open file again.
 fn push(events: &mut Vec<Event>, event: Event) {
-    if let Event::Changed { path } = &event
-        && events.contains(&Event::Created { path: path.clone() })
-    {
-        return;
-    }
-    if !events.contains(&event) {
+    let paths = paths_of(&event);
+    let last = events
+        .iter()
+        .rev()
+        .find(|earlier| paths_of(earlier).iter().any(|path| paths.contains(path)));
+    let created = matches!(
+        (&event, last),
+        (Event::Changed { path }, Some(Event::Created { path: created })) if path == created
+    );
+    if !created && last != Some(&event) {
         events.push(event);
+    }
+}
+
+fn paths_of(event: &Event) -> Vec<&str> {
+    match event {
+        Event::Created { path } | Event::Changed { path } | Event::Removed { path } => vec![path],
+        Event::Renamed { from, to } => vec![from, to],
+        Event::Resync => Vec::new(),
     }
 }
 
@@ -382,6 +477,64 @@ mod tests {
             watched: HashSet::from(["/ws".into(), "/ws/sub".into()]),
         };
         events(&folders, batch, &[])
+    }
+
+    #[test]
+    fn only_folders_and_ignore_files_change_the_shown_folders() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_owned();
+        std::fs::create_dir(root.join("new")).unwrap();
+        let folders = Folders {
+            watched: HashSet::from([root.clone(), root.join("sub")]),
+            root,
+        };
+        let at = |name: &str| folders.root.join(name).to_str().unwrap().to_owned();
+        let changes = |event: notify::Event| folders.changed_by(&event);
+        assert!(changes(create(&at("new"))));
+        assert!(changes(remove(&at("sub"))));
+        assert!(changes(rename(&at("sub"), &at("moved"))));
+        assert!(changes(create(&at(".gitignore"))));
+        assert!(changes(write(&at(".ignore"))));
+        assert!(!changes(create(&at("a.md"))));
+        assert!(!changes(remove(&at("a.md"))));
+        assert!(!changes(rename(&at("a.md"), &at("b.md"))));
+        assert!(!changes(write(&at("a.md"))));
+        assert!(!changes(create(&at("hidden/new"))));
+    }
+
+    #[test]
+    fn a_burst_in_a_folder_that_the_tree_hides_sends_nothing() {
+        let batch: Vec<_> = (0..=BURST_THRESHOLD)
+            .map(|i| write(&format!("/ws/target/{i}.md")))
+            .collect();
+        assert_eq!(map(&batch), []);
+    }
+
+    #[test]
+    fn the_entries_of_a_new_folder_are_created_unless_it_was_renamed() {
+        let folders = Folders {
+            root: PathBuf::from("/ws"),
+            watched: HashSet::from(["/ws".into(), "/ws/sub".into(), "/ws/b".into()]),
+        };
+        let found = [PathBuf::from("/ws/b/y.md")];
+        assert_eq!(
+            events(&folders, &[create("/ws/sub/x.md")], &found),
+            [
+                Event::Created {
+                    path: path("sub/x.md")
+                },
+                Event::Created {
+                    path: path("b/y.md")
+                },
+            ]
+        );
+        assert_eq!(
+            events(&folders, &[rename("/ws/old", "/ws/b")], &found),
+            [Event::Renamed {
+                from: path("old"),
+                to: path("b")
+            }]
+        );
     }
 
     #[test]
@@ -444,6 +597,19 @@ mod tests {
                 },
                 Event::Created { path: path("c.md") },
                 Event::Removed { path: path("d.md") },
+            ]
+        );
+    }
+
+    #[test]
+    fn a_removal_after_a_creation_after_a_removal_is_sent() {
+        let batch = [remove("/ws/a.md"), create("/ws/a.md"), remove("/ws/a.md")];
+        assert_eq!(
+            map(&batch),
+            [
+                Event::Removed { path: path("a.md") },
+                Event::Created { path: path("a.md") },
+                Event::Removed { path: path("a.md") },
             ]
         );
     }
@@ -547,12 +713,12 @@ mod tests {
 
     #[test]
     fn only_a_denied_or_vanished_folder_is_skipped() {
-        let denied = std::io::Error::from(ErrorKind::PermissionDenied);
-        assert!(can_skip(&notify::Error::io(denied)));
-        assert!(can_skip(&notify::Error::path_not_found()));
-        assert!(!can_skip(&notify::Error::new(
-            notify::ErrorKind::MaxFilesWatch
-        )));
+        let io = |kind| notify::Error::io(std::io::Error::from(kind));
+        assert!(denied(&io(ErrorKind::PermissionDenied)));
+        assert!(vanished(&notify::Error::path_not_found()));
+        assert!(vanished(&io(ErrorKind::NotFound)));
+        let limit = notify::Error::new(notify::ErrorKind::MaxFilesWatch);
+        assert!(!denied(&limit) && !vanished(&limit));
     }
 
     #[test]

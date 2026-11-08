@@ -326,7 +326,7 @@ export async function mount(
   function items(nodes: TreeNode[], depth: number): HTMLLIElement[] {
     return nodes.map((node) => {
       const item = document.createElement("li");
-      const row = node.kind === "dir" ? folderRow(node) : fileRow(node);
+      const row = node.kind === "dir" ? folderRow(node, depth) : fileRow(node);
       row.style.paddingLeft = `${8 + depth * 16}px`;
       const newFile = node.kind === "dir" ? newFileButton(node.path) : undefined;
       newFile?.classList.add("mdame-new-file");
@@ -345,17 +345,32 @@ export async function mount(
     return iconButton(label, "file-plus", () => onNewFile(folder));
   }
 
-  function folderRow(node: TreeNode) {
-    const expanded = open.has(node.path);
+  function folderRow(node: TreeNode, depth: number) {
     const row = document.createElement("button");
     row.className = "mdame-tree-row";
-    row.setAttribute("aria-expanded", String(expanded));
-    row.append(icon(expanded ? "chevron-down" : "chevron-right"), label(node.name));
+    let chevron = icon("chevron-right");
+    const showOpen = (expanded: boolean) => {
+      row.setAttribute("aria-expanded", String(expanded));
+      const next = icon(expanded ? "chevron-down" : "chevron-right");
+      chevron.replaceWith(next);
+      chevron = next;
+    };
+    row.append(chevron, label(node.name));
+    showOpen(open.has(node.path));
+    // Only this folder's list: a render of the whole tree took 0.5 s with
+    // a large folder open.
     row.addEventListener("click", () => {
-      if (expanded) open.delete(node.path);
-      else open.add(node.path);
+      const item = row.closest("li")!;
+      if (open.delete(node.path)) {
+        item.querySelector(":scope > ul")?.remove();
+      } else {
+        open.add(node.path);
+        const children = document.createElement("ul");
+        children.append(...items(node.children!, depth + 1));
+        item.append(children);
+      }
       store(openKey, [...open]);
-      render();
+      showOpen(open.has(node.path));
     });
     return row;
   }
@@ -376,10 +391,15 @@ export async function mount(
   }
 
   let fetches = 0;
+  let fetchedText = JSON.stringify(fetched);
   refetch = async () => {
     const id = ++fetches;
     const next = await api<TreeNode>("GET", "/api/tree");
     if (id !== fetches) return null;
+    // An event in a large folder gives the same tree, often.
+    const text = JSON.stringify(next);
+    if (text === fetchedText) return allFiles.length;
+    fetchedText = text;
     fetched = next;
     allFiles = files(next);
     tree = sortTree(next, order);
@@ -404,8 +424,18 @@ export async function mount(
   focusField = () => filter.focus();
   select = (path) => {
     current = path;
-    for (const folder of ancestors(path ?? "")) open.add(folder);
-    render();
+    const closed = ancestors(path ?? "").filter((folder) => !open.has(folder));
+    if (closed.length > 0) {
+      for (const folder of closed) open.add(folder);
+      render();
+      return;
+    }
+    // Only the highlight moves: a render of the whole tree took 0.8 s with
+    // a large folder open.
+    list.querySelector('[aria-current="page"]')?.removeAttribute("aria-current");
+    if (path === null) return;
+    const row = `.mdame-tree-line[data-path="${CSS.escape(path)}"] > a.mdame-tree-row`;
+    list.querySelector(row)?.setAttribute("aria-current", "page");
   };
   render();
   return allFiles.length;

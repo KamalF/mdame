@@ -615,6 +615,9 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
     - `cargo mutants` on the Rust part of these commits, `tree.rs` and `watch.rs`: 7 mutants, 5 caught, 2 unviable, none missed. cargo mutants cannot remove the order of the walk, so a test checks it: `the_walk_gives_a_folder_before_its_entries` fails on a walk in reverse. The page's changes have no unit test where they touch the DOM; the harness measures checked them.
     - The measures came from the page reviewer's harness: the real page, bundled with a fake server that answers with responses recorded from `mdn/content`, in headless Chrome, before and after each fix. The server's came from its reviewer's bench crate, on a copy of `mdn/content`.
 11. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
+    - Done on 8 November 2026: mdame 0.1.0 is on GitHub, in the tap and on crates.io. The job "Check release" passes on its Linux and macOS runners.
+    - The first push of the formula failed with a 403. The token `HOMEBREW_TAP_TOKEN` could write to `KamalF/mdame`, not to `KamalF/homebrew-tap`. Kamal moved it to the tap, and the failed jobs ran again.
+    - `~/.cargo/credentials.toml` has held no token since the publish of 0.0.1. `cargo publish` took a new token with the `publish-update` scope from the clipboard.
 
 ### Manual checklist
 
@@ -694,11 +697,18 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: step 11, the release, then checks 19 to 21 of the manual checklist.
-2. After 0.1.0: the disk check for live updates on macOS, under Open points.
+1. Milestone 10, on the `m10-release` branch: checks 19 to 21 of the manual checklist, then the Show HN.
+2. Milestone 11: a decision on each of its candidates, under Open points, then its plan.
+3. After 0.1.0: the disk check for live updates on macOS, under Open points.
 
 ## Open points
 
+- Candidates for milestone 11, from the check before the release of 0.1.0 on 8 November 2026:
+  - `Cargo.toml` sets no `rust-version`. comrak needs Rust 1.89, and the let chains of mdame need 1.88. On an older Rust, `cargo install` fails with a compile error, and does not name the version that mdame needs. Before setting it, find the real minimum: build with older toolchains.
+  - GitHub does not detect the licence of mdame: its API returns `NOASSERTION`, and the sidebar shows "View license", not "MIT". The cause: `LICENSE` also holds the notices of mdlive, Lucide, Feather and Primer. If the notices move to a file of their own, GitHub can match the MIT text. That file then goes into the package and into the release archives. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
+  - The release archives hold `LICENSE` and `README.md`, but not the licence texts of the Rust dependencies. MIT and Apache-2.0 ask for them in each copy. `web/dist/THIRD-PARTY-LICENSES.txt` already holds them for the npm packages. `cargo-about` can write the Rust ones.
+  - Without a `CHANGELOG.md`, the release notes that dist writes hold only the install instructions. dist takes the notes of a version from that file. The repository on GitHub has no topics either.
+  - Yank mdame 0.0.1 on crates.io. It is the early build that held the name. Even without the yank, `cargo install` picks 0.1.0.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.

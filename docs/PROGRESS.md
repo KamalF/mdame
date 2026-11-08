@@ -615,33 +615,53 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 
 ### Manual checklist
 
-Not run yet. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. The test folder is a git repository that holds:
+Not run yet. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal or another editor, not from mdame's editor. The test folder is a git repository that holds:
 
 - `a.md` and `notes/b.md`;
 - a `.gitignore` that lists `build/`, and `build/c.md`;
-- a branch `other`, where `notes/` holds only `d.md`.
+- a branch `other`, where `notes/` holds only `d.md`;
+- in `perf/`, the files of the harness of step 10: a 195 KB changelog, a dense 1 MB file, a 943 KB JSON file, a file with 7 diagrams and a second copy of one, and `morph.md`, with text after an HTML block and a `<details>`.
 
 Live updates:
 
 1. Write `build/c.md`: no entry in the list of changes, and `build/` stays out of the tree.
 2. Run `mkdir new && echo '# N' > new/n.md`: `new/n.md` shows in the tree and in the list of changes. Open it, then change it on disk: the page updates.
-3. Run `git checkout other`, open `notes/d.md`, then change it on disk: the page updates. Run `git checkout -`, open `notes/b.md`, and change it: the page updates.
+3. Run `git checkout other`, open `notes/d.md`, then change it on disk: the page updates. Undo that change with `git checkout -- notes/d.md`: otherwise git refuses to switch back. Run `git checkout -`, open `notes/b.md`, then change it on disk: the page updates.
 4. Empty the `.gitignore`: `build/` shows in the tree, and `build/c.md` in the list of changes. Open `build/c.md` and change it on disk: the page updates.
 
 Large workspace:
 
-5. Run mdame on `mdn/content`: the page opens at once. In DevTools, after a minute, the Network tab shows no new request to `/api/tree`. Open the page of `Array`, wait 20 s, then change its file on disk: the page updates.
+5. Run mdame on `mdn/content`: the page opens at once. In DevTools, after a minute, the Network tab shows no new request to `/api/tree`. Open the page of `Array`, `files/en-us/web/javascript/reference/global_objects/array/index.md`, wait 20 s, then change its file on disk: the page updates.
 6. In `mdn/content`, run `git checkout HEAD~200`, then `git checkout -`: the tree reloads a few times, then stops. Change the file of `Array` on disk: the page updates.
 
 Editor:
 
 7. Open `a.md` in the editor and type a word. Save the file from vim with `:w`: the notice of a change on disk shows. Click Overwrite: the save works, and Revisions lists the version from vim. These steps run through `fd_path`, which now reads the link count with `fstat`.
 
+Performance, in Chrome, with the Performance and Network panels of DevTools. Each check gives the time that the harness of step 10 measured after the fix, and before it in brackets. A time near the first passes. To measure an action, click Record in the Performance panel, do the action, then click Stop. The time is that of the long tasks on the Main track: the grey blocks with a red corner. For the keys of check 8, the Interactions track gives the time of each key.
+
+On `mdn/content`:
+
+8. Type `i` in the filter: the list shows 100 results, then "N more files match: type more letters." Each key paints in about 60 ms (6.9 s).
+9. Open the page of `input`, `files/en-us/web/html/reference/elements/input/index.md`: the tab is blocked about 220 ms (310 ms).
+10. Open the folder `files/en-us/web/api`, then click a file in it: about 130 ms (665 ms). Press `s`, search `XPathResult`, and open a result in another folder of `web/api`: that folder opens, in about the same time. mdn links its pages by absolute URLs, which mdame does not follow, but a search result opens a file the same way.
+11. On the page of `Array`, drag the edge of the sidebar: about 60 fps (17). Below 900 px, the overlay of the sidebar is 280 px wide.
+12. Reload: `/api/tree` takes about 180 ms (1 s), and the page loads about 440 KB of JavaScript (760 KB). `editor-*.js` loads only on the first `e`.
+
+In the test folder:
+
+13. Open `perf/changelog.md`: about 320 ms (740 ms). Append a line to the file: the update blocks the tab about 380 ms (600 ms). Choose Full width, and append a line again: the column keeps its place beside the outline.
+14. Open `perf/dense.md`, and append a paragraph to the file: the update blocks the tab about 1.6 s (6.4 s).
+15. Open `perf/big.json`: it shows as plain text, with about 370 ms of long tasks (3.4 s).
+16. Open `perf/diagrams.md`, and change its last paragraph on disk: no long task over 100 ms (320 to 406 ms). Choose Dark, and open the file again: the diagrams are dark. Choose Light, and open it again: they are light. The diagrams on screen keep their theme until the next render. Under "Two copies", the second copy shows its arrow while the `<details>` above it is closed.
+17. Open `perf/morph.md`, and open its `<details>`. Change "The last paragraph." on disk, then "Caption one": the page shows each change, and the `<details>` stays open.
+18. With Disable cache on in the Network tab, reload the page and stop mdame. Press `e`: the page says "Reload the page once mdame is back: the editor did not load." Start mdame again: the editor opens.
+
 Release, after 0.1.0 is published:
 
-8. `brew install KamalF/tap/mdame` on Linux gives a working mdame. The job "Check release" passes on its Linux and macOS runners.
-9. `mise use -g github:KamalF/mdame` and `cargo install --locked mdame` give a working mdame.
-10. On GitHub, the README shows the demo, and the link "a known issue" leads to Known issues.
+19. `brew install KamalF/tap/mdame` on Linux gives a working mdame. The job "Check release" passes on its Linux and macOS runners.
+20. `mise use -g github:KamalF/mdame` and `cargo install --locked mdame` give a working mdame.
+21. On GitHub, the README shows the demo, and the link "a known issue" leads to Known issues.
 
 ## Public repository and crate
 

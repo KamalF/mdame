@@ -436,7 +436,7 @@ fn paths_of(event: &Event) -> Vec<&str> {
 mod tests {
     use super::*;
     use notify_debouncer_full::notify::event::{
-        AccessKind, CreateKind, DataChange, Flag, RemoveKind,
+        AccessKind, CreateKind, DataChange, Flag, MetadataKind, RemoveKind,
     };
 
     fn notify_event(kind: EventKind, paths: &[&str]) -> notify::Event {
@@ -500,6 +500,101 @@ mod tests {
         assert!(!changes(rename(&at("a.md"), &at("b.md"))));
         assert!(!changes(write(&at("a.md"))));
         assert!(!changes(create(&at("hidden/new"))));
+        // A walk opens each folder: these must not walk again.
+        let on_new = |kind| notify_event(kind, &[&at("new")]);
+        assert!(!changes(on_new(EventKind::Access(AccessKind::Any))));
+        let metadata = EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any));
+        assert!(!changes(on_new(metadata)));
+    }
+
+    #[test]
+    fn the_entries_of_a_new_folder_over_the_burst_threshold_give_resync() {
+        let folders = Folders {
+            root: PathBuf::from("/ws"),
+            watched: HashSet::from(["/ws".into(), "/ws/new".into()]),
+        };
+        let batch = [create("/ws/new")];
+        let found = |count: usize| -> Vec<PathBuf> {
+            (0..count)
+                .map(|i| PathBuf::from(format!("/ws/new/{i}.md")))
+                .collect()
+        };
+        let under = events(&folders, &batch, &found(BURST_THRESHOLD - 1));
+        assert_eq!(under.len(), BURST_THRESHOLD);
+        let over = events(&folders, &batch, &found(BURST_THRESHOLD));
+        assert_eq!(over, [Event::Resync]);
+    }
+
+    #[cfg(target_os = "linux")]
+    fn debouncer() -> (Debounced, std::sync::mpsc::Receiver<DebounceEventResult>) {
+        let (sender, received) = std::sync::mpsc::channel();
+        let config = notify::Config::default().with_follow_symlinks(false);
+        let debouncer =
+            new_debouncer_opt::<_, RecommendedWatcher, _>(DEBOUNCE, None, sender, NoCache, config)
+                .unwrap();
+        (debouncer, received)
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn a_vanished_folder_leaves_the_set_and_a_denied_one_stays() {
+        use std::fs::{self, Permissions};
+        use std::os::unix::fs::PermissionsExt;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_owned();
+        let denied = root.join("b");
+        fs::create_dir(&denied).unwrap();
+        fs::set_permissions(&denied, Permissions::from_mode(0o000)).unwrap();
+        fs::create_dir(root.join("c")).unwrap();
+        // Sorted, the vanished folder comes first: the others are still watched.
+        let mut new = HashSet::from([root.join("a"), denied.clone(), root.join("c")]);
+        let (mut debouncer, _received) = debouncer();
+        assert!(watch_folders(
+            &mut debouncer,
+            &HashSet::new(),
+            &mut new,
+            false
+        ));
+        fs::set_permissions(&denied, Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(new, HashSet::from([denied, root.join("c")]));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn after_a_rescan_a_folder_created_again_is_watched_again() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join("docs")).unwrap();
+        let (mut debouncer, received) = debouncer();
+        let mut folders = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+        };
+        folders.update(&mut debouncer, &[]);
+        std::fs::remove_dir(root.join("docs")).unwrap();
+        std::fs::create_dir(root.join("docs")).unwrap();
+        // notify drops the watch of `docs`, and the batch is lost, as in an
+        // overflow.
+        while received.recv_timeout(Duration::from_millis(500)).is_ok() {}
+        let rescan = notify::Event::new(EventKind::Other).set_flag(Flag::Rescan);
+        folders.update(&mut debouncer, &[rescan]);
+
+        let written = root.join("docs/a.md");
+        std::fs::write(&written, "").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while let Ok(batch) =
+            received.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        {
+            if batch
+                .unwrap()
+                .iter()
+                .any(|event| event.paths.contains(&written))
+            {
+                return;
+            }
+        }
+        panic!("no event for {}", written.display());
     }
 
     #[test]
@@ -665,8 +760,14 @@ mod tests {
 
     #[test]
     fn change_after_create_is_not_sent() {
-        let batch = [create("/ws/a.md"), write("/ws/a.md")];
-        assert_eq!(map(&batch), [Event::Created { path: path("a.md") }]);
+        let batch = [create("/ws/a.md"), create("/ws/b.md"), write("/ws/a.md")];
+        assert_eq!(
+            map(&batch),
+            [
+                Event::Created { path: path("a.md") },
+                Event::Created { path: path("b.md") },
+            ]
+        );
     }
 
     #[test]

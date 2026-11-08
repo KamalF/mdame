@@ -15,9 +15,17 @@ exclude_re = [
     "document.rs.*replace == with != in view",
     # Without this shortcut, the read stops at the limit with the same result.
     "size > RENDER_LIMIT with false in view",
-    # Needs the inotify watch limit reached, or a folder deleted during the walk.
-    "can_skip\\(&error\\) with true in watch_readable",
-    "can_skip\\(&error\\) with (true|false) in watch_around",
+    # On Linux it is false: the FSEvents branch runs on macOS only.
+    "replace watches_whole_trees -> bool with false",
+    # Watches every folder again on each walk: slower, with the same watches.
+    "watch.rs:\\d+:30: replace && with \\|\\| in Folders::update",
+    # The second walk closes a race between the walk and the watch: a test
+    # needs that timing.
+    "watch.rs:\\d+:16: delete ! in Folders::update",
+    # For a write, the default arm gives the same answer, after a stat.
+    "delete match arm EventKind::Modify\\(ModifyKind::Data\\(_\\)\\) in Folders::changed_by",
+    # Needs the inotify watch limit reached.
+    "denied\\(&error\\) with true in watch_folders",
     # Sends every class through the filter: the same names come out.
     "value.contains\\(\"mdame-\"\\) with true in no_app_names",
     # Any other read error comes back from the read after the link.

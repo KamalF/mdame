@@ -523,6 +523,7 @@ Decided on 7 November 2026, before the milestone started. `docs/SPEC.md` holds t
 - No Mac is at hand. After the release, a CI job on a macOS runner installs mdame with the script and with Homebrew, starts it, and requests `/api/state`. Editing on macOS gets no check in a browser.
 - Decided on 7 November 2026, after the first CI runs on macOS: live updates on macOS are a known issue of 0.1.0, listed in the README. The watcher tests run on Linux only.
 - Decided on 8 November 2026, in the review: no install script. In `~/.local/bin`, the script of dist 0.33.1 (and 0.34.0) "migrates" any `~/.local/bin/env` written from dist's template, as uv's installer writes it: it points the user's shell profiles to `~/.config/mdame/env.sh` and deletes uv's file, even with `MDAME_NO_MODIFY_PATH=1`. Homebrew, mise, Cargo and the release archives remain.
+- Decided on 8 November 2026, after tests on a Mac: live updates on macOS stay a known issue of 0.1.0. Their fix, the disk check under Open points, comes after 0.1.0.
 
 Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: `brew install` gives a working mdame on Linux and macOS. Until the review, the install script was part of the check.
 
@@ -558,7 +559,8 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - Rehearsal, before commit 6: the version `0.1.0-rc.1`, then its tag, which Kamal pushes. The prerelease checks the release workflow.
    - `v0.1.0-rc.1`, 7 November 2026: the Linux and Intel macOS builds passed, but GitHub has retired the `macos-14` image that dist 0.33.1 picks for Apple Silicon, so nothing was published. That build now runs on `macos-15`, through `github-custom-runners`. The CI run of the tag found the flaky echo of a folder's move, above. Then `v0.1.0-rc.2`.
    - `v0.1.0-rc.2`, 7 November 2026: the four builds passed, and the prerelease is on GitHub. The check job was skipped. GitHub skips a job when a job that it needs, even through another, was skipped, unless its condition says `always()`. The check job needs `announce`, which needs the Homebrew job, skipped for a prerelease, and dist writes the check job with no condition. On a release, the Homebrew job runs, and so does the check job.
-   - Checked by hand on Linux x86_64 instead: the install script of `v0.1.0-rc.2`, with `MDAME_INSTALL_DIR` in a temporary folder, then `.github/check-release.sh` on it. It passes. The binary is static, 18 MB with its symbols. macOS gets its first check with 0.1.0.
+   - Checked by hand on Linux x86_64 instead: the install script of `v0.1.0-rc.2`, with `MDAME_INSTALL_DIR` in a temporary folder, then `.github/check-release.sh` on it. It passes. The binary is static, 18 MB with its symbols.
+   - Checked by hand on an Intel Mac with macOS 15.7.9, through ssh, on 8 November 2026. The `x86_64-apple-darwin` archive of `v0.1.0-rc.2`, downloaded with curl, matches its SHA-256 and passes `.github/check-release.sh`. On the same Mac, `cargo test` passes at `a714c48`: 204 tests, and 2 ignored, as on the macOS runner of CI.
 6. The open points of milestone 8 (done): `web/themes/README.md` says to use only themes that you trust, and `LICENSE` carries the notice of `@primer/primitives`.
    - The notice is the one of `@primer/primitives` 11.10.0, the version that the themes copy: "Copyright (c) 2018 GitHub Inc." and the MIT text. `LICENSE` goes into the crate and into each release archive.
 7. Memory, measured by hand: mdame and its tab against VS Code, with the same folder and the same markdown file open, idle and on a large repository. The large repository is `mdn/content`, the MDN documentation in markdown. The numbers go to the README. (done)
@@ -693,6 +695,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 ## Next
 
 1. Milestone 10, on the `m10-release` branch: step 11, the release, then checks 19 to 21 of the manual checklist.
+2. After 0.1.0: the disk check for live updates on macOS, under Open points.
 
 ## Open points
 
@@ -709,11 +712,13 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - The release archives have no provenance: `github-attestations = true` in dist would let users check them with `gh attestation verify`.
 - dist's shell installer, from 0.33.0: in a flat layout such as `~/.local/bin`, it migrates any `<install dir>/env` that matches dist's template, so it takes over the env file of another tool that dist built, such as uv. Report it to axodotdev/cargo-dist: the migration should touch only an env file that this app wrote.
 - The release binaries keep their symbols: `strip = true` in the `dist` profile would make them smaller than 18 MB.
-- Live updates on macOS, a known issue of 0.1.0. FSEvents merges the kinds of the events of a path, and gives the two sides of a rename apart. On the CI run of 7 November 2026:
-  - A write gives `created`, a delete `changed`, and a folder delete nothing.
-  - A rename, a vim or emacs save, and a folder moved in give `resync`. Two renames in one batch give `created` for the new names only.
-  - Files created just before the watch starts send late `created` events.
-  - A fix: on macOS, check the disk for each path of a batch. A missing path is `removed`, and a present one is `changed`, or `created` if the event says so. The ported inotify cases stay on Linux, and macOS gets looser tests of its own.
+- Live updates on macOS, a known issue of 0.1.0. Measured on an Intel Mac with macOS 15.7.9, on 8 November 2026: 16 of the 25 tests of `tests/watch.rs` fail, and so does the ignored test of `tests/ws.rs`.
+  - What a user sees. A write gives `created`, which costs only a reload of the tree. A delete gives `changed`, so the file stays in the tree and in the list of changes. A folder delete gives nothing, so the folder stays in the tree. A rename, a save through a temporary file, and a vim or emacs save give `resync`: the tab reloads the tree and the file on screen, and does not follow a renamed file.
+  - The failures do not come from the tests. Files that existed 5 s before the watch started give the same events, and so does a file written 5 s after its creation: FSEvents keeps reporting a creation for many seconds.
+  - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. A rename of unknown side is `RenameMode::Any`, and `events()` answers it with `resync`.
+  - The fix, after 0.1.0: the disk check. On FSEvents only, `events()` takes the kind from the disk. A missing path is `removed`. A present path is `changed`, or `created` if the event is a creation or a rename. About 15 lines, and a unit test on a temporary folder, which runs on Linux too. It fixes deletes, renames and saves through a temporary file. A rename becomes `removed` and `created`, so the tab still does not follow a renamed file.
+  - Its tests: `tests/watch.rs` runs on macOS too. The cases that still differ get `ignore` on macOS, with the reason, and macOS gets its own cases for the kinds above. The README's known issue shrinks to folder deletes and renamed files. The macOS runner of CI checks it, or a Mac.
+  - After the disk check, a folder delete still sends nothing: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
 
 - From the review of milestone 10, for later: the README's "With a coding agent" could repeat the spec's advice to deny the agent reads of mdame's state folder, which holds the token, and of the browser profile.
 - Nits deferred by the review of milestone 10:

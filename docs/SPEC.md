@@ -701,6 +701,7 @@ After milestone 11, the medium Later items wait.
 | Live updates on macOS are a known issue of 0.1.0: FSEvents merges the kinds of the events of a path. The watcher tests run on Linux only | 7 November 2026 |
 | The first walk of the watcher runs in the background: with notify-debouncer-full 0.7, watching 15,000 folders one by one takes 12 s | 7 November 2026 |
 | No install script: dist's script takes over the PATH setup of other tools that dist built in `~/.local/bin`, such as uv. Homebrew, mise, Cargo and the release archives remain | 8 November 2026 |
+| After tests on a Mac, live updates on macOS stay a known issue of 0.1.0. Their fix, a check of the disk for each event, comes after 0.1.0 | 8 November 2026 |
 
 ### Review log, 14 October 2026
 

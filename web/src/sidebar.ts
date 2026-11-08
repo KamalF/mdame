@@ -1,5 +1,5 @@
 import uFuzzy from "@leeoniya/ufuzzy";
-import { api } from "./api.ts";
+import { send } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { fileIcon, icon, iconButton } from "./icons.ts";
 import { isPlainClick } from "./keys.ts";
@@ -172,6 +172,12 @@ export function refreshTree(): Promise<number | null> {
   return refetch();
 }
 
+/** `/api/tree` as text: a refetch compares it with the last one before it
+ * parses it. */
+async function treeText() {
+  return (await send("GET", "/api/tree")).text();
+}
+
 /** Shows the tree in `el`, and returns its number of files. */
 interface MountOptions {
   root: string;
@@ -210,7 +216,8 @@ export async function mount(
   list.className = "mdame-tree";
   el.replaceChildren(header, list);
 
-  let fetched = await api<TreeNode>("GET", "/api/tree");
+  let fetchedText = await treeText();
+  let fetched: TreeNode = JSON.parse(fetchedText);
   // The page can show another file while the tree loads.
   current = latest;
   for (const folder of ancestors(current ?? "")) open.add(folder);
@@ -297,7 +304,8 @@ export async function mount(
     if (more > 0) {
       const rest = document.createElement("li");
       rest.className = "mdame-tree-empty";
-      rest.textContent = `${more.toLocaleString("en")} more files match: type more letters.`;
+      const count = more === 1 ? "1 more file matches" : `${more.toLocaleString("en")} more files match`;
+      rest.textContent = `${count}: type more letters.`;
       list.append(rest);
     }
   }
@@ -331,13 +339,15 @@ export async function mount(
       const newFile = node.kind === "dir" ? newFileButton(node.path) : undefined;
       newFile?.classList.add("mdame-new-file");
       item.append(line(row, node.path, newFile));
-      if (node.kind === "dir" && open.has(node.path)) {
-        const children = document.createElement("ul");
-        children.append(...items(node.children!, depth + 1));
-        item.append(children);
-      }
+      if (node.kind === "dir" && open.has(node.path)) item.append(childList(node, depth));
       return item;
     });
+  }
+
+  function childList(folder: TreeNode, depth: number) {
+    const children = document.createElement("ul");
+    children.append(...items(folder.children!, depth + 1));
+    return children;
   }
 
   function newFileButton(folder: string) {
@@ -348,15 +358,13 @@ export async function mount(
   function folderRow(node: TreeNode, depth: number) {
     const row = document.createElement("button");
     row.className = "mdame-tree-row";
-    let chevron = icon("chevron-right");
-    const showOpen = (expanded: boolean) => {
+    const name = label(node.name);
+    const showOpen = () => {
+      const expanded = open.has(node.path);
       row.setAttribute("aria-expanded", String(expanded));
-      const next = icon(expanded ? "chevron-down" : "chevron-right");
-      chevron.replaceWith(next);
-      chevron = next;
+      row.replaceChildren(icon(expanded ? "chevron-down" : "chevron-right"), name);
     };
-    row.append(chevron, label(node.name));
-    showOpen(open.has(node.path));
+    showOpen();
     // Only this folder's list: a render of the whole tree took 0.5 s with
     // a large folder open.
     row.addEventListener("click", () => {
@@ -365,12 +373,10 @@ export async function mount(
         item.querySelector(":scope > ul")?.remove();
       } else {
         open.add(node.path);
-        const children = document.createElement("ul");
-        children.append(...items(node.children!, depth + 1));
-        item.append(children);
+        item.append(childList(node, depth));
       }
       store(openKey, [...open]);
-      showOpen(open.has(node.path));
+      showOpen();
     });
     return row;
   }
@@ -390,19 +396,23 @@ export async function mount(
     return row;
   }
 
+  function rowOf(path: string) {
+    return list.querySelector<HTMLElement>(
+      `.mdame-tree-line[data-path="${CSS.escape(path)}"] > .mdame-tree-row`,
+    );
+  }
+
   let fetches = 0;
-  let fetchedText = JSON.stringify(fetched);
   refetch = async () => {
     const id = ++fetches;
-    const next = await api<TreeNode>("GET", "/api/tree");
+    const text = await treeText();
     if (id !== fetches) return null;
     // An event in a large folder gives the same tree, often.
-    const text = JSON.stringify(next);
     if (text === fetchedText) return allFiles.length;
     fetchedText = text;
-    fetched = next;
-    allFiles = files(next);
-    tree = sortTree(next, order);
+    fetched = JSON.parse(text);
+    allFiles = files(fetched);
+    tree = sortTree(fetched, order);
     // The arrow-key choice and the keyboard focus follow their file, which
     // may move or be gone.
     const chosen = results[highlight]?.file.path;
@@ -412,10 +422,7 @@ export async function mount(
     match();
     highlight = results.findIndex((result) => result.file.path === chosen);
     render();
-    if (focused !== undefined) {
-      const row = `.mdame-tree-line[data-path="${CSS.escape(focused)}"] > .mdame-tree-row`;
-      list.querySelector<HTMLElement>(row)?.focus();
-    }
+    if (focused !== undefined) rowOf(focused)?.focus();
     return allFiles.length;
   };
 
@@ -424,18 +431,23 @@ export async function mount(
   focusField = () => filter.focus();
   select = (path) => {
     current = path;
-    const closed = ancestors(path ?? "").filter((folder) => !open.has(folder));
-    if (closed.length > 0) {
-      for (const folder of closed) open.add(folder);
-      render();
-      return;
-    }
-    // Only the highlight moves: a render of the whole tree took 0.8 s with
-    // a large folder open.
+    // Only the rows that change: a render of the whole tree took 0.8 s
+    // with a large folder open.
     list.querySelector('[aria-current="page"]')?.removeAttribute("aria-current");
-    if (path === null) return;
-    const row = `.mdame-tree-line[data-path="${CSS.escape(path)}"] > a.mdame-tree-row`;
-    list.querySelector(row)?.setAttribute("aria-current", "page");
+    const [top, ...below] = ancestors(path ?? "").filter((folder) => !open.has(folder));
+    for (const folder of below) open.add(folder);
+    const topRow = top === undefined ? null : rowOf(top);
+    if (topRow) {
+      // A click on the folder builds its list, with the new current row.
+      topRow.click();
+    } else if (top !== undefined) {
+      // No row to click: the filter's results are on screen, or the tree
+      // does not have the folder yet.
+      open.add(top);
+      render();
+    } else if (path !== null) {
+      rowOf(path)?.setAttribute("aria-current", "page");
+    }
   };
   render();
   return allFiles.length;

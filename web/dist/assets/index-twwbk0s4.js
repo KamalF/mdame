@@ -1,1 +1,0 @@
-import{et,ja,Va,Wa,Ws}from"./main-rq58bnyb.js";import"./main-az0mw68h.js";import"./main-tv86vqvm.js";import"./main-f1tpe0za.js";export{Ws as javascript,et as javascriptLanguage,Va as jsxLanguage,Wa as tsxLanguage,ja as typescriptLanguage};

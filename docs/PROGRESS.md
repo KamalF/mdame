@@ -599,16 +599,18 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
      - No install script, as decided above.
    - `cargo mutants` on the diff of the milestone, 8 November 2026: 87 mutants, 67 caught, 6 unviable, 14 missed. New unit tests catch 8 of them: an access or a change of metadata on a folder runs no walk (without it, each walk would run another), the burst limit on the entries of a new folder, a change after a creation with another path between, a vanished and a denied folder in `watch_folders`, and a folder created again before a rescan. `path_of` becomes one function with a block for each system, so the macOS block, which Linux does not build, gives no mutant. Five mutants are excluded in `.cargo/mutants.toml`, each with its reason. The exclusions for `watch_readable` and `watch_around`, which this milestone removed, go. The run after: 81 mutants, 75 caught, 6 unviable, none missed.
 10. Performance on a large repository. Decided on 8 November 2026, after a review: all ten fixes go into 0.1.0. A server reviewer and a page reviewer measured mdame on `mdn/content`, and Claude measured it in Chrome on Kamal's release build. On a small folder, mdame is snappy: first content in about 0.2 s, typing under 16 ms per key, every route under 15 ms. On `mdn/content`, it is not: typing in the filter froze the tab for up to 7 s per key, a click in the tree took 0.8 s with a big folder open, and `/api/tree` took 1 s. The README invites such a test, since its comparison uses `mdn/content`. One commit per fix:
-    1. Icons are cloned from a parsed copy. Parsing the markup with `innerHTML` cost three times a clone: 238 ms when opening a page with many code blocks, and 1 s of the filter's worst keystroke.
-    2. The filter shows at most 100 results.
-    3. The outline sets the article's own margins, not inherited custom properties, and skips writes that change nothing.
-    4. Dragging the sidebar sets the sidebar's own width.
-    5. A click, a sort or a folder toggle updates only the rows that change, and a tree refetch with the same answer renders nothing.
-    6. The server walks the workspace with 4 threads.
-    7. The morph skips the unchanged blocks at the start and the end of the article.
-    8. Mermaid diagrams are cached by theme and source.
-    9. A data file over 100 KB shows as plain text, with no colours.
-    10. The editor loads on demand.
+    1. Icons are cloned from a parsed copy (done). Parsing the markup with `innerHTML` cost three times a clone. Opening the page of the input element blocks the tab 218 ms instead of 313 ms.
+    2. The filter shows at most 100 results (done), then the number of the others. Each keystroke paints in 52 to 70 ms on `mdn/content`, where "i" froze the tab for 6.9 s. `filter shows at most 100 results, and counts the others`.
+    3. The outline sets the article's own margins (done), not inherited custom properties on the pane, and skips writes that change nothing. A 195 KB changelog opens in 322 ms instead of 737 ms; a dense 1 MB file in 2.6 s instead of 3.8 s.
+    4. Dragging the sidebar sets the sidebar's own width (done): 60 fps on the page of Array, against 17. The overlay of narrow windows keeps its 280 px with `!important`.
+    5. A click, a sort or a folder toggle updates only the rows that change (done), and a tree refetch with the same answer renders nothing. With `web/api` open, a click on a file takes 134 ms instead of 665 ms, and a refetch 69 ms instead of 308 ms.
+    6. The server walks the workspace with 4 threads (done), one walk at a time: four tabs that loaded the tree at once ran 16 threads and overflowed the inotify queue. `/api/tree` takes 176 ms instead of 1,009 ms, a search for a rare word 371 ms instead of 1,212 ms, and a new folder's events come after 0.75 s instead of 2.2 s. The watcher sorts the entries of its walk, so that a folder comes before its entries.
+    7. The morph skips the unchanged blocks at the start and the end of the article (done), and gives them their new line numbers. A changelog update blocks the tab 377 ms instead of 595 ms, and a dense 1 MB file 1.6 s instead of 6.4 s. After an update, the article holds the same elements and line numbers as a fresh open; only the whitespace between inserted blocks differs.
+    8. Mermaid diagrams are cached by theme and source (done), the last 50. A live update of a file with 6 diagrams has no long task, against 320 to 406 ms.
+    9. Code over 100 KB shows as plain text (done). A 943 KB JSON file opens with 370 ms of long tasks instead of 3.4 s. `a text over 100 KB stays plain text`.
+    10. The editor loads on the first edit (done). The first page load takes 439 KB of JavaScript instead of 758 KB.
+    - `cargo mutants` on the Rust part of these commits, `tree.rs` and `watch.rs`: 6 mutants, 4 caught, 2 unviable, none missed. The page's changes have no unit test where they touch the DOM; the harness measures checked them.
+    - The measures came from the page reviewer's harness: the real page, bundled with a fake server that answers with responses recorded from `mdn/content`, in headless Chrome, before and after each fix. The server's came from its reviewer's bench crate, on a copy of `mdn/content`.
 11. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
 
 ### Manual checklist
@@ -655,7 +657,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: step 10, the performance fixes. Then step 9's manual checklist, and step 11, the release.
+1. Milestone 10, on the `m10-release` branch: step 9's manual checklist, with the browser measures of step 10 again on Kamal's build. Then step 11, the release.
 
 ## Open points
 

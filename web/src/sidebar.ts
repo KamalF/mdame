@@ -466,18 +466,21 @@ export function focusFilter() {
 
 interface LayoutElements {
   frame: HTMLElement;
+  nav: HTMLElement;
   handle: HTMLElement;
   backdrop: HTMLElement;
   button: HTMLButtonElement;
 }
 
-export function setupLayout({ frame, handle, backdrop, button }: LayoutElements) {
+export function setupLayout({ frame, nav, handle, backdrop, button }: LayoutElements) {
   const narrow = matchMedia("(max-width: 899px)");
   let width = MIN_WIDTH;
 
   function setWidth(next: number) {
     width = clampWidth(next);
-    frame.style.setProperty("--sidebar-width", `${width}px`);
+    // The sidebar's own width: a custom property on the frame would
+    // restyle the whole page at each move of a drag.
+    nav.style.width = `${width}px`;
     handle.setAttribute("aria-valuenow", String(width));
   }
 

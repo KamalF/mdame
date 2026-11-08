@@ -342,7 +342,7 @@ async function showWorkspace(state: State) {
   button.className = "mdame-icon-button";
   button.append(icon("panel"));
   status.prepend(button);
-  sidebar.setupLayout({ frame, handle, backdrop, button });
+  sidebar.setupLayout({ frame, nav, handle, backdrop, button });
   bindKeys({
     b: sidebar.toggleSidebar,
     "/": sidebar.focusFilter,

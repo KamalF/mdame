@@ -597,7 +597,38 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
      - `rustix` is now a dependency on every target: `fd_path` reads the link count with `fstat` on Linux too.
      - The echo of a folder's move is still found by its time: notify gives it no rename cookie, but the debouncer keeps only the last event of a kind for a path, and drops the parent's report when both share a batch.
      - No install script, as decided above.
+   - `cargo mutants` on the diff of the milestone, 8 November 2026: 87 mutants, 67 caught, 6 unviable, 14 missed. New unit tests catch 8 of them: an access or a change of metadata on a folder runs no walk (without it, each walk would run another), the burst limit on the entries of a new folder, a change after a creation with another path between, a vanished and a denied folder in `watch_folders`, and a folder created again before a rescan. `path_of` becomes one function with a block for each system, so the macOS block, which Linux does not build, gives no mutant. Five mutants are excluded in `.cargo/mutants.toml`, each with its reason. The exclusions for `watch_readable` and `watch_around`, which this milestone removed, go. The run after: 81 mutants, 75 caught, 6 unviable, none missed.
 10. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
+
+### Manual checklist
+
+Not run yet. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. The test folder is a git repository that holds:
+
+- `a.md` and `notes/b.md`;
+- a `.gitignore` that lists `build/`, and `build/c.md`;
+- a branch `other`, where `notes/` holds only `d.md`.
+
+Live updates:
+
+1. Write `build/c.md`: no entry in the list of changes, and `build/` stays out of the tree.
+2. Run `mkdir new && echo '# N' > new/n.md`: `new/n.md` shows in the tree and in the list of changes. Open it, then change it on disk: the page updates.
+3. Run `git checkout other`, open `notes/d.md`, then change it on disk: the page updates. Run `git checkout -`, open `notes/b.md`, and change it: the page updates.
+4. Empty the `.gitignore`: `build/` shows in the tree, and `build/c.md` in the list of changes. Open `build/c.md` and change it on disk: the page updates.
+
+Large workspace:
+
+5. Run mdame on `mdn/content`: the page opens at once. In DevTools, after a minute, the Network tab shows no new request to `/api/tree`. Open the page of `Array`, wait 20 s, then change its file on disk: the page updates.
+6. In `mdn/content`, run `git checkout HEAD~200`, then `git checkout -`: the tree reloads a few times, then stops. Change the file of `Array` on disk: the page updates.
+
+Editor:
+
+7. Open `a.md` in the editor and type a word. Save the file from vim with `:w`: the notice of a change on disk shows. Click Overwrite: the save works, and Revisions lists the version from vim. These steps run through `fd_path`, which now reads the link count with `fstat`.
+
+Release, after 0.1.0 is published:
+
+8. `brew install KamalF/tap/mdame` on Linux gives a working mdame. The job "Check release" passes on its Linux and macOS runners.
+9. `mise use -g github:KamalF/mdame` and `cargo install --locked mdame` give a working mdame.
+10. On GitHub, the README shows the demo, and the link "a known issue" leads to Known issues.
 
 ## Public repository and crate
 
@@ -613,7 +644,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: step 9, `cargo mutants` and the manual checklist.
+1. Milestone 10, on the `m10-release` branch: step 9, the manual checklist. Then step 10, the release.
 
 ## Open points
 

@@ -35,18 +35,16 @@ pub struct Node {
 /// file are left out.
 pub fn build(workspace: &Workspace) -> Node {
     let root = &workspace.root;
-    let found = Mutex::new(Vec::new());
-    walk(root, |entry| {
+    let found = walk(root, |entry| {
         // Paths that are not UTF-8 could not be asked for again by the page.
-        if let Some(relative) = entry.path().strip_prefix(root).ok().and_then(Path::to_str)
-            && let Some(file) = viewable_file(&workspace.dir, relative)
-        {
-            let mut found = found.lock().unwrap_or_else(PoisonError::into_inner);
-            found.push((relative.to_owned(), file));
-        }
+        let relative = entry.path().strip_prefix(root).ok()?.to_str()?;
+        Some((
+            relative.to_owned(),
+            viewable_file(&workspace.dir, relative)?,
+        ))
     });
     let mut top = Folder::default();
-    for (relative, file) in found.into_inner().unwrap_or_else(PoisonError::into_inner) {
+    for (relative, file) in found {
         let parts: Vec<&str> = relative.split('/').collect();
         top.insert(&parts, file);
     }
@@ -62,11 +60,14 @@ const WALK_THREADS: usize = 4;
 /// threads.
 static WALKING: Mutex<()> = Mutex::new(());
 
-/// Calls `visit` with each entry of the workspace that the tree may show,
-/// folders included, in no order: gitignored entries, `.git` and `.mdame`
-/// stay out.
-pub fn walk(root: &Path, visit: impl Fn(&DirEntry) + Sync) {
+/// What `keep` gives for each entry of the workspace that the tree may
+/// show, folders included: gitignored entries, `.git` and `.mdame` stay
+/// out. A folder comes before its entries: the walker visits it first,
+/// since a visit can skip a folder's entries (`WalkState::Skip`). The rest
+/// of the order changes from walk to walk.
+pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) -> Vec<T> {
     let _walking = WALKING.lock().unwrap_or_else(PoisonError::into_inner);
+    let kept = Mutex::new(Vec::new());
     // A notes folder can have a .gitignore without being a git repository.
     // Ignore files above the root count only inside a repository, as in
     // git: a `.gitignore` in a home folder without `.git` must not hide
@@ -84,12 +85,15 @@ pub fn walk(root: &Path, visit: impl Fn(&DirEntry) + Sync) {
         .build_parallel()
         .run(|| {
             Box::new(|entry| {
-                if let Ok(entry) = entry {
-                    visit(&entry);
+                if let Some(item) = entry.ok().and_then(|entry| keep(&entry)) {
+                    kept.lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .push(item);
                 }
                 WalkState::Continue
             })
         });
+    kept.into_inner().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// The family and modified time of a viewable file, or `None` for
@@ -353,6 +357,25 @@ mod tests {
         link(&outside.path().join("folder"), "linked");
 
         assert_eq!(tree_paths(&walk(root.path())), ["", "a.md", "b.md"]);
+    }
+
+    #[test]
+    fn the_walk_gives_a_folder_before_its_entries() {
+        let root = tempfile::tempdir().unwrap();
+        for a in 0..4 {
+            for b in 0..4 {
+                write(root.path(), &format!("{a}/{b}/c.md"), 1);
+            }
+        }
+        // The order changes from walk to walk.
+        for _ in 0..20 {
+            let walked = super::walk(root.path(), |entry| Some(entry.path().to_owned()));
+            assert_eq!(walked.len(), 1 + 4 + 16 + 16);
+            for (i, path) in walked.iter().enumerate().skip(1) {
+                let parent = path.parent().unwrap();
+                assert!(walked[..i].iter().any(|seen| seen == parent), "{walked:?}");
+            }
+        }
     }
 
     #[test]

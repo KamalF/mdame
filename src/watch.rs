@@ -115,7 +115,8 @@ fn forward(
     drop(started);
     let mut renamed = Vec::new();
     for first in received {
-        // A walk can take a second: one walk serves every batch that waits.
+        // A walk of a large workspace is slow: one walk serves every batch
+        // that waits.
         let batch: Vec<_> = std::iter::once(first)
             .chain(received.try_iter())
             .flat_map(unpack)
@@ -208,15 +209,10 @@ impl Folders {
         for walk in 0..2 {
             let mut folders = HashSet::new();
             found.clear();
-            let walked = Mutex::new(Vec::new());
-            tree::walk(&self.root, |entry| {
+            let walked = tree::walk(&self.root, |entry| {
                 let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
-                let mut walked = walked.lock().unwrap_or_else(PoisonError::into_inner);
-                walked.push((entry.path().to_owned(), is_folder));
+                Some((entry.path().to_owned(), is_folder))
             });
-            let mut walked = walked.into_inner().unwrap_or_else(PoisonError::into_inner);
-            // A folder before its entries.
-            walked.sort_unstable();
             for (path, is_folder) in walked {
                 let parent = path.parent().filter(|parent| folders.contains(*parent));
                 if !start && parent.is_some_and(|parent| !before.contains(parent)) {

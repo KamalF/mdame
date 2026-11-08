@@ -151,19 +151,68 @@ export async function prepare(html: string): Promise<HTMLElement> {
 /** Replaces only what differs between `shown` and `next`: the scroll
  * position, a text selection and open `<details>` stay. */
 export function morphInto(shown: HTMLElement, next: HTMLElement) {
-  Idiomorph.morph(shown, next, {
+  const config = {
     callbacks: {
-      // The server's HTML never has them: a `<details>` the reader opened
-      // stays open, and the article keeps the margins of the outline.
-      beforeAttributeUpdated: (name, node, type) =>
-        !(type === "remove" && (name === "open" || (name === "style" && node === shown))),
+      // The server's HTML never has it: a `<details>` the reader opened
+      // stays open.
+      beforeAttributeUpdated: (name: string, _: Element, type: string) =>
+        !(type === "remove" && name === "open"),
     },
-  });
+  };
+  // idiomorph over the whole article costs more than linear time in its
+  // blocks: 4 s for a dense 1 MB file. An edit changes a few blocks, so
+  // the unchanged ones at the start and the end stay as they are.
+  const old = [...shown.children];
+  const neu = [...next.children];
+  const keys = new Map<Element, string>();
+  const same = (a: Element, b: Element) => key(a, keys) === key(b, keys);
+  let start = 0;
+  while (start < old.length && start < neu.length && same(old[start], neu[start])) start++;
+  let end = 0;
+  while (
+    end < old.length - start &&
+    end < neu.length - start &&
+    same(old[old.length - 1 - end], neu[neu.length - 1 - end])
+  ) {
+    end++;
+  }
+  // An edit above them moves their lines.
+  for (let i = 0; i < start; i++) copyLines(old[i], neu[i]);
+  for (let i = 1; i <= end; i++) copyLines(old[old.length - i], neu[neu.length - i]);
+  const oldMiddle = old.slice(start, old.length - end);
+  const newMiddle = neu.slice(start, neu.length - end);
+  const pairs = Math.min(oldMiddle.length, newMiddle.length);
+  for (let i = 0; i < pairs; i++) Idiomorph.morph(oldMiddle[i], newMiddle[i], config);
+  for (const removed of oldMiddle.slice(pairs)) removed.remove();
+  const before = end > 0 ? old[old.length - end] : null;
+  for (const added of newMiddle.slice(pairs)) shown.insertBefore(added, before);
   // idiomorph inserts copies of new nodes, without their click listeners.
   for (const block of shown.querySelectorAll(".mdame-code")) {
     const button = block.querySelector(":scope > button");
     if (button && !copyButtons.has(button)) button.replaceWith(codeCopyButton(block));
   }
+}
+
+/** A block's HTML without its line numbers, which an edit above it moves. */
+function key(block: Element, keys: Map<Element, string>): string {
+  let found = keys.get(block);
+  if (found === undefined) {
+    found = block.outerHTML.replace(/ data-sourcepos="[^"]*"/g, "");
+    keys.set(block, found);
+  }
+  return found;
+}
+
+/** Gives `shown` the line numbers of `next`, an equal block. */
+function copyLines(shown: Element, next: Element) {
+  const from = [next, ...next.querySelectorAll("[data-sourcepos]")];
+  const to = [shown, ...shown.querySelectorAll("[data-sourcepos]")];
+  from.forEach((element, i) => {
+    const lines = element.getAttribute("data-sourcepos");
+    if (lines !== null && to[i].getAttribute("data-sourcepos") !== lines) {
+      to[i].setAttribute("data-sourcepos", lines);
+    }
+  });
 }
 
 /** The path of the file on screen, if one is. */

@@ -16,32 +16,29 @@ pub const OWN_DIR: &str = ".mdame";
 /// or a swapped entry in the path that opened it does not count. A file
 /// deleted or renamed over since then gives `NotFound`.
 pub fn fd_path(handle: &impl AsFd) -> io::Result<PathBuf> {
-    match path_and_links(handle.as_fd())? {
-        (_, 0) => Err(io::Error::new(ErrorKind::NotFound, "deleted")),
-        (path, _) => Ok(path),
+    let handle = handle.as_fd();
+    let path = path_of(handle)?;
+    // After the path: a file deleted between the two reads still counts
+    // as deleted.
+    if rustix::fs::fstat(handle)?.st_nlink == 0 {
+        return Err(io::Error::new(ErrorKind::NotFound, "deleted"));
     }
+    Ok(path)
 }
 
-// The link count is read after the path: a file deleted between the two
-// reads still counts as deleted.
-
 #[cfg(not(target_os = "macos"))]
-fn path_and_links(handle: BorrowedFd) -> io::Result<(PathBuf, u64)> {
+fn path_of(handle: BorrowedFd) -> io::Result<PathBuf> {
     use std::os::fd::AsRawFd;
-    use std::os::unix::fs::MetadataExt;
 
-    let link = format!("/proc/self/fd/{}", handle.as_raw_fd());
-    let path = std::fs::read_link(&link)?;
-    Ok((path, std::fs::metadata(&link)?.nlink()))
+    std::fs::read_link(format!("/proc/self/fd/{}", handle.as_raw_fd()))
 }
 
 #[cfg(target_os = "macos")]
-fn path_and_links(handle: BorrowedFd) -> io::Result<(PathBuf, u64)> {
+fn path_of(handle: BorrowedFd) -> io::Result<PathBuf> {
     use std::ffi::OsString;
     use std::os::unix::ffi::OsStringExt;
 
-    let path = OsString::from_vec(rustix::fs::getpath(handle)?.into_bytes());
-    Ok((path.into(), rustix::fs::fstat(handle)?.st_nlink.into()))
+    Ok(OsString::from_vec(rustix::fs::getpath(handle)?.into_bytes()).into())
 }
 
 /// Whether a folder is `.git` or `.mdame`, at any depth: the tree never

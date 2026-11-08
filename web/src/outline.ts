@@ -103,11 +103,15 @@ export function showOutline(
 function render() {
   wrapper?.remove();
   wrapper = undefined;
-  if (shown) setMargins(shown.article, null);
   observer?.disconnect();
   // The editor may have taken the pane.
   const pane = shown?.article.parentElement;
-  if (!shown || !pane || !outlineOn() || shown.entries.length === 0) return;
+  if (!shown || !pane || !outlineOn() || shown.entries.length === 0) {
+    // Only here: in Full width, margins off would wrap the whole text
+    // again before `layoutOutline` sets them back.
+    if (shown) setMargins(shown.article);
+    return;
+  }
   const list = document.createElement("ul");
   links = shown.entries.map(({ element, level, line, dot }) => {
     const item = document.createElement("li");
@@ -162,30 +166,30 @@ export function layoutOutline() {
   // Full needs no width: the column takes what the outline leaves. A read
   // with the margins off would wrap the whole text again.
   if (!full) {
-    setMargins(article, null);
+    setMargins(article);
     column = article.getBoundingClientRect().width;
   }
   const spot = place(pane.clientWidth, column, full);
   wrapper.hidden = spot === null;
   if (!spot) {
-    setMargins(article, null);
+    setMargins(article);
     return;
   }
-  setMargins(article, { left: spot.left, right: full ? ROOM : null });
+  setMargins(article, spot.left, full ? ROOM : undefined);
   const nav = wrapper.firstElementChild as HTMLElement;
   nav.style.left = `${spot.left + spot.width + GAP}px`;
   nav.style.maxHeight = `${pane.clientHeight}px`;
   spy();
 }
 
-/** The margins of the column, or `null` for the centred column. They are
- * the article's own: an inherited custom property on the pane would
+/** The margins of the column; without them, the column is centred. They
+ * are the article's own: an inherited custom property on the pane would
  * restyle each element of the article, 370 ms on a dense 1 MB file. */
-function setMargins(article: HTMLElement, margins: { left: number; right: number | null } | null) {
-  const left = margins ? `${margins.left}px` : "";
-  const right = margins?.right != null ? `${margins.right}px` : "";
-  if (article.style.marginLeft !== left) article.style.marginLeft = left;
-  if (article.style.marginRight !== right) article.style.marginRight = right;
+function setMargins(article: HTMLElement, left?: number, right?: number) {
+  const marginLeft = left === undefined ? "" : `${left}px`;
+  const marginRight = right === undefined ? "" : `${right}px`;
+  if (article.style.marginLeft !== marginLeft) article.style.marginLeft = marginLeft;
+  if (article.style.marginRight !== marginRight) article.style.marginRight = marginRight;
 }
 
 /** The view scrolled to `element`, which the address names: its entry

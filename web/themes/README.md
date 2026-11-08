@@ -13,8 +13,8 @@ without a restart. A
 symbolic link counts too, so a dotfile manager can keep the file elsewhere.
 
 Use only themes that you trust. A theme can load images from the web. Through
-them, its author can learn when you use mdame, and which links the open page
-holds.
+them, its author can learn when you use mdame, the names of your files, and the
+headings and links of the open file.
 
 Each browser keeps its own choice for each port: a second mdame, on the next
 port, starts from System.

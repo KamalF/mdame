@@ -7,19 +7,22 @@ Run `mdame` in a folder, and its markdown opens in a browser tab: rendered,
 with Mermaid diagrams, and updated as the files change on disk. It is made for
 work in the terminal, with a coding agent that writes its plans and specs in
 markdown. You read them as they change, and fix a line in place. mdame is one
-Rust binary, and with its tab it takes 64 MB, where VS Code takes 1 GB.
+Rust binary, and with its tab it takes 64 MB of memory on a small folder, where
+VS Code takes 1 GB.
 
 I was looking for a markdown editor, and I tried
 [mdlive](https://github.com/bearded-giant/mdlive) for a short time. Then I built
 my own, as a learning project: a way to practise software engineering with a
 coding agent.
 
-![An agent rewrites its plan in mdame. The page updates, a bar marks each
+![An agent rewrites its plan, and mdame updates the page: a bar marks each
 changed block, and the status bar lists another file that changed. Then diff
 mode shows the text that you last saw.](docs/demo.gif)
 
-0.1.0 is the first release. I have used it on Linux only. On macOS its tests
-pass, but live updates have a known issue. There is no Windows build.
+0.1.0 is the first release. I have used it on Linux only. On macOS, live
+updates have [a known issue](#known-issues), and their end-to-end tests run on
+Linux only. All other tests pass on macOS, except one that needs a Linux
+feature. mdame does not run on Windows.
 
 ## Install
 
@@ -50,8 +53,8 @@ binaries are not notarized, so macOS blocks one that a browser downloaded.
 ## With a coding agent
 
 mdame shows the markdown files in hidden folders too, where agents keep their
-plans. To see the plans of Claude Code, have it write them in the project, in
-`.claude/settings.json`:
+plans. To see the plans of Claude Code, set `plansDirectory` in
+`.claude/settings.json`, so that it writes them in the project:
 
 ```json
 {
@@ -59,15 +62,25 @@ plans. To see the plans of Claude Code, have it write them in the project, in
 }
 ```
 
+If your `.gitignore` lists `.claude/`, mdame does not show it. To show it, but
+not the git worktrees that Claude Code keeps there, add these lines to a
+`.ignore` file at the root of the project:
+
+```gitignore
+!.claude/
+.claude/worktrees/
+```
+
 Then run `mdame` at the root of the project, and ask Claude Code for a plan.
 
 1. The plan shows in the status bar, which lists the files that changed. A
    click opens it.
 2. Press `e` to edit it, for example to drop a step, and save with Ctrl+S (⌘S
-   on macOS). Then tell the agent to read the plan again.
+   on macOS). Press Esc to go back to the view, and tell the agent to read the
+   plan again.
 3. When the agent rewrites the plan, a bar marks each block that changed. `h`
    opens diff mode, where "Last seen" shows the text that you last saw, and
-   restores it.
+   its Restore button brings it back.
 
 ## Usage
 
@@ -90,7 +103,8 @@ lists the options.
 - It edits files in the browser, with CodeMirror.
 - It keeps revisions of each file that it saves (the last 20 by default), and
   restores them. Its diff mode also shows the version that you last saw, and
-  restores it.
+  restores it. The revisions live in a `.mdame` folder at the root, which holds
+  its own `.gitignore`.
 
 Files that `.gitignore` hides stay out of the tree and the search. Changes in
 the folders that it hides stay out of the list of changes. To hide more, such
@@ -107,10 +121,10 @@ open, it takes 16 times the memory of mdame and its tab on a small folder, and
 8 times on a large one.
 
 Measured on Linux on 7 November 2026, with
-[scripts/memory.sh](scripts/memory.sh), as PSS: a page that several processes
-share counts once, split between them. For mdame, the server and the process
-of its tab in Chromium count; your browser is open anyway. For VS Code, every
-process counts. It ran with no extension, and with the preview of the file
+[scripts/memory.sh](scripts/memory.sh), as PSS: a memory page that several
+processes share counts once, split between them. For mdame, the server and the
+process of its tab in Chromium count; your browser is open anyway. For VS Code,
+every process counts. It ran with no extension, and with the preview of the file
 open beside the text.
 
 | Folder and file | mdame 0.1.0-rc.2 | VS Code 1.145.2 |
@@ -120,10 +134,10 @@ open beside the text.
 
 ## Similar projects
 
-- [mdserve](https://github.com/jfernandez/mdserve) started the idea: it shows
-  the markdown that an agent writes, live in the browser. It has no editor. In
-  a folder, it lists only the files at the top level, so `.claude/plans/` stays
-  out. It was archived in September 2026.
+- [mdserve](https://github.com/jfernandez/mdserve) shows the markdown that an
+  agent writes, live in the browser. mdlive, and then mdame, come from it. It
+  has no editor. In a folder, it lists only the files at the top level, so
+  `.claude/plans/` stays out. It was archived in September 2026.
 - [mdlive](https://github.com/bearded-giant/mdlive), a fork of mdserve, adds an
   editor, revisions, file operations and a macOS app. When a file changes, each
   tab reloads the whole page. mdame updates only the blocks that changed, keeps
@@ -134,12 +148,11 @@ open beside the text.
 - [glow](https://github.com/charmbracelet/glow) renders markdown in the
   terminal, where a Mermaid diagram stays code.
 - [Obsidian](https://obsidian.md) is a notes app built on Electron, as VS Code
-  is, and it is not open source. It keeps its settings in an `.obsidian` folder
-  inside your folder.
+  is, and it is not open source.
 - [SilverBullet](https://silverbullet.md) is a notes app in the browser, on
   markdown files too, with wiki links, queries, and Lua to program it. To me it
-  is a great project, and a comprehensive one if you like to tinker. mdame aims
-  to be simpler.
+  is a great project: comprehensive, and a good fit if you like to tinker.
+  mdame aims to be simpler.
 
 mdame does not repeat what the browser and the terminal already do. Browser
 tabs are its tabs, and browser zoom sets the text size. You rename, move and
@@ -167,13 +180,16 @@ options turns this off.
 
 ## Known issues
 
-- On macOS, the page can miss a change made outside mdame. macOS reports some
-  deletions as changes, and some folder deletions not at all. Reload the page
-  to see them.
+- On Linux, on a large folder, live updates start some seconds after mdame
+  starts: 12 to 18 s for 15,000 folders, as measured on one machine.
+- On macOS, the page can miss a change made outside mdame. macOS merges the
+  kinds of the events of a file, so mdame reads some deletions as changes, and
+  misses some folder deletions. Reload the page to see them.
 
 ## Design, tests and reviews
 
-I made the design decisions, and Claude Code wrote most of the code.
+I made the design decisions, and Claude Code wrote most of the code. mdame was
+built in 10 milestones.
 
 ### Design
 
@@ -189,18 +205,20 @@ an afternoon.
 Each test checks one rule, and its name states that rule. Each rule has its
 tests at one layer: the lowest one that sees it. The tests use the real parts,
 with no mocks: real files in a temporary folder, and the real HTTP router.
-Rendering has snapshot tests, and paths and URLs have property tests. At the
-end of each milestone, `cargo mutants` changes the code to find the rules that
-no test checks. CI runs the tests on Linux and macOS. After each release, CI
-installs mdame with the script and with Homebrew, and checks that it starts.
+Rendering has snapshot tests, and paths and URLs have property tests. From
+milestone 6, at the end of each milestone, `cargo mutants` changes the code to
+find the rules that no test checks. CI runs the tests on Linux and macOS,
+except the end-to-end tests of live updates and one test of saving, which run
+on Linux only. After each release,
+CI installs mdame with Homebrew, and checks that it starts.
 
 ### Reviews
 
 Before each commit, I read its code and checked that I understood it. At the
 end of each milestone, fresh Claude Code sessions reviewed the whole milestone,
-in rounds. The fixes of each round got their own commits. The loop stopped when
-a round found nothing to fix, after 2 to 29 rounds. A manual checklist in the
-browser then closed the milestone.
+in rounds. The fixes got their own commits. The loop stopped when
+a round found nothing that needed a fix, after 2 to 29 rounds. From milestone
+5, a manual checklist in the browser then closed each milestone.
 
 ## Credits
 
@@ -208,10 +226,11 @@ mdame is a rebuild of [mdlive](https://github.com/bearded-giant/mdlive), itself
 a fork of Jose Fernandez's [mdserve](https://github.com/jfernandez/mdserve).
 Both are MIT licensed. The icons come from [Lucide](https://lucide.dev) (ISC),
 and some of them derive from [Feather](https://github.com/feathericons/feather)
-(MIT). `LICENSE` carries their notices. The built-in themes take their colours
-from GitHub's [Primer](https://primer.style) (`@primer/primitives`, MIT). The
-fonts are IBM Plex Sans and IBM Plex Mono, under the SIL Open Font License 1.1.
-The page bundles them and other npm packages, such as CodeMirror and Mermaid:
+(MIT). The built-in themes take their colours from GitHub's
+[Primer](https://primer.style) (`@primer/primitives`, MIT). `LICENSE` carries
+the notices of all of these. The fonts are IBM Plex Sans and IBM Plex Mono,
+under the SIL Open Font License 1.1. The page bundles them and other npm
+packages, such as CodeMirror and Mermaid:
 `web/dist/assets/THIRD-PARTY-LICENSES.txt` carries their licence texts.
 
 ## License

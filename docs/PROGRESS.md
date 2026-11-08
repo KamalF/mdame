@@ -752,4 +752,4 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - Usability: unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
 - From the review of milestone 3, for later:
   - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice.
-  - Big workspaces: a limit on the filter results, latinized names computed once, cached icons; `/api/tree` walks the whole folder on each request. Measure with the milestone 5 refetches first.
+  - Big workspaces: latinized names computed once for the filter. The limit on the filter results, the cached icons and a faster `/api/tree` came in milestone 10.

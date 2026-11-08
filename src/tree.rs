@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::{Mutex, PoisonError};
 
 use cap_std::fs::Dir;
-use ignore::{Walk, WalkBuilder};
+use ignore::{DirEntry, WalkBuilder, WalkState};
 use serde::Serialize;
 
 use crate::document::modified_secs;
@@ -34,24 +35,38 @@ pub struct Node {
 /// file are left out.
 pub fn build(workspace: &Workspace) -> Node {
     let root = &workspace.root;
-    let mut top = Folder::default();
-    for entry in walker(root).filter_map(Result::ok) {
+    let found = Mutex::new(Vec::new());
+    walk(root, |entry| {
         // Paths that are not UTF-8 could not be asked for again by the page.
-        let Some(relative) = entry.path().strip_prefix(root).ok().and_then(Path::to_str) else {
-            continue;
-        };
-        let Some(file) = viewable_file(&workspace.dir, relative) else {
-            continue;
-        };
+        if let Some(relative) = entry.path().strip_prefix(root).ok().and_then(Path::to_str)
+            && let Some(file) = viewable_file(&workspace.dir, relative)
+        {
+            let mut found = found.lock().unwrap_or_else(PoisonError::into_inner);
+            found.push((relative.to_owned(), file));
+        }
+    });
+    let mut top = Folder::default();
+    for (relative, file) in found.into_inner().unwrap_or_else(PoisonError::into_inner) {
         let parts: Vec<&str> = relative.split('/').collect();
         top.insert(&parts, file);
     }
     top.into_node(String::new(), String::new())
 }
 
-/// The entries of the workspace that the tree may show, folders included:
-/// gitignored entries, `.git` and `.mdame` stay out.
-pub fn walker(root: &Path) -> Walk {
+/// Each folder that a walk opens is an event on the watcher's own watches.
+/// On 15,000 folders, 16 threads overflowed the inotify queue; 4 did not,
+/// and walked 5 times faster than one.
+const WALK_THREADS: usize = 4;
+
+/// One walk at a time: four tabs that load the tree at once also ran 16
+/// threads.
+static WALKING: Mutex<()> = Mutex::new(());
+
+/// Calls `visit` with each entry of the workspace that the tree may show,
+/// folders included, in no order: gitignored entries, `.git` and `.mdame`
+/// stay out.
+pub fn walk(root: &Path, visit: impl Fn(&DirEntry) + Sync) {
+    let _walking = WALKING.lock().unwrap_or_else(PoisonError::into_inner);
     // A notes folder can have a .gitignore without being a git repository.
     // Ignore files above the root count only inside a repository, as in
     // git: a `.gitignore` in a home folder without `.git` must not hide
@@ -65,7 +80,16 @@ pub fn walker(root: &Path) -> Walk {
         .parents(in_repo)
         .hidden(false)
         .filter_entry(|entry| !is_git_or_mdame(entry.file_name()))
-        .build()
+        .threads(WALK_THREADS)
+        .build_parallel()
+        .run(|| {
+            Box::new(|entry| {
+                if let Ok(entry) = entry {
+                    visit(&entry);
+                }
+                WalkState::Continue
+            })
+        });
 }
 
 /// The family and modified time of a viewable file, or `None` for

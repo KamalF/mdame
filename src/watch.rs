@@ -208,9 +208,16 @@ impl Folders {
         for walk in 0..2 {
             let mut folders = HashSet::new();
             found.clear();
-            for entry in tree::walker(&self.root).filter_map(Result::ok) {
+            let walked = Mutex::new(Vec::new());
+            tree::walk(&self.root, |entry| {
                 let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
-                let path = entry.into_path();
+                let mut walked = walked.lock().unwrap_or_else(PoisonError::into_inner);
+                walked.push((entry.path().to_owned(), is_folder));
+            });
+            let mut walked = walked.into_inner().unwrap_or_else(PoisonError::into_inner);
+            // A folder before its entries.
+            walked.sort_unstable();
+            for (path, is_folder) in walked {
                 let parent = path.parent().filter(|parent| folders.contains(*parent));
                 if !start && parent.is_some_and(|parent| !before.contains(parent)) {
                     found.push(path.clone());

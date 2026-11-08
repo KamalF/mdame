@@ -6,7 +6,7 @@ import { api, errorFrom, exists, isHeld, request, setHold, type State } from "./
 import { ChangeList, changesItem } from "./changelist.ts";
 import { copyButton } from "./copy.ts";
 import { askNewFile, confirmDiscard } from "./dialogs.ts";
-import * as editor from "./editor.ts";
+import type { EditorState } from "./editor.ts";
 import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
@@ -16,6 +16,21 @@ import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
 import { applyWidth } from "./width.ts";
+
+// The editor and CodeMirror load on the first edit: they are more than
+// half of the page's code. Until then, nothing is open in the editor.
+let editor: typeof import("./editor.ts") | undefined;
+let editorLoad: Promise<typeof import("./editor.ts")> | undefined;
+
+function loadEditor() {
+  editorLoad ??= import("./editor.ts").then((module) => (editor = module));
+  return editorLoad;
+}
+
+/** The path of the file open in the editor, if any. */
+function editedPath(): string | null {
+  return editor?.openPath() ?? null;
+}
 
 const app = document.getElementById("mdame-app") as HTMLElement;
 const status = document.getElementById("mdame-status") as HTMLElement;
@@ -76,7 +91,7 @@ function showFileStatus(path: string, file: view.FileView) {
   }
 }
 
-function showEditStatus(state: editor.EditorState) {
+function showEditStatus(state: EditorState) {
   const name = document.createElement("span");
   name.textContent = state.path;
   const dot = document.createElement("span");
@@ -91,15 +106,15 @@ function showEditStatus(state: editor.EditorState) {
   error.setAttribute("role", "alert");
   error.textContent = state.error ?? "";
   const label = state.preview ? "Hide preview" : "Show preview";
-  const preview = iconButton(label, "columns", editor.togglePreview);
+  const preview = iconButton(label, "columns", () => editor?.togglePreview());
   preview.setAttribute("aria-pressed", String(state.preview));
-  const revisions = iconButton("Revisions", "recent", editor.toggleRevisions, "Revisions (h)");
+  const revisions = iconButton("Revisions", "recent", () => editor?.toggleRevisions(), "Revisions (h)");
   revisions.setAttribute("aria-pressed", String(state.revisions));
   const save = document.createElement("button");
   save.className = "mdame-status-button";
   save.title = "Save (Ctrl+S)";
   save.textContent = "Save";
-  save.addEventListener("click", () => editor.save());
+  save.addEventListener("click", () => editor?.save());
   fileStatus.replaceChildren(name, dot, modified, error);
   // The revisions take the place of the preview.
   if (!state.revisions) fileStatus.append(preview);
@@ -122,10 +137,13 @@ function editUrl(path: string): string {
   return "/edit/" + sidebar.encodePath(path);
 }
 
+let routes = 0;
+
 /** Shows what the address names: the editor, in diff mode if
  * `withRevisions`, or the view. */
 function showRoute(withRevisions = false) {
   const { path, editing } = route();
+  const id = ++routes;
   sidebar.setCurrent(path);
   if (path) {
     changes.opened(path);
@@ -133,19 +151,23 @@ function showRoute(withRevisions = false) {
   }
   if (editing && path) {
     fileStatus.replaceChildren();
-    // Before `forget`: the editor of another file leaves it.
-    editor.unmount();
-    view.forget(path);
-    editor.mount(content, path, showEditStatus, withRevisions);
+    loadEditor().then((loaded) => {
+      // Another route may have come during the first load.
+      if (id !== routes) return;
+      // Before `forget`: the editor of another file leaves it.
+      loaded.unmount();
+      view.forget(path);
+      loaded.mount(content, path, showEditStatus, withRevisions);
+    });
   } else {
-    editor.unmount();
+    editor?.unmount();
     showContent(path);
   }
 }
 
 /** Whether the editor's unsaved edits may be lost: none, or the user agrees. */
 async function mayLeaveEditor(): Promise<boolean> {
-  return !editor.isDirty() || (await confirmDiscard());
+  return !editor?.isDirty() || (await confirmDiscard());
 }
 
 /** Set when `e` opened the editor over the view of the same file: closing
@@ -169,7 +191,7 @@ function editableShown(): string | null {
 /** `h` and `r`: diff mode, from the view too. */
 function toggleRevisions() {
   if (route().editing) {
-    editor.toggleRevisions();
+    editor?.toggleRevisions();
     return;
   }
   const path = editableShown();
@@ -179,7 +201,7 @@ function toggleRevisions() {
 async function stopEditing() {
   const { path, editing } = route();
   if (!editing || !path || !(await mayLeaveEditor())) return;
-  editor.unmount();
+  editor?.unmount();
   if (editingFromView) {
     editingFromView = false;
     history.back();
@@ -192,14 +214,14 @@ async function stopEditing() {
 function showContent(path: string | null) {
   // While the discard dialog of a Back is open, the address already names
   // the next page but the editor is still on screen.
-  if (editor.openPath() !== null) return;
+  if (editedPath() !== null) return;
   fileStatus.replaceChildren();
   if (path) view.showFile(content, path).then((file) => file && showFileStatus(path, file));
   else view.showNothing(content, fileCount === 0);
 }
 
 function refreshContent(path: string) {
-  if (editor.openPath() !== null) return;
+  if (editedPath() !== null) return;
   view.refreshFile(content, path).then((file) => {
     if (file) showFileStatus(path, file);
     // Not found now: the old time and copy buttons would be wrong.
@@ -225,7 +247,7 @@ let diskTimer: ReturnType<typeof setTimeout> | undefined;
 /** The events of one save share one check. */
 function checkDiskSoon() {
   clearTimeout(diskTimer);
-  diskTimer = setTimeout(editor.checkDisk, 50);
+  diskTimer = setTimeout(() => editor?.checkDisk(), 50);
 }
 
 let treeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -247,7 +269,7 @@ function refreshTree() {
 /** Keeps showing the open file, or a file in a folder, after a rename. */
 async function follow(moved: string) {
   // As in showContent: the editor may still be on screen.
-  if (editor.openPath() !== null) return;
+  if (editedPath() !== null) return;
   const current = sidebar.pathFromUrl(location.pathname);
   if (!current) return;
   // An editor that saves by renaming the file to a backup writes it again
@@ -278,7 +300,7 @@ function onEvent(event: live.LiveEvent) {
   }
   if (reaction.tree) refreshTree();
   view.refreshImages(content);
-  const edited = editor.openPath();
+  const edited = editedPath();
   if (edited !== null && live.concerns(event, edited)) checkDiskSoon();
   if (reaction.followTo) follow(reaction.followTo);
   else if (reaction.refresh && current) refreshContentSoon(current);
@@ -369,7 +391,7 @@ async function showWorkspace(state: State) {
 }
 
 addEventListener("popstate", async () => {
-  const left = editor.openPath();
+  const left = editedPath();
   const fromView = editingFromView;
   editingFromView = false;
   const next = route();
@@ -398,7 +420,7 @@ addEventListener("keydown", (event: KeyboardEvent) => {
   // Otherwise the browser applies this Esc to the dialog that it opens,
   // which closes at once.
   event.preventDefault();
-  if (editor.revisionsShown()) editor.closeRevisions();
+  if (editor?.revisionsShown()) editor.closeRevisions();
   else stopEditing();
 });
 
@@ -436,9 +458,9 @@ async function refresh() {
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
   // The editor that failed to load meanwhile shows why.
-  if (route().editing && editor.mountFailed()) showRoute();
-  editor.checkDisk();
-  editor.refreshPreview();
+  if (route().editing && editor?.mountFailed()) showRoute();
+  editor?.checkDisk();
+  editor?.refreshPreview();
 }
 
 theme.apply();

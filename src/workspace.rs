@@ -26,19 +26,20 @@ pub fn fd_path(handle: &impl AsFd) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-#[cfg(not(target_os = "macos"))]
 fn path_of(handle: BorrowedFd) -> io::Result<PathBuf> {
-    use std::os::fd::AsRawFd;
+    #[cfg(target_os = "macos")]
+    {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
 
-    std::fs::read_link(format!("/proc/self/fd/{}", handle.as_raw_fd()))
-}
+        Ok(OsString::from_vec(rustix::fs::getpath(handle)?.into_bytes()).into())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        use std::os::fd::AsRawFd;
 
-#[cfg(target_os = "macos")]
-fn path_of(handle: BorrowedFd) -> io::Result<PathBuf> {
-    use std::ffi::OsString;
-    use std::os::unix::ffi::OsStringExt;
-
-    Ok(OsString::from_vec(rustix::fs::getpath(handle)?.into_bytes()).into())
+        std::fs::read_link(format!("/proc/self/fd/{}", handle.as_raw_fd()))
+    }
 }
 
 /// Whether a folder is `.git` or `.mdame`, at any depth: the tree never

@@ -104,7 +104,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 - Change bars: each block that changed since you last saw the file gets a bar in the margin, as in a git gutter. Diff mode compares the text with that version, and can restore it.
 - Search: a panel searches the contents of the files, and shows the matching lines beside the list of files.
 
-**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist): an install script and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. The install script puts mdame in `~/.local/bin`. A public GitHub repository, and the crate on crates.io.
+**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist), and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. No install script: in `~/.local/bin`, the script of dist 0.33 takes over the PATH setup of other tools that dist built, such as uv. A public GitHub repository, and the crate on crates.io.
 
 ### Later, by cost
 
@@ -621,7 +621,7 @@ Each test states one rule, and its name is that rule. The rules are:
 | WebSocket | a test client against a bound server | events arrive with relative paths; `resync` after lag |
 | Front-end unit | `bun test` on modules with no DOM | scroll-sync line-to-block mapping and interpolation, the key-map rules (ignore while typing, modifiers), API error mapping, what the page does for each live event |
 
-Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on the set of events, not their exact order. CI on Linux and macOS runs `mise run fmt`, `lint`, `test` and `check-dist`. After each release, a job installs it with the script and with Homebrew, on Linux and on macOS, and checks that mdame starts and answers `/api/state`.
+Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on the set of events, not their exact order. CI on Linux and macOS runs `cargo fmt --check`, then `mise run lint`, `test` and `check-dist`. After each release, a job installs it with Homebrew, on Linux and on macOS, and checks that mdame starts and answers `/api/state`.
 
 ## Build order
 
@@ -649,7 +649,7 @@ Ten milestones for v1, the version for a Show HN, then an eleventh, each ending 
 9. **Agent workflow.** Markdown in hidden folders, shown and editable; the list of changes in the status bar; the change bars and "Last seen" in diff mode; the search panel; the content width; the outline; spellcheck in the editor; the shortcut help with its footer line.
    - Done when: Claude Code, with `plansDirectory` set to `.claude/plans`, writes a plan. The plan shows in the tree and in the list of changes, and one click opens it. When the agent rewrites it, the changed blocks get bars and the outline gets dots. In diff mode, "Last seen" shows what changed and restores it.
 10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through dist, and release 0.1.0 of the crate on crates.io. The watcher stops watching gitignored folders. With no Mac at hand, a CI job checks the release on macOS. The memory of mdame and of its tab is measured against VS Code, idle and on a large repository. The open points of milestone 8 close: CI actions pinned by SHA, a warning to use only themes that you trust, and the notice of `@primer/primitives`. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, and its demo of the agent loop sets `plansDirectory`. Then the Show HN.
-   - Done when: the install script and `brew install` give a working mdame on Linux and macOS.
+   - Done when: `brew install` gives a working mdame on Linux and macOS.
 11. **Small Later items.** Custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
 
 After milestone 11, the medium Later items wait.
@@ -700,6 +700,7 @@ After milestone 11, the medium Later items wait.
 | Milestone 10: no npm wrapper; static Linux binaries built with musl; on Linux the watcher skips gitignored folders, on macOS it drops their events; a CI job checks the release on macOS | 7 November 2026 |
 | Live updates on macOS are a known issue of 0.1.0: FSEvents merges the kinds of the events of a path. The watcher tests run on Linux only | 7 November 2026 |
 | The first walk of the watcher runs in the background: with notify-debouncer-full 0.7, watching 15,000 folders one by one takes 12 s | 7 November 2026 |
+| No install script: dist's script takes over the PATH setup of other tools that dist built in `~/.local/bin`, such as uv. Homebrew, mise, Cargo and the release archives remain | 8 November 2026 |
 
 ### Review log, 14 October 2026
 

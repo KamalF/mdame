@@ -23,35 +23,13 @@ pass, but live updates have a known issue. There is no Windows build.
 
 ## Install
 
-With the install script, on Linux or macOS. It puts mdame in `~/.local/bin`:
-
-```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/KamalF/mdame/releases/latest/download/mdame-installer.sh | sh
-```
-
-Read the script before you run it.
-[dist](https://github.com/axodotdev/cargo-dist) builds it for each release,
-from the settings in [dist-workspace.toml](dist-workspace.toml), so it has no
-file in this repository. It downloads the archive for your system and checks
-its SHA-256. Then it adds `~/.local/bin` to your `PATH`. It writes
-`~/.local/bin/env`, and adds a line that runs this file to your shell profiles,
-such as `.profile`, `.bashrc` and `.zshrc`. For fish, it writes
-`~/.config/fish/conf.d/mdame.env.fish`. To read the script first, and to leave
-your profiles as they are:
-
-```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/KamalF/mdame/releases/latest/download/mdame-installer.sh -o mdame-installer.sh
-less mdame-installer.sh
-MDAME_NO_MODIFY_PATH=1 sh mdame-installer.sh
-```
-
-With Homebrew:
+With Homebrew, on macOS or Linux:
 
 ```sh
 brew install KamalF/tap/mdame
 ```
 
-With mise, from the same release archives:
+With mise, from the release archives:
 
 ```sh
 mise use -g github:KamalF/mdame
@@ -60,8 +38,14 @@ mise use -g github:KamalF/mdame
 With Cargo, from the source:
 
 ```sh
-cargo install mdame
+cargo install --locked mdame
 ```
+
+On Linux, you can also download the archive for your system from the
+[latest release](https://github.com/KamalF/mdame/releases/latest), and put
+`mdame` in a folder of your `PATH`, such as `~/.local/bin`. The binaries are
+static, so they run on any distribution. On macOS, use Homebrew or mise: the
+binaries are not notarized, so macOS blocks one that a browser downloaded.
 
 ## With a coding agent
 

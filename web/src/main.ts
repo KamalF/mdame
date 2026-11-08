@@ -23,7 +23,14 @@ let editor: typeof import("./editor.ts") | undefined;
 let editorLoad: Promise<typeof import("./editor.ts")> | undefined;
 
 function loadEditor() {
-  editorLoad ??= import("./editor.ts").then((module) => (editor = module));
+  editorLoad ??= import("./editor.ts").then(
+    (module) => (editor = module),
+    (error) => {
+      // The next edit tries again: mdame may be back.
+      editorLoad = undefined;
+      throw error;
+    },
+  );
   return editorLoad;
 }
 
@@ -151,14 +158,21 @@ function showRoute(withRevisions = false) {
   }
   if (editing && path) {
     fileStatus.replaceChildren();
-    loadEditor().then((loaded) => {
-      // Another route may have come during the first load.
-      if (id !== routes) return;
-      // Before `forget`: the editor of another file leaves it.
-      loaded.unmount();
-      view.forget(path);
-      loaded.mount(content, path, showEditStatus, withRevisions);
-    });
+    loadEditor().then(
+      (loaded) => {
+        // Another route may have come during the first load.
+        if (id !== routes) return;
+        // Before `forget`: the editor of another file leaves it.
+        loaded.unmount();
+        view.forget(path);
+        loaded.mount(content, path, showEditStatus, withRevisions);
+      },
+      () => {
+        if (id !== routes) return;
+        view.forget(path);
+        view.message(content, "Reload the page once mdame is back: the editor did not load.");
+      },
+    );
   } else {
     editor?.unmount();
     showContent(path);
@@ -457,8 +471,9 @@ async function refresh() {
   view.refreshImages(content);
   const current = sidebar.pathFromUrl(location.pathname);
   if (current) refreshContent(current);
-  // The editor that failed to load meanwhile shows why.
-  if (route().editing && editor?.mountFailed()) showRoute();
+  // The editor that failed to load meanwhile shows why. Without
+  // `editorLoad`, its code failed to load.
+  if (route().editing && (editor ? editor.mountFailed() : !editorLoad)) showRoute();
   editor?.checkDisk();
   editor?.refreshPreview();
 }

@@ -38,22 +38,30 @@ const ICONS: Record<string, string> = {
     '<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
 };
 
+const parsed = new Map<string, SVGSVGElement>();
+
+/** A clone costs a third of a parse: a filter or a page with many code
+ * blocks asks for thousands of icons. */
 export function icon(name: string): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  for (const [key, value] of Object.entries({
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    "stroke-width": "1.75",
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round",
-    "aria-hidden": "true",
-    class: "mdame-icon",
-  })) {
-    svg.setAttribute(key, value);
+  let svg = parsed.get(name);
+  if (!svg) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const [key, value] of Object.entries({
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "1.75",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      "aria-hidden": "true",
+      class: "mdame-icon",
+    })) {
+      svg.setAttribute(key, value);
+    }
+    svg.innerHTML = ICONS[name];
+    parsed.set(name, svg);
   }
-  svg.innerHTML = ICONS[name];
-  return svg;
+  return svg.cloneNode(true) as SVGSVGElement;
 }
 
 export function iconButton(

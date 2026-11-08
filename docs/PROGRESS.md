@@ -598,7 +598,18 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
      - The echo of a folder's move is still found by its time: notify gives it no rename cookie, but the debouncer keeps only the last event of a kind for a path, and drops the parent's report when both share a batch.
      - No install script, as decided above.
    - `cargo mutants` on the diff of the milestone, 8 November 2026: 87 mutants, 67 caught, 6 unviable, 14 missed. New unit tests catch 8 of them: an access or a change of metadata on a folder runs no walk (without it, each walk would run another), the burst limit on the entries of a new folder, a change after a creation with another path between, a vanished and a denied folder in `watch_folders`, and a folder created again before a rescan. `path_of` becomes one function with a block for each system, so the macOS block, which Linux does not build, gives no mutant. Five mutants are excluded in `.cargo/mutants.toml`, each with its reason. The exclusions for `watch_readable` and `watch_around`, which this milestone removed, go. The run after: 81 mutants, 75 caught, 6 unviable, none missed.
-10. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
+10. Performance on a large repository. Decided on 8 November 2026, after a review: all ten fixes go into 0.1.0. A server reviewer and a page reviewer measured mdame on `mdn/content`, and Claude measured it in Chrome on Kamal's release build. On a small folder, mdame is snappy: first content in about 0.2 s, typing under 16 ms per key, every route under 15 ms. On `mdn/content`, it is not: typing in the filter froze the tab for up to 7 s per key, a click in the tree took 0.8 s with a big folder open, and `/api/tree` took 1 s. The README invites such a test, since its comparison uses `mdn/content`. One commit per fix:
+    1. Icons are cloned from a parsed copy. Parsing the markup with `innerHTML` cost three times a clone: 238 ms when opening a page with many code blocks, and 1 s of the filter's worst keystroke.
+    2. The filter shows at most 100 results.
+    3. The outline sets the article's own margins, not inherited custom properties, and skips writes that change nothing.
+    4. Dragging the sidebar sets the sidebar's own width.
+    5. A click, a sort or a folder toggle updates only the rows that change, and a tree refetch with the same answer renders nothing.
+    6. The server walks the workspace with 4 threads.
+    7. The morph skips the unchanged blocks at the start and the end of the article.
+    8. Mermaid diagrams are cached by theme and source.
+    9. A data file over 100 KB shows as plain text, with no colours.
+    10. The editor loads on demand.
+11. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
 
 ### Manual checklist
 
@@ -644,7 +655,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: step 9, the manual checklist. Then step 10, the release.
+1. Milestone 10, on the `m10-release` branch: step 10, the performance fixes. Then step 9's manual checklist, and step 11, the release.
 
 ## Open points
 

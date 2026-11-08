@@ -616,7 +616,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 
 ### Manual checklist
 
-Not run yet. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal or another editor, not from mdame's editor. The test folder is a git repository that holds:
+Run on 8 November 2026: checks 1 to 18 pass, and checks 19 to 21 wait for the release. Kamal ran checks 1 to 7, and the narrow window of check 11, in Chrome and Firefox. Claude ran checks 8 to 18 in the headless Chrome of agent-browser, at 1280×633, on the release build; the measures are below the checks. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal or another editor, not from mdame's editor. The test folder is a git repository that holds:
 
 - `a.md` and `notes/b.md`;
 - a `.gitignore` that lists `build/`, and `build/c.md`;
@@ -658,6 +658,20 @@ In the test folder:
 17. Open `perf/morph.md`, and open its `<details>`. Change "The last paragraph." on disk, then "Caption one": the page shows each change, and the `<details>` stays open.
 18. With Disable cache on in the Network tab, reload the page and stop mdame. Press `e`: the page says "Reload the page once mdame is back: the editor did not load." Start mdame again: the editor opens.
 
+Measured on 8 November 2026, with a load average of 2 to 7:
+
+- 8: 100 results and the count of the others. After the first key, which took 120 ms, each key takes 66 ms of long task.
+- 9: one long task of 156 ms.
+- 10: opening `web/api` takes one long task of 121 ms. A click on a file in it, and a page in a closed folder of `web/api`, take no long task. Opening a result of the search panel takes 289 ms, in the panel: a follow-up.
+- 11: 22 fps with `web/api` open, and 36 fps with 347 rows, after step 10.11. Before it, 7 and 23 fps.
+- 12: 429 KB of JavaScript, without the editor. Over HTTP, `/api/tree` takes 0.32 s, and 1.18 s with the server from before step 10.6, on the same machine. The bench of step 10.6 gave 176 ms and 1,009 ms.
+- 13: the changelog opens in 531 to 614 ms. An update takes 140 ms, and 170 ms in Full width, where the column stays in place.
+- 14: an update takes 1.54 s. The first open takes 3.9 s.
+- 15: plain text, in one long task of 557 ms.
+- 16: an update takes no long task. The diagrams are dark after Dark and an open, and light after Light and an open. The second copy has its own ids, and its arrow shows.
+- 17: both changes show, and the `<details>` stays open.
+- 18: the message shows, and the editor opens after the restart.
+
 Release, after 0.1.0 is published:
 
 19. `brew install KamalF/tap/mdame` on Linux gives a working mdame. The job "Check release" passes on its Linux and macOS runners.
@@ -678,7 +692,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: step 9's manual checklist, with the browser measures of step 10 again on Kamal's build. Then step 11, the release.
+1. Milestone 10, on the `m10-release` branch: step 11, the release, then checks 19 to 21 of the manual checklist.
 
 ## Open points
 
@@ -776,3 +790,12 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - From the review of milestone 3, for later:
   - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice.
   - Big workspaces: latinized names computed once for the filter. The limit on the filter results, the cached icons and a faster `/api/tree` came in milestone 10.
+- From the second review of the performance fixes, and the run of the manual checklist of milestone 10, for after 0.1.0:
+  - Tree: a virtual tree, which builds only the rows in view. A drag of the sidebar runs at 22 fps with 1,614 rows.
+  - Tree: a refetch compares the whole text of `/api/tree`, the times included. Under the name sort, a change of time renders all the rows: compare what the tree draws instead.
+  - Server: one walk for the tabs that ask at the same time. Today, N tabs wait N walks.
+  - Server: with notify 9, which can leave out the events of opened folders, revisit the 4 threads of the walk, the `WALKING` lock and the filters of Access events.
+  - Morph: key the blocks on the server's HTML, before `prepare`, and highlight and draw only the changed blocks.
+  - Morph: match the equal nodes of the middle before the pairs by position, so that an open `<details>` stays open when blocks change on both sides of it.
+  - Mermaid: the cache holds 50 drawings, so a file with more diagrams misses on each one. A Gantt chart keeps the width of its first drawing. The diagrams on screen keep their theme until the next render.
+  - Search panel: opening a result with `web/api` open takes 289 ms, in the panel itself.

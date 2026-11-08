@@ -43,8 +43,6 @@ The rebuild replaces [bearded-giant/mdlive](https://github.com/bearded-giant/mdl
 - Any file change sends one global Reload, and every tab does a full page load.
 - Launching has up to five fallback paths across three process models (one-shot server, daemon, Tauri app with a server per window) plus a launchd service.
 
-**Security finding in the current code.** The router adds `CorsLayer::permissive()` to every route and never checks the `Origin` or `Host` header. From reading the code, not testing, any website open in the browser could call the local API while mdlive runs: list folders via `/api/workspace/browse`, switch workspace, read, save or delete files. The rebuild must not repeat this; see Security. If the owner confirms it, a private GitHub security advisory to upstream is preferable to a public issue.
-
 ## Goals, non-goals and principles
 
 The goal is a local markdown workspace in the browser that the owner fully understands, with a real editor and their own themes, at a fraction of the current size.
@@ -656,7 +654,6 @@ After milestone 11, the medium Later items wait.
 
 ## Open decisions
 
-- **Upstream report.** Decided 15 October 2026, to do later and independent of the milestones: confirm the CORS finding locally (mdlive on 4891, a page on another port whose `fetch` reads a file), check whether mdserve shares it, then report privately through GitHub's "Report a vulnerability" (or ask for a private contact in an issue without details), with the reproduction and a suggested fix, and allow about 90 days before any public mention.
 - **Settled in milestone 8:** the built-in themes map each contract variable to a Primer variable, and the theme pass checked each pair that the screens use. Dark sets `--accent-fg` to `bgColor-inset`, since Primer's white is 3.1:1 on its accent.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
 - **Settled in milestone 4:** legacy modes such as TOML highlight through `highlightCode`; `@codemirror/language-data` has no GraphQL, so `.graphql` and `.gql` stay plain text (adding `cm6-graphql`, about 1 MB, was rejected on 18 October 2026).
@@ -675,7 +672,6 @@ After milestone 11, the medium Later items wait.
 | Architecture, API, protocol and libraries signed off; see the review log | 14 October 2026 |
 | Security model signed off, with security reviews during the build | 15 October 2026 |
 | Wireframes signed off, to adjust during testing | 15 October 2026 |
-| Upstream advisory: confirm locally, then report privately (later) | 15 October 2026 |
 | Default theme follows the system; built-ins are GitHub Primer light and dark; Catppuccin and Minimal later | 15 October 2026 |
 | Token from getrandom; when bound to all interfaces, the token replaces the `Host` list | 17 October 2026 |
 | Bun is the bundler: its output is reproducible | 17 October 2026 |

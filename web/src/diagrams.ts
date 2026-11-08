@@ -20,6 +20,29 @@ async function loadMermaid() {
 
 let count = 0;
 
+/** The diagrams drawn lately, by theme and source. A live update and each
+ * preview render draw every diagram of the file again, 65 ms each. */
+const drawn = new Map<string, string>();
+const DRAWN_LIMIT = 50;
+
+async function draw(mermaid: Mermaid, source: string): Promise<string> {
+  const key = `${isDark()}\n${source}`;
+  const cached = drawn.get(key);
+  if (cached !== undefined) return cached;
+  // Mermaid draws in this box, and leaves its error graphic there.
+  const box = document.createElement("div");
+  document.body.append(box);
+  try {
+    const { svg } = await mermaid.render(`mdame-mermaid-${++count}`, source, box);
+    drawn.set(key, svg);
+    // The oldest goes first: a Map keeps the order of insertion.
+    if (drawn.size > DRAWN_LIMIT) drawn.delete(drawn.keys().next().value!);
+    return svg;
+  } finally {
+    box.remove();
+  }
+}
+
 /** Turns `.mmd` files and `mermaid` code blocks in `root` into diagrams. */
 export async function renderDiagrams(root: HTMLElement) {
   const blocks = root.querySelectorAll("pre.mermaid, pre:has(> code.language-mermaid)");
@@ -28,12 +51,8 @@ export async function renderDiagrams(root: HTMLElement) {
   for (const pre of blocks) {
     const figure = document.createElement("div");
     figure.className = "mdame-diagram";
-    // Mermaid draws in this box, and leaves its error graphic there.
-    const box = document.createElement("div");
-    document.body.append(box);
     try {
-      const { svg } = await mermaid.render(`mdame-mermaid-${++count}`, pre.textContent, box);
-      figure.innerHTML = svg;
+      figure.innerHTML = await draw(mermaid, pre.textContent ?? "");
       // The change bars find the diagram by its lines.
       if (pre.hasAttribute("data-sourcepos")) {
         figure.setAttribute("data-sourcepos", pre.getAttribute("data-sourcepos")!);
@@ -44,8 +63,6 @@ export async function renderDiagrams(root: HTMLElement) {
       figure.className = "mdame-diagram-error";
       figure.textContent = `Mermaid: ${(error as Error).message}`;
       pre.after(figure);
-    } finally {
-      box.remove();
     }
   }
 }

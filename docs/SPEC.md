@@ -529,7 +529,7 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
   - At first load, only the folders on the path to the current file are open. Open folders are remembered per workspace (the `localStorage` key holds the root).
   - One sort button cycles name A→Z, name Z→A, newest first, oldest first; its icon shows the current order. Folders always come first, and a folder's date is its newest file. The choice is remembered.
   - Clicking a file goes to `/view/<path>`. Icons: one per family (markdown and text, image, CSV, data files, Mermaid).
-  - The filter matches file names with `@leeoniya/ufuzzy` and shows a flat list, matched letters in bold, folder in grey. ↑↓ choose (no row is highlighted until then), Enter opens the chosen result or else the first one (a wrong open here costs one click), Esc clears the field and then leaves it.
+  - The filter matches file names with `@leeoniya/ufuzzy` and shows a flat list, matched letters in bold, folder in grey. It shows the best 100 results, then the number of the others: in a large repository, one letter matches thousands of names. ↑↓ choose (no row is highlighted until then), Enter opens the chosen result or else the first one (a wrong open here costs one click), Esc clears the field and then leaves it.
   - Hover action in milestone 3: copy path. "New file in this folder" comes in milestone 6, with `POST /api/file`.
 - File header: none. Path, modified time and the actions (edit, copy raw, copy path, revisions) live in the status bar; content starts at the top edge.
 - Editor: preview on the right, 50/50 by default, draggable divider, scroll sync.

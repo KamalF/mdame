@@ -82,11 +82,16 @@ const fuzzy = new uFuzzy({
   intraChars: "[\\p{L}\\d'._ -]",
 });
 
+/** Each result is a row of about 16 elements, and in a large repository
+ * one letter matches thousands of names. */
+export const FILTER_LIMIT = 100;
+
 /**
- * Files whose name matches `query`, best first, accents ignored. `parts`
- * splits the name into matched and unmatched pieces, for bold letters.
+ * The first `FILTER_LIMIT` files whose name matches `query`, best first,
+ * accents ignored, and how many more match. `parts` splits the name into
+ * matched and unmatched pieces, for bold letters.
  */
-export function filterFiles(list: TreeNode[], query: string): Match[] {
+export function filterFiles(list: TreeNode[], query: string): { matches: Match[]; more: number } {
   // NFC first: latinize knows only precomposed letters, and a name saved on
   // macOS can hold "e" plus a combining accent. latinize then changes one
   // letter for one letter, so the ranges still fit the NFC names.
@@ -95,15 +100,17 @@ export function filterFiles(list: TreeNode[], query: string): Match[] {
     uFuzzy.latinize(names),
     uFuzzy.latinize(query.normalize("NFC")),
   );
-  if (!indexes) return [];
+  if (!indexes) return { matches: [], more: 0 };
+  const more = Math.max(0, indexes.length - FILTER_LIMIT);
   // uFuzzy skips ranking when too many names match.
   if (!info) {
-    return indexes.map((index) => ({
+    const matches = indexes.slice(0, FILTER_LIMIT).map((index) => ({
       file: list[index],
       parts: [{ text: names[index], matched: false }],
     }));
+    return { matches, more };
   }
-  return order.map((rank) => {
+  const matches = order.slice(0, FILTER_LIMIT).map((rank) => {
     const index = info.idx[rank];
     const parts = uFuzzy.highlight<Part[], Part>(
       names[index],
@@ -117,6 +124,7 @@ export function filterFiles(list: TreeNode[], query: string): Match[] {
     );
     return { file: list[index], parts: parts.filter((part) => part.text) };
   });
+  return { matches, more };
 }
 
 /** `docs/a b.md` gives `docs/a%20b.md`: each part is encoded, not the slashes. */
@@ -210,6 +218,7 @@ export async function mount(
   let tree = sortTree(fetched, order);
   let query = "";
   let results: Match[] = [];
+  let more = 0;
   let highlight = -1;
 
   function showSort() {
@@ -228,9 +237,13 @@ export async function mount(
     render();
   });
 
+  function match() {
+    ({ matches: results, more } = query ? filterFiles(allFiles, query) : { matches: [], more: 0 });
+  }
+
   function applyFilter() {
     query = filter.value.trim();
-    results = query ? filterFiles(allFiles, query) : [];
+    match();
     highlight = -1;
     render();
   }
@@ -281,6 +294,12 @@ export async function mount(
       return;
     }
     list.replaceChildren(...results.map(resultItem));
+    if (more > 0) {
+      const rest = document.createElement("li");
+      rest.className = "mdame-tree-empty";
+      rest.textContent = `${more.toLocaleString("en")} more files match: type more letters.`;
+      list.append(rest);
+    }
   }
 
   function resultItem(result: Match, index: number) {
@@ -370,7 +389,7 @@ export async function mount(
     const focused = list.contains(document.activeElement)
       ? document.activeElement!.closest<HTMLElement>(".mdame-tree-line")?.dataset.path
       : undefined;
-    results = query ? filterFiles(allFiles, query) : [];
+    match();
     highlight = results.findIndex((result) => result.file.path === chosen);
     render();
     if (focused !== undefined) {

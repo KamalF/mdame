@@ -5,6 +5,7 @@ import {
   ancestors,
   clampWidth,
   files,
+  FILTER_LIMIT,
   filterFiles,
   pathFromUrl,
   sortTree,
@@ -69,33 +70,40 @@ test("ancestors gives the folders to open for a path", () => {
 
 test("filter matches names fuzzily and marks the matched letters", () => {
   const list = [file("docs/api/rate-limiting.md", 1), file("notes/separate-tokens.md", 1)];
-  const results = filterFiles(list, "rate");
+  const results = filterFiles(list, "rate").matches;
   expect(results[0].file.path).toBe("docs/api/rate-limiting.md");
   expect(results[0].parts[0]).toEqual({ text: "rate", matched: true });
   expect(results[0].parts.map((part) => part.text).join("")).toBe("rate-limiting.md");
-  expect(filterFiles(list, "zzz")).toEqual([]);
+  expect(filterFiles(list, "zzz")).toEqual({ matches: [], more: 0 });
 });
 
 test("filter skips letters and separators between matched letters", () => {
   const list = [file("mise.toml", 1), file("Cargo.toml", 1)];
-  expect(filterFiles(list, "mto").map((result) => result.file.name)).toEqual(["mise.toml"]);
+  expect(filterFiles(list, "mto").matches.map((result) => result.file.name)).toEqual(["mise.toml"]);
 });
 
 test("filter handles accented names, with or without the accents", () => {
   const list = [file("résumé.md", 1), file("ÉTÉ.md", 1), file("Cargo.toml", 1)];
-  const names = (query: string) => filterFiles(list, query).map((result) => result.file.name);
+  const names = (query: string) => filterFiles(list, query).matches.map((result) => result.file.name);
   expect(names("rsm")).toEqual(["résumé.md"]);
   expect(names("ete")).toEqual(["ÉTÉ.md"]);
   expect(names("été")).toEqual(["ÉTÉ.md"]);
-  const parts = filterFiles(list, "res")[0].parts;
+  const parts = filterFiles(list, "res").matches[0].parts;
   expect(parts[0]).toEqual({ text: "rés", matched: true });
 });
 
 test("filter finds names saved with combining accents (NFD)", () => {
   const list = [file("résumé.md".normalize("NFD"), 1)];
   for (const query of ["resume", "rsm", "rés"]) {
-    expect(filterFiles(list, query).map((result) => result.file.path)).toEqual([list[0].path]);
+    expect(filterFiles(list, query).matches.map((result) => result.file.path)).toEqual([list[0].path]);
   }
+});
+
+test("filter shows at most 100 results, and counts the others", () => {
+  const list = Array.from({ length: 250 }, (_, i) => file(`docs/note-${i}.md`, 1));
+  const { matches, more } = filterFiles(list, "note");
+  expect(matches.length).toBe(FILTER_LIMIT);
+  expect(more).toBe(150);
 });
 
 test("view URLs encode each part and keep the slashes", () => {

@@ -609,6 +609,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
     8. Mermaid diagrams are cached by theme and source (done), the last 50. A live update of a file with 6 diagrams has no long task, against 320 to 406 ms.
     9. Code over 100 KB shows as plain text (done). A 943 KB JSON file opens with 370 ms of long tasks instead of 3.4 s. `a text over 100 KB stays plain text`.
     10. The editor loads on the first edit (done). The first page load takes 439 KB of JavaScript instead of 758 KB.
+    11. The rows of the tree out of view skip their layout (done), with `content-visibility`. The manual checklist found it: a drag of the sidebar lays out each row again. With `web/api` open, 1,614 rows, the drag runs at 22 fps instead of 7, and at 36 fps instead of 23 with 347 rows. A virtual tree, which builds only the rows in view, would reach 60 fps; it waits until after 0.1.0.
     - `cargo mutants` on the Rust part of these commits, `tree.rs` and `watch.rs`: 7 mutants, 5 caught, 2 unviable, none missed. cargo mutants cannot remove the order of the walk, so a test checks it: `the_walk_gives_a_folder_before_its_entries` fails on a walk in reverse. The page's changes have no unit test where they touch the DOM; the harness measures checked them.
     - The measures came from the page reviewer's harness: the real page, bundled with a fake server that answers with responses recorded from `mdn/content`, in headless Chrome, before and after each fix. The server's came from its reviewer's bench crate, on a copy of `mdn/content`.
 11. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
@@ -645,7 +646,7 @@ On `mdn/content`:
 8. Type `i` in the filter: the list shows 100 results, then "N more files match: type more letters." Each key paints in about 60 ms (6.9 s).
 9. Open the page of `input`, `files/en-us/web/html/reference/elements/input/index.md`: the tab is blocked about 220 ms (310 ms).
 10. Open the folder `files/en-us/web/api`, then click a file in it: about 130 ms (665 ms). Press `s`, search `XPathResult`, and open a result in another folder of `web/api`: that folder opens, in about the same time. mdn links its pages by absolute URLs, which mdame does not follow, but a search result opens a file the same way.
-11. On the page of `Array`, drag the edge of the sidebar: about 60 fps (17). Below 900 px, the overlay of the sidebar is 280 px wide.
+11. On the page of `Array`, drag the edge of the sidebar: about 60 fps with few folders open (17), and about 22 fps with `web/api` open (7). Below 900 px, the overlay of the sidebar is 280 px wide.
 12. Reload: `/api/tree` takes about 180 ms (1 s), and the page loads about 440 KB of JavaScript (760 KB). `editor-*.js` loads only on the first `e`.
 
 In the test folder:

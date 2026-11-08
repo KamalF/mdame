@@ -232,6 +232,11 @@
 
 .mdame-tree-line {
   position: relative;
+  /* A drag of the sidebar lays out each row again: 130 ms per move with
+     1,600 rows. The browser skips the rows out of view, whose height is
+     known. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 26px;
 }
 
 .mdame-copy,

@@ -1,6 +1,6 @@
 [package]
 name = "mdame"
-version = "0.1.0-rc.2"
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
 description = "A local markdown viewer and editor, served to your browser"

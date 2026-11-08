@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { tokens } from "./codehl.ts";
+import { HIGHLIGHT_LIMIT, tokens } from "./codehl.ts";
 
 // One sample per extension that /api/file sends as `language-<extension>`.
 const samples = {
@@ -22,4 +22,10 @@ test("txt, graphql, gql and mermaid stay plain text", async () => {
   for (const name of ["txt", "graphql", "gql", "mermaid"]) {
     expect(await tokens(name, "a")).toBe(null);
   }
+});
+
+test("a text over 100 KB stays plain text", async () => {
+  const value = '"a",'.repeat(HIGHLIGHT_LIMIT / 4);
+  expect(await tokens("json", `[${value.slice(0, -1)}]`)).toBe(null);
+  expect(await tokens("json", `[${value.slice(0, -3)}]`)).not.toBe(null);
 });

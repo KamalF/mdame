@@ -417,7 +417,7 @@ Scroll sync maps the editor's top visible line to the rendered block whose `data
 
 ### Code highlighting in rendered views
 
-`web/src/codehl.ts` finds `code.language-x` blocks, matches `x` with `LanguageDescription.matchLanguageName` from `@codemirror/language-data`, awaits the language's `load()`, parses the text and writes spans with `highlightCode` and `classHighlighter`. These emit the same `tok-*` classes as the editor, so one set of theme colours serves both. Milestone 4 checks every listed type, in particular GraphQL and the languages that come through legacy modes.
+`web/src/codehl.ts` finds `code.language-x` blocks, matches `x` with `LanguageDescription.matchLanguageName` from `@codemirror/language-data`, awaits the language's `load()`, parses the text and writes spans with `highlightCode` and `classHighlighter`. These emit the same `tok-*` classes as the editor, so one set of theme colours serves both. A block over 100 KB stays plain text: one span per token took 3.4 s for a 943 KB JSON file. Milestone 4 checks every listed type, in particular GraphQL and the languages that come through legacy modes.
 
 ### Themes in rendered content
 

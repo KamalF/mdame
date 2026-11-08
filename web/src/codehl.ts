@@ -4,11 +4,17 @@ import { classHighlighter, highlightCode } from "@lezer/highlight";
 
 export type Piece = [piece: string, classes: string];
 
+/** One span per token: a 943 KB JSON file took 3.4 s to show. A
+ * package-lock.json is often over 100 KB. */
+export const HIGHLIGHT_LIMIT = 100_000;
+
 /**
  * `text` as `[piece, classes]` pairs, with the editor's `tok-*` classes, or
- * null when `name` is no known language. Each language loads on first use.
+ * null when `name` is no known language, or when `text` is over
+ * `HIGHLIGHT_LIMIT` characters. Each language loads on first use.
  */
 export async function tokens(name: string, text: string): Promise<Piece[] | null> {
+  if (text.length > HIGHLIGHT_LIMIT) return null;
   // Exact names only: a fuzzy match would colour `txt` as some language.
   const description = LanguageDescription.matchLanguageName(languages, name, false);
   if (!description) return null;

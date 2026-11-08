@@ -566,7 +566,15 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - VS Code 1.145.2, from Microsoft's tarball, with its own data folder, no extension, and the preview of the file beside the text: every process. 1,003 MB small, 1,138 MB large.
    - `scripts/memory.sh` sums the PSS of each process given and its children. It needs sudo: Chromium and VS Code hide the memory of their sandboxed processes from the account that runs them. The shared processes of the browser do not count for mdame, since the browser is open anyway.
    - The mdame is the musl binary of `v0.1.0-rc.2`, as the install script gives it.
-8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`.
+8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`. (done)
+   - The opening: what mdame does, for whom, and the memory against VS Code in one line. Two lines in Kamal's voice say why mdame exists: he tried mdlive for a short time, then built his own as a learning project, to practise software engineering with a coding agent. Then the demo, then the status, with no Windows build. Then the install, by script, Homebrew, mise (its `github:` backend, checked on `v0.1.0-rc.2`) and Cargo, then "With a coding agent", then the usage.
+   - The install script: a warning to read it first. dist builds it for each release, so it has no file in the repository. What it does, read in the `v0.1.0-rc.2` installer: it checks the SHA-256 of the archive, writes `~/.local/bin/env`, and adds a line that runs it to the shell profiles and to fish's `conf.d`, unless `MDAME_NO_MODIFY_PATH=1`.
+   - "With a coding agent": `plansDirectory` in `.claude/settings.json`, then the loop: the list of changes, `e` to edit the plan, the change bars, and "Last seen" in diff mode.
+   - "Compared with VS Code": the ratios, 16 times and 8 times, then the table of step 7.
+   - "Similar projects": one line each for mdserve, mdlive, grip, glow, Obsidian (not open source) and SilverBullet (Kamal's view: great, comprehensive for those who like to tinker; mdame aims to be simpler), on how mdame differs, with facts checked on 7 November 2026: mdserve is archived and lists only the top level of a folder; mdlive v2.3.13 is still the latest, and reloads the whole page on each change. Then what mdame does not do, from the principles of the spec. The CORS finding on mdlive stays out, until the upstream report.
+   - "Design, tests and reviews": Kamal decided, Claude Code wrote most of the code. Then three short h3 parts, from the spec and this file: the design (the principles of the spec), the tests (the testing rules, `cargo mutants`, CI and the release check) and the reviews (each commit explained back, the review loop of 2 to 29 rounds per milestone, the manual checklist). The spec is not linked, while it holds the CORS finding on mdlive.
+   - `docs/demo.gif`, under the opening, 12.6 s, 1.3 MB: the plan of a demo project, `tidy`, in `.claude/plans/`. The agent rewrites a step and adds a test, the change bars appear, `design.md` joins the list of changes, and `h` opens diff mode. Recorded with agent-browser at 1024×800 on an mdame that Kamal started, then cut with ffmpeg.
+   - Why these choices: on 7 November 2026, a study of Show HN comments that praise a README, and of those READMEs. They show the tool working near the top, name the alternatives and how they differ, state their limits, and sound like a person wrote them.
 9. Review loop, `cargo mutants`, manual checklist.
 10. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
 
@@ -584,7 +592,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: commit 8 of its plan, the README.
+1. Milestone 10, on the `m10-release` branch: step 9, the review loop, `cargo mutants` and the manual checklist.
 
 ## Open points
 

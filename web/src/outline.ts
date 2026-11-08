@@ -103,6 +103,7 @@ export function showOutline(
 function render() {
   wrapper?.remove();
   wrapper = undefined;
+  if (shown) setMargins(shown.article, null);
   observer?.disconnect();
   // The editor may have taken the pane.
   const pane = shown?.article.parentElement;
@@ -155,28 +156,36 @@ function render() {
 export function layoutOutline() {
   if (!shown || !wrapper?.isConnected) return;
   const pane = wrapper.parentElement!;
+  const { article } = shown;
   const full = currentWidth() === "full";
   let column = 0;
   // Full needs no width: the column takes what the outline leaves. A read
   // with the margins off would wrap the whole text again.
   if (!full) {
-    pane.style.removeProperty("--outline-left");
-    pane.style.removeProperty("--outline-right");
-    column = shown.article.getBoundingClientRect().width;
+    setMargins(article, null);
+    column = article.getBoundingClientRect().width;
   }
   const spot = place(pane.clientWidth, column, full);
   wrapper.hidden = spot === null;
   if (!spot) {
-    pane.style.removeProperty("--outline-left");
-    pane.style.removeProperty("--outline-right");
+    setMargins(article, null);
     return;
   }
-  pane.style.setProperty("--outline-left", `${spot.left}px`);
-  if (full) pane.style.setProperty("--outline-right", `${ROOM}px`);
+  setMargins(article, { left: spot.left, right: full ? ROOM : null });
   const nav = wrapper.firstElementChild as HTMLElement;
   nav.style.left = `${spot.left + spot.width + GAP}px`;
   nav.style.maxHeight = `${pane.clientHeight}px`;
   spy();
+}
+
+/** The margins of the column, or `null` for the centred column. They are
+ * the article's own: an inherited custom property on the pane would
+ * restyle each element of the article, 370 ms on a dense 1 MB file. */
+function setMargins(article: HTMLElement, margins: { left: number; right: number | null } | null) {
+  const left = margins ? `${margins.left}px` : "";
+  const right = margins?.right != null ? `${margins.right}px` : "";
+  if (article.style.marginLeft !== left) article.style.marginLeft = left;
+  if (article.style.marginRight !== right) article.style.marginRight = right;
 }
 
 /** The view scrolled to `element`, which the address names: its entry

@@ -152,8 +152,12 @@ export async function prepare(html: string): Promise<HTMLElement> {
  * position, a text selection and open `<details>` stay. */
 export function morphInto(shown: HTMLElement, next: HTMLElement) {
   Idiomorph.morph(shown, next, {
-    // The server's HTML never has it: a `<details>` the reader opened stays open.
-    callbacks: { beforeAttributeUpdated: (name, _, type) => !(name === "open" && type === "remove") },
+    callbacks: {
+      // The server's HTML never has them: a `<details>` the reader opened
+      // stays open, and the article keeps the margins of the outline.
+      beforeAttributeUpdated: (name, node, type) =>
+        !(type === "remove" && (name === "open" || (name === "style" && node === shown))),
+    },
   });
   // idiomorph inserts copies of new nodes, without their click listeners.
   for (const block of shown.querySelectorAll(".mdame-code")) {

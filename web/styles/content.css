@@ -298,12 +298,6 @@
   height: 0;
 }
 
-/* Set on the pane, to move or narrow the column. */
-.mdame-outline + .mdame-document {
-  margin-right: var(--outline-right, auto);
-  margin-left: var(--outline-left, auto);
-}
-
 .mdame-outline nav {
   position: absolute;
   top: 0;

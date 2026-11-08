@@ -522,8 +522,9 @@ Decided on 7 November 2026, before the milestone started. `docs/SPEC.md` holds t
 - The watcher skips gitignored folders. On Linux, inotify costs one watch per folder, so mdame watches only the folders that the tree shows. On macOS, FSEvents watches the whole root at one cost, so mdame drops the events under ignored folders.
 - No Mac is at hand. After the release, a CI job on a macOS runner installs mdame with the script and with Homebrew, starts it, and requests `/api/state`. Editing on macOS gets no check in a browser.
 - Decided on 7 November 2026, after the first CI runs on macOS: live updates on macOS are a known issue of 0.1.0, listed in the README. The watcher tests run on Linux only.
+- Decided on 8 November 2026, in the review: no install script. In `~/.local/bin`, the script of dist 0.33.1 (and 0.34.0) "migrates" any `~/.local/bin/env` written from dist's template, as uv's installer writes it: it points the user's shell profiles to `~/.config/mdame/env.sh` and deletes uv's file, even with `MDAME_NO_MODIFY_PATH=1`. Homebrew, mise, Cargo and the release archives remain.
 
-Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: the install script and `brew install` give a working mdame on Linux and macOS.
+Rules, as test names, by commit. Each commit also updates the README and the spec where they describe what it changes. Done when: `brew install` gives a working mdame on Linux and macOS. Until the review, the install script was part of the check.
 
 1. Editing on macOS (done). `fd_path` asks the kernel with `F_GETPATH`, through `rustix::fs::getpath`, where Linux reads `/proc/self/fd`. macOS adds no " (deleted)" to the name of a deleted file, so a link count of 0 marks it on both systems. `fd_path_names_the_open_file`, `a_deleted_file_is_reported_deleted`.
    - `is_at` counts a deleted file as gone. During a rename over a file, the file loses its last link a moment before the path leads to the new file. In that moment, `a_file_renamed_over_after_the_open_is_opened_again` failed in 2 runs of 3.
@@ -568,7 +569,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - The mdame is the musl binary of `v0.1.0-rc.2`, as the install script gives it.
 8. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, with the numbers of step 7. Its demo of the agent loop sets `plansDirectory`. Its install section gives the script, Homebrew and `cargo install mdame`. (done)
    - The opening: what mdame does, for whom, and the memory against VS Code in one line. Two lines in Kamal's voice say why mdame exists: he tried mdlive for a short time, then built his own as a learning project, to practise software engineering with a coding agent. Then the demo, then the status, with no Windows build. Then the install, by script, Homebrew, mise (its `github:` backend, checked on `v0.1.0-rc.2`) and Cargo, then "With a coding agent", then the usage.
-   - The install script: a warning to read it first. dist builds it for each release, so it has no file in the repository. What it does, read in the `v0.1.0-rc.2` installer: it checks the SHA-256 of the archive, writes `~/.local/bin/env`, and adds a line that runs it to the shell profiles and to fish's `conf.d`, unless `MDAME_NO_MODIFY_PATH=1`.
+   - The install script: a warning to read it first. dist builds it for each release, so it has no file in the repository. What it does, read in the `v0.1.0-rc.2` installer: it checks the SHA-256 of the archive, writes `~/.config/mdame/env.sh`, and adds a line that runs it to the shell profiles and to fish's `conf.d`, unless `MDAME_NO_MODIFY_PATH=1`.
    - "With a coding agent": `plansDirectory` in `.claude/settings.json`, then the loop: the list of changes, `e` to edit the plan, the change bars, and "Last seen" in diff mode.
    - "Compared with VS Code": the ratios, 16 times and 8 times, then the table of step 7.
    - "Similar projects": one line each for mdserve, mdlive, grip, glow, Obsidian (not open source) and SilverBullet (Kamal's view: great, comprehensive for those who like to tinker; mdame aims to be simpler), on how mdame differs, with facts checked on 7 November 2026: mdserve is archived and lists only the top level of a folder; mdlive v2.3.13 is still the latest, and reloads the whole page on each change. Then what mdame does not do, from the principles of the spec. The CORS finding on mdlive stays out, until the upstream report.
@@ -576,6 +577,26 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
    - `docs/demo.gif`, under the opening, 12.6 s, 1.3 MB: the plan of a demo project, `tidy`, in `.claude/plans/`. The agent rewrites a step and adds a test, the change bars appear, `design.md` joins the list of changes, and `h` opens diff mode. Recorded with agent-browser at 1024×800 on an mdame that Kamal started, then cut with ffmpeg.
    - Why these choices: on 7 November 2026, a study of Show HN comments that praise a README, and of those READMEs. They show the tool working near the top, name the alternatives and how they differ, state their limits, and sound like a person wrote them.
 9. Review loop, `cargo mutants`, manual checklist.
+   - Review loop, done on 8 November 2026: a simplify pass, then 9 rounds of a code reviewer, a security reviewer and a prose reviewer of the README, until a round found no blocker and no should-fix. Decided on the way:
+     - The watches are added in sorted order, so the root comes first. The debouncer looks for the watch of each event in the order of the watches. In a random order, with 15,000 folders, the 30,000 events of one tree walk overflowed the inotify queue, and each overflow made the tabs walk the tree again, without end. Measured with a scratch program on the library.
+     - A walk runs only for an event that touches a shown folder, a new folder or an ignore file, in a shown folder. A file's creation, removal or rename runs no walk: with a new file every 0.3 s on 15,000 folders, each walk delayed the next events, and a write arrived 3.6 s late. It now arrives after 0.24 s. `only_folders_and_ignore_files_change_the_shown_folders`.
+     - One walk serves every batch that waits in the channel. The batches are merged, so the events no longer skip a copy of any earlier event, only a copy of the latest event of the same path: remove, create, then remove of one file lost the last removal. `a_removal_after_a_creation_after_a_removal_is_sent`.
+     - After a rescan, events were lost, and with them the removals that dropped watches: every folder is watched again, and the folders that the walk no longer shows are unwatched. It costs the quadratic watching of notify-debouncer-full 0.7, 18 s on 15,000 folders, once per overflow. A slow removal of 5,000 of these folders gave three overflows in a row, about 40 s in all; it ends.
+     - notify drops the watch of a folder that is removed or moved away, and the watches below it. The watcher now watches such a folder again if its path comes back, as after a `git checkout`. `a_folder_created_again_stays_watched`, `a_folder_swapped_through_moves_stays_watched`.
+     - After a walk that added watches, the watcher walks once more: a file or a folder made between the walk and its watch was lost. A scratch program on 15,000 folders missed 5 of 6 such files before, and none after. No test: it needs that timing. No third walk: with a new folder every 50 ms, an open loop held the events back for seconds.
+     - A folder deleted between the walk and its watch is watched if it comes back. notify can also report it as `Io(NotFound)`, when it goes between the watch and notify's check of it. An unreadable folder stays skipped, so its warning shows once.
+     - After the first walk, the watcher walks again too, and then sends `resync`, before `wait_started` returns: a tab may have connected during the walk. It costs about 0.5 s at the start on 15,000 folders. `a_tab_connected_during_the_first_walk_gets_a_resync`.
+     - The debouncer keeps no cache of file ids on macOS either. That cache pairs renames, but it walks the root at the start and at each rescan, through symlinks: in a folder with a link to `/`, mdame walked the whole disk before it opened. On Linux, notify-debouncer-full already used no cache.
+     - A renamed folder is watched again only after the walk that follows its batch: what is written into it before sends nothing. `main` watched it again at once, through notify's recursive watch. Stated in the spec; no cheap fix.
+     - Only the shown folders that a batch removes or renames lose their watch, and their removed ancestors are looked up in a set, so a batch of removals costs little time.
+     - The watcher asks notify to unwatch only the folders that still exist, such as one that a `.gitignore` change hid. Each call waits for notify's thread, which is busy with the events of the removal: removing 5,000 of 15,000 folders delayed the first event by 6.3 s. It now comes after 0.9 s.
+     - A new folder sends `created` for its entries even when an earlier walk watched it before its own event came: `mkdir a`, then `mkdir b` 60 to 250 ms later, lost the files of `b`. A folder that a `.gitignore` change shows now sends them too, so the tab reloads its tree. A renamed folder does not. `the_entries_of_a_new_folder_are_created_unless_it_was_renamed`.
+     - The events of the folders that the tree hides do not count toward a burst: on macOS, a build in `node_modules/` or `target/` sent `resync`. `a_burst_in_a_folder_that_the_tree_hides_sends_nothing`.
+     - Hiding many folders through a `.gitignore` change holds the events back: notify-debouncer-full drops each watch with a pass over all the watches, even in 0.8. On 15,000 folders, hiding 1,100 of them takes 6 s, and 12,800 take 29 s. Stated in the spec; no cheap fix.
+     - The README says where revisions live, gives `cargo install --locked`, tells macOS users to use Homebrew or mise (the binaries are not notarized), tells how to show a gitignored `.claude/`, and lists the late start of live updates on a large folder: 12 to 18 s on 15,000 folders, as measured here on several runs, depending on the load of the machine. Its agent loop says to press Esc before the agent rewrites the plan.
+     - `rustix` is now a dependency on every target: `fd_path` reads the link count with `fstat` on Linux too.
+     - The echo of a folder's move is still found by its time: notify gives it no rename cookie, but the debouncer keeps only the last event of a kind for a path, and drops the parent's report when both share a batch.
+     - No install script, as decided above.
 10. Release 0.1.0: the version in `Cargo.toml`, then a tag that starts the release workflow. Kamal runs `cargo publish`. Then the "done when" check, and the Show HN.
 
 ## Public repository and crate
@@ -592,16 +613,22 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: step 9, the review loop, `cargo mutants` and the manual checklist.
+1. Milestone 10, on the `m10-release` branch: step 9, `cargo mutants` and the manual checklist.
 
 ## Open points
 
 - From milestone 10, the watcher:
-  - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace.
+  - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.
   - A change to `.git/info/exclude`, or to the global gitignore, updates the watches only at the next walk.
+  - A folder renamed over an empty shown folder, from a hidden folder or from outside the workspace, sends nothing, and is not watched again until an overflow or a restart: notify-debouncer-full 0.7 drops the creation and the removal of one path in one batch. `main` watched it, through notify's recursive watch. Only a program that calls `rename` on a folder does it; `mv` moves the folder into the empty one. A fix: keep each folder's inode from the walk, and watch again a folder whose inode changed, at the next walk.
+  - notify-debouncer-full keeps a root for each folder that mdame ever watched, even after notify dropped its watch: it has no call to drop one. In 0.7, each new watch scans the roots, so over a long session with many folders made and removed, watching gets slower, and so does the watching after an overflow. 0.8 searches them, so only their memory stays.
 - CI runs twice for a release: on the branch and on the tag. `ci.yml` could leave tags out.
-- The install script writes dist's receipt, `mdame-receipt.json`, into `~/.config/mdame/`, beside `config.toml`, although mdame installs no updater.
+- A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, makes the walker read without end: mdame runs out of memory, or hangs. A cloned repository can hold such a link. `main` and ripgrep have the same problem, in the `ignore` crate. A fix: skip an ignore file that is not a regular file, or limit its size.
+- A write to an existing `.gitignore` or `.ignore` that hides folders changes the watched folders, but the tab gets only `changed`, which does not reload the tree. `main` has the same gap in the tree. One that shows folders sends `created` for their files.
+- The release build runs `dist build`, so every build script and proc macro of the dependencies, with a `GH_TOKEN` that can write the repository's contents. A compromised crate could push to `main` or replace the assets of earlier releases. Branch protection on `main` and GitHub's immutable releases limit it, through the repository's settings.
+- The release archives have no provenance: `github-attestations = true` in dist would let users check them with `gh attestation verify`.
+- dist's shell installer, from 0.33.0: in a flat layout such as `~/.local/bin`, it migrates any `<install dir>/env` that matches dist's template, so it takes over the env file of another tool that dist built, such as uv. Report it to axodotdev/cargo-dist: the migration should touch only an env file that this app wrote.
 - The release binaries keep their symbols: `strip = true` in the `dist` profile would make them smaller than 18 MB.
 - Live updates on macOS, a known issue of 0.1.0. FSEvents merges the kinds of the events of a path, and gives the two sides of a rename apart. On the CI run of 7 November 2026:
   - A write gives `created`, a delete `changed`, and a folder delete nothing.
@@ -609,9 +636,13 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - Files created just before the watch starts send late `created` events.
   - A fix: on macOS, check the disk for each path of a batch. A missing path is `removed`, and a present one is `changed`, or `created` if the event says so. The ported inotify cases stay on Linux, and macOS gets looser tests of its own.
 
+- From the review of milestone 10, for later: the README's "With a coding agent" could repeat the spec's advice to deny the agent reads of mdame's state folder, which holds the token, and of the browser profile.
+- Nits deferred by the review of milestone 10:
+  - The watcher's `is_dir()` and `exists()` follow symlinks out of the workspace: a link to a hung or automounted path can block the watcher. `symlink_metadata()` would not follow it.
+  - The README's macOS known issue, "merges the kinds of the events of a file", reads slowly.
 - From the review of milestone 9, for later:
   - `mdame ~/.claude` lists `settings.json`, and a leaked token can rewrite it: the hidden and `.git`/`.mdame` rules look only below the root. Apply them to the root's own real path too. `main` has the same gap.
-  - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. Git guards the same aliases. Not checked.
+  - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. On HFS+, so do names with an ignorable code point, such as `.mdam\u{200C}e`: macOS editing, new in milestone 10, makes it reachable. Git guards the same aliases. Not checked.
   - A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A limit such as `rg --max-columns` would bound it.
   - Spellcheck is on by default. A browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor. The README could say so.
   - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`.
@@ -667,7 +698,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - Backup branches, to delete once they are no longer needed: `backup/before-typescript` and `backup/m4-viewing-before-typescript` (the JavaScript history, before the rewrite of 18 October 2026), `backup/m4-before-dist-fix`, `backup/m6-before-import-fixup`, and `backup/m6-before-history-rewrite` (milestone 6 before its review commits were regrouped, 25 October 2026).
 - From the review of milestone 5, for later:
   - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs.
-  - macOS: the debouncer's `FileIdMap` cache walks symlinked folders (macOS is not a target).
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
   - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.

@@ -723,9 +723,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - An answer now holds at most 50 files of 100 lines of 202 characters: about 4 MB with 4-byte characters, and far less in practice.
    - Lowercasing can make a letter longer: `İ` becomes `i̇`, two characters. So without the case, the match's place in the lowercase line is not its place in the line. `first_match` adds up the length of each letter's lowercase until it reaches the match.
    - The page highlights the phrase in the text that it gets, so it needs no change.
-7. Ignore files that are not regular files. A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, makes the walker read without end: mdame runs out of memory, or hangs. A cloned repository can hold such a link. In the parallel walker of the `ignore` crate, `filter_entry` runs before the crate reads the ignore files of a folder. So the filter can skip such a folder, with a warning. `a_folder_whose_gitignore_is_a_fifo_is_skipped`, `a_gitignore_linked_to_dev_zero_is_skipped`.
-   - The walker reads the ignore files of the root and of its parents, and `.git/info/exclude`, before any filter. So mdame checks them before each walk. The commit settles what mdame does with a bad one.
-   - ripgrep has the same problem. Report it to the `ignore` crate too.
+7. Ignore files that are not regular files (done). A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, made the walker read without end: mdame ran out of memory, or hung. A cloned repository can hold such a link. In the parallel walker of the `ignore` crate, `filter_entry` runs before the crate reads the ignore files of a folder. So the filter now skips such a folder, with a warning. `a_folder_with_a_bad_ignore_file_is_skipped`, `a_bad_ignore_file_at_or_above_the_root_gives_an_empty_tree`.
+   - A bad file is any one that is not a regular file, through links: a FIFO, or a link to a device. It covers `.gitignore`, `.ignore` and `.git/info/exclude`, the three files that the walker reads in a folder.
+   - The walker reads the ignore files of the root, and in a repository those of the folders above it up to the repository's root, before any filter. If one of them is bad, the walk gives nothing, with a warning: the tree is empty, and mdame keeps running.
+   - The tests link to `/dev/null`, not `/dev/zero`: if the check broke, `/dev/zero` would fill the memory of the test run. A FIFO test waits 5 s at most for the walk.
+   - Cost, measured on 11,935 folders in `~/.cargo/registry/src`, as the median of 25 walks: 104 to 120 ms without the check, 137 to 150 ms with it. That is about 3 µs for each folder, for 3 `stat` calls. Checking `.gitignore` and `.ignore` only gave 127 ms.
 8. Two notes in the README. "With a coding agent" repeats the advice of the spec: deny the agent reads of mdame's state folder, which holds the token, and of the browser profile. And spellcheck is on by default, but a browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor.
 9. `.github/check-release.sh` reads the port from the URL that mdame prints. If port 4891 is busy, mdame takes the next free one, but the script still requests 4891. Check 19 found it: another mdame held 4891 and answered 403.
 10. CI skips tags. CI runs twice for a release: on the branch and on the tag. `ci.yml` now leaves tags out.
@@ -743,6 +745,7 @@ Kamal, with no commit, before the release:
 - Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies, with a `GH_TOKEN` that can write the repository's contents. A compromised crate could push to `main` or replace the assets of earlier releases. The two settings limit it.
 - Topics for the repository on GitHub.
 - Yank mdame 0.0.1 on crates.io: the early build that held the name. `cargo install` already picks 0.1.0.
+- Report to the `ignore` crate, in BurntSushi/ripgrep, that an ignore file that is a FIFO or a link to `/dev/zero` makes the walker read without end. ripgrep has the same problem.
 
 ## Public repository and crate
 
@@ -758,7 +761,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 7, ignore files that are not regular files.
+1. Milestone 11, on the `m11-fixes` branch: commit 8, two notes in the README.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
 use cap_std::fs::Dir;
@@ -60,9 +60,22 @@ const WALK_THREADS: usize = 4;
 /// threads.
 static WALKING: Mutex<()> = Mutex::new(());
 
+/// The files that the walker reads in each folder, for its ignore rules.
+const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
+
+/// The ignore file of `folder` that is not a regular file, through links,
+/// if any. The walker would read it without end: a FIFO blocks, and
+/// `/dev/zero` never ends. A cloned repository can hold a link to it.
+fn bad_ignore_file(folder: &Path) -> Option<PathBuf> {
+    IGNORE_FILES
+        .iter()
+        .map(|name| folder.join(name))
+        .find(|path| path.metadata().is_ok_and(|metadata| !metadata.is_file()))
+}
+
 /// What `keep` gives for each entry of the workspace that the tree may
 /// show, folders included: gitignored entries, `.git` and `.mdame` stay
-/// out. A folder comes before its entries: the walker visits it first,
+/// out, and so does a folder with a bad ignore file. A folder comes before its entries: the walker visits it first,
 /// since a visit can skip a folder's entries (`WalkState::Skip`). The rest
 /// of the order changes from walk to walk.
 pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) -> Vec<T> {
@@ -73,6 +86,22 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
     // git: a `.gitignore` in a home folder without `.git` must not hide
     // the notes below it.
     let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
+    // The walker reads the ignore files of the root, and of the folders
+    // above it up to the repository's root, before any filter.
+    let mut read_first = Vec::new();
+    for folder in root.ancestors() {
+        read_first.push(folder);
+        if !in_repo || folder.join(".git").exists() {
+            break;
+        }
+    }
+    if let Some(file) = read_first.into_iter().find_map(bad_ignore_file) {
+        tracing::warn!(
+            "the tree is empty: {} is not a regular file",
+            file.display()
+        );
+        return Vec::new();
+    }
     WalkBuilder::new(root)
         // In a repository, true stops the parent scan at its root.
         .require_git(in_repo)
@@ -80,7 +109,18 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
         .git_global(in_repo)
         .parents(in_repo)
         .hidden(false)
-        .filter_entry(|entry| !is_git_or_mdame(entry.file_name()))
+        .filter_entry(|entry| {
+            if is_git_or_mdame(entry.file_name()) {
+                return false;
+            }
+            let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
+            // Before the walker reads them.
+            let bad = is_folder.then(|| bad_ignore_file(entry.path())).flatten();
+            if let Some(file) = &bad {
+                tracing::warn!("skipped: {} is not a regular file", file.display());
+            }
+            bad.is_none()
+        })
         .threads(WALK_THREADS)
         .build_parallel()
         .run(|| {
@@ -297,6 +337,51 @@ mod tests {
         write(&root, "plans/a.md", 1);
 
         assert_eq!(tree_paths(&walk(&root)), ["", "plans", "plans/a.md"]);
+    }
+
+    /// `walk`, which fails rather than block: a FIFO would hold it forever.
+    fn walk_within_seconds(root: &Path) -> Node {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let root = root.to_owned();
+        std::thread::spawn(move || sender.send(walk(&root)));
+        let wait = std::time::Duration::from_secs(5);
+        receiver.recv_timeout(wait).expect("the walk ends")
+    }
+
+    fn mkfifo(path: &Path) {
+        let made = std::process::Command::new("mkfifo").arg(path).status();
+        assert!(made.unwrap().success());
+    }
+
+    #[test]
+    fn a_folder_with_a_bad_ignore_file_is_skipped() {
+        use std::os::unix::fs::symlink;
+        let root = crate::workspace::tempdir();
+        for folder in ["fifo", "device", "repo", "fine"] {
+            write(root.path(), &format!("{folder}/a.md"), 1);
+        }
+        mkfifo(&root.path().join("fifo/.gitignore"));
+        symlink("/dev/null", root.path().join("device/.ignore")).unwrap();
+        fs::create_dir_all(root.path().join("repo/.git/info")).unwrap();
+        symlink("/dev/null", root.path().join("repo/.git/info/exclude")).unwrap();
+
+        let paths = tree_paths(&walk_within_seconds(root.path()));
+        assert_eq!(paths, ["", "fine", "fine/a.md"]);
+    }
+
+    #[test]
+    fn a_bad_ignore_file_at_or_above_the_root_gives_an_empty_tree() {
+        let root = crate::workspace::tempdir();
+        write(root.path(), "a.md", 1);
+        mkfifo(&root.path().join(".gitignore"));
+        assert_eq!(tree_paths(&walk_within_seconds(root.path())), [""]);
+
+        let repo = crate::workspace::tempdir();
+        fs::create_dir(repo.path().join(".git")).unwrap();
+        mkfifo(&repo.path().join(".ignore"));
+        write(repo.path(), "notes/a.md", 1);
+        let notes = repo.path().join("notes");
+        assert_eq!(tree_paths(&walk_within_seconds(&notes)), [""]);
     }
 
     #[test]

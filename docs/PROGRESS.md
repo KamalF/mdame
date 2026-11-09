@@ -750,7 +750,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
     - cargo-about 0.9.3, published on 26 October 2026: `mise.toml` installs its binary. It has no binary for Intel macOS, so each build of the release builds it with `cargo install --locked --features cli`, in `.github/build-setup.yml`: dist's `github-build-setup`. Locally, the build took 2 min 14 s, and gave the same file as the binary of mise.
     - `--features cli`: without it, `cargo install` builds cargo-about but installs no binary.
     - Check, at the release of 0.1.1: each archive holds the file.
-14. `rust-version` in `Cargo.toml`. comrak needs Rust 1.89, and the let chains of mdame need 1.88. On an older Rust, `cargo install` fails with a compile error that does not name the version that mdame needs. Builds with older toolchains find the real minimum: `cargo check` passes with it and fails with the version before.
+14. `rust-version` in `Cargo.toml` (done). comrak needs Rust 1.89, and the let chains of mdame need 1.88. The plan said that an older Rust fails with a compile error. In fact, cargo stops before it compiles: on 1.88, it said that comrak and fearless_simd require 1.89, and did not name mdame. Builds with older toolchains found the real minimum: 1.89.
+    - Checked on 9 November 2026: `cargo check --locked` passes with 1.89.0, tests included, and 1.88.0 stops at once: comrak 0.56.0 and fearless_simd 1.1.0 require 1.89. The highest `rust-version` of the dependencies is 1.89.
+    - The toolchains went into a rustup home of their own, in the sandbox's temporary folder: `~/.rustup` is read-only there. rustup's own HTTP client lost the connection through the sandbox's proxy; `RUSTUP_USE_CURL=1` worked.
+    - With edition 2024, cargo's resolver now prefers dependency versions that support 1.89: `cargo update` may hold back a crate that needs a newer Rust. To take it, raise `rust-version` first.
+    - The README's Install says that Cargo needs Rust 1.89 or later.
 15. `CHANGELOG.md`, with a section for 0.1.0 and one for 0.1.1. dist takes the release notes of a version from it. Without it, the notes hold only the install instructions.
 16. Version 0.1.1, then the release. Kamal pushes the tag, and the job "Check release" runs on Linux and macOS. Then the manual checklist of milestone 11.
 
@@ -775,7 +779,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 14, `rust-version` in `Cargo.toml`.
+1. Milestone 11, on the `m11-fixes` branch: commit 15, `CHANGELOG.md`.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

@@ -38,7 +38,7 @@ With mise, from the release archives:
 mise use -g github:KamalF/mdame
 ```
 
-With Cargo, from the source:
+With Cargo, from the source, with Rust 1.89 or later:
 
 ```sh
 cargo install --locked mdame

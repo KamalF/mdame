@@ -92,8 +92,8 @@ Then run `mdame` at the root of the project, and ask Claude Code for a plan.
 Each request to mdame needs a token, so that other programs on your machine
 cannot change your files through it. An agent that can read the token can use
 it too. If your agent runs in a sandbox, deny it reads of
-`~/.local/state/mdame/`, which holds the token, and of your browser's profile,
-whose cookies hold it too.
+`~/.local/state/mdame/` (or `$XDG_STATE_HOME/mdame/`), which holds the token,
+and of your browser's profile, whose cookies hold it too.
 
 ## Usage
 

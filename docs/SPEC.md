@@ -297,7 +297,7 @@ mdame/
   node_modules/         installed by bun ci (git-ignored)
   tests/                route and watcher integration tests; fixtures/
   docs/SPEC.md          this document
-  LICENSE, README.md, CLAUDE.md
+  LICENSE, NOTICE, README.md, CLAUDE.md
 ```
 
 **Library plus thin binary.** Integration tests in `tests/` are separate crates and can only use what `lib.rs` exports, so the modules live in the library and `main.rs` only parses flags, sets up tracing and calls `mdame::app::run`.
@@ -706,6 +706,7 @@ After milestone 12, the medium Later items wait.
 | The small Later items gain arrow keys in the sidebar tree | 6 November 2026 |
 | Milestone 11 takes the fixes that 0.1.0 needs, and releases 0.1.1. The small Later items become milestone 12, without toasts, and release 0.2.0. The Show HN waits for 0.2.0 | 9 November 2026 |
 | The watcher tests run on macOS too. Where FSEvents gives other events, a test expects them on macOS. The folder delete, which sends nothing on macOS, is ignored there | 9 November 2026 |
+| `LICENSE` holds only the MIT text and its copyright lines, so that GitHub detects it. The notices of mdlive, Lucide, Feather and Primer move to `NOTICE`, which the package and the release archives hold | 9 November 2026 |
 
 ### Review log, 14 October 2026
 

@@ -13,6 +13,8 @@ installers = ["homebrew"]
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "x86_64-unknown-linux-musl"]
 # Where to host releases
 hosting = "github"
+# Files for the archives, beside LICENSE and README.md, which dist finds
+include = ["NOTICE"]
 # Whether to install an updater program
 install-updater = false
 # A GitHub repo to push Homebrew formulas to

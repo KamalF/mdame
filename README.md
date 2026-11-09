@@ -243,8 +243,9 @@ a fork of Jose Fernandez's [mdserve](https://github.com/jfernandez/mdserve).
 Both are MIT licensed. The icons come from [Lucide](https://lucide.dev) (ISC),
 and some of them derive from [Feather](https://github.com/feathericons/feather)
 (MIT). The built-in themes take their colours from GitHub's
-[Primer](https://primer.style) (`@primer/primitives`, MIT). `LICENSE` carries
-the notices of all of these. The fonts are IBM Plex Sans and IBM Plex Mono,
+[Primer](https://primer.style) (`@primer/primitives`, MIT). `NOTICE` carries
+their notices, and `LICENSE` the copyright lines of mdlive. The fonts are IBM
+Plex Sans and IBM Plex Mono,
 under the SIL Open Font License 1.1. The page bundles them and other npm
 packages, such as CodeMirror and Mermaid:
 `web/dist/assets/THIRD-PARTY-LICENSES.txt` carries their licence texts.

@@ -9,7 +9,7 @@ homepage = "https://github.com/KamalF/mdame"
 readme = "README.md"
 keywords = ["markdown", "viewer", "editor", "preview", "notes"]
 categories = ["command-line-utilities", "text-editors"]
-include = ["/src", "/web/dist", "/LICENSE", "/README.md"]
+include = ["/src", "/web/dist", "/LICENSE", "/NOTICE", "/README.md"]
 
 [dependencies]
 ammonia = "4.2.4"

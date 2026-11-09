@@ -66,9 +66,9 @@ static WALKING: Mutex<()> = Mutex::new(());
 const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
 
 /// Crafted patterns cost memory as the square of their number when the
-/// walker matches a name against them: a 256 KiB file asked for 11 GB.
-/// Real ignore files hold a few KB.
-const MAX_IGNORE_FILE: u64 = 64 * 1024;
+/// walker matches a name against them: 32 KiB of `?N` lines asked for 8 GB.
+/// The largest real ones, in Chromium and Firefox, hold 10 KB.
+const MAX_IGNORE_FILE: u64 = 16 * 1024;
 
 /// The ignore files that one walk reads, in bytes. The walker builds the
 /// globs of up to 4 files at once, at about 700 times their size for
@@ -77,7 +77,7 @@ const MAX_IGNORE_FILE: u64 = 64 * 1024;
 const MAX_IGNORE_BYTES: u64 = 1024 * 1024;
 
 /// The ignore file of `folder` that the walker must not read, and why, if
-/// any. Through links, each must be a regular file of 64 KiB at most,
+/// any. Through links, each must be a regular file of 16 KiB at most,
 /// outside the pseudo file systems of the kernel. Otherwise the walker could read without end:
 /// a FIFO blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0
 /// bytes but holds gigabytes. A cloned repository can hold a link to any of
@@ -93,7 +93,7 @@ fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static
         let why = if !file.is_file() {
             "is not a regular file"
         } else if file.len() > MAX_IGNORE_FILE {
-            "is over 64 KiB"
+            "is over 16 KiB"
         } else if is_kernel_file_system(&path) {
             "leads into a file system of the kernel, such as procfs"
         } else {
@@ -437,9 +437,9 @@ mod tests {
     fn the_ignore_files_of_a_walk_stop_at_1_mib() {
         let root = crate::workspace::tempdir();
         // Room for the ignore files above the temporary folder, such as a
-        // ~/.gitignore: `fit` files still fit with 16 KiB above.
+        // ~/.gitignore: `fit` files still fit with 4 KiB above.
         let fit = MAX_IGNORE_BYTES / MAX_IGNORE_FILE;
-        let blank = "\n".repeat((MAX_IGNORE_FILE - 16 * 1024 / fit) as usize);
+        let blank = "\n".repeat((MAX_IGNORE_FILE - 4096 / fit) as usize);
         for index in 0..fit + 2 {
             write(root.path(), &format!("{index}/a.md"), 1);
             fs::write(root.path().join(format!("{index}/.gitignore")), &blank).unwrap();

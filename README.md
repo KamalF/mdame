@@ -130,8 +130,9 @@ a `.ignore` file at the root of the folder, or in `.git/info/exclude`. Both
 use the syntax of `.gitignore`.
 
 mdame leaves out a folder whose ignore file it cannot read safely: a file over
-64 KiB, or one that is not a regular file, such as a link to `/dev/zero`. It
-also stops past 1 MiB of ignore files in all. The terminal says which file. If
+16 KiB, one that is not a regular file, such as a link to `/dev/zero`, or one
+in `/proc`. Past 1 MiB of ignore files in all, it also leaves out the folders
+that hold more. The terminal names each file or folder that it leaves out. If
 such a file is in the folder that mdame opens, or in a folder above it, the
 tree is empty.
 

@@ -286,6 +286,7 @@ mdame/
     api/                files.rs, history.rs, workspace.rs: one per route group
   web/
     index.html
+    favicon.svg         copied to dist/assets/ by the web task
     notices.ts          writes the licence texts of the bundled packages
     src/                main.ts, api.ts, live.ts, sidebar.ts, view.ts,
                         editor.ts, revisions.ts, dialogs.ts,
@@ -551,7 +552,7 @@ The list was fixed on 28 October 2026. Milestone 8 documents it in `web/themes/R
   - Settled on 6 November 2026, with the code: the toggle is the Spellcheck item, under Show, after Outline. It applies to the open editor at once, diff mode included.
 - Shortcut help: `?` opens a dialog with the keys in three groups: Outside the editor, Editor, and Filter and search. In the editor, the letter keys type text. One list in the code feeds the dialog, and a test checks that each key that the page binds is in it. It shows ⌘ on macOS and Ctrl elsewhere. One line says that the editor keeps CodeMirror's own keys, such as Ctrl+F and Ctrl+Z. A footer line gives the version and links to the repository and to the licences. Decided 3 November 2026.
   - Settled on 6 November 2026, with the code: the dialog is titled "Keyboard shortcuts". A keyboard button in the status bar, before View options, opens it too, so that a user who does not know `?` finds it. "Licences" opens `/assets/THIRD-PARTY-LICENSES.txt`, which mdame serves, so it matches the running version; the file moved into `web/dist/assets/` for this. The test covers the keys of `bindKeys` and of the editor's keymap. The keys of the filter, of the search panel, Esc and Cmd/Ctrl+S have their own listeners, and the list holds them by hand.
-- Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut.
+- Icons: Lucide, only the icons used, bundled as SVG; tooltips give the label and shortcut. The favicon is Lucide's `file-text`, in the accent of the built-in light theme, or of the dark theme when the system is dark. It cannot follow the theme picked in View options. Decided 9 November 2026.
 - Motion: one transition. Panels and the sidebar overlay slide in over 150 ms; nothing moves under `prefers-reduced-motion`.
 - Default theme: follow the system. Until the user picks a theme, the page uses the built-in light or dark theme according to `prefers-color-scheme`, and switches live when the OS does; a picked theme is stored and wins. Decided 15 October 2026.
 - Built-in themes: GitHub Primer light and dark, from `@primer/primitives` (11.10.0 checked), copied into `web/themes/light.css` and `dark.css`. Chosen for the highest text and muted contrast of the families compared (body text 15.8:1 light, 17.4:1 dark; muted 6.1 and 6.5) and for the look most people know from rendered markdown. Primer has no number, type or attribute syntax colours, so mdame maps them: number uses constant, type and meta use variable, attribute uses entityTag. Decided 15 October 2026.

@@ -62,6 +62,13 @@ async fn the_licences_show_as_text() {
 }
 
 #[tokio::test]
+async fn the_favicon_is_served_as_svg() {
+    let response = send(local(), "/assets/favicon.svg", &[HOST]).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()[header::CONTENT_TYPE], "image/svg+xml");
+}
+
+#[tokio::test]
 async fn unknown_asset_is_not_found() {
     let response = send(local(), "/assets/nothing.js", &[HOST]).await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);

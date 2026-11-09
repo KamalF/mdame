@@ -695,8 +695,9 @@ Decided on 9 November 2026, before the milestone started. `docs/SPEC.md` holds t
 
 Rules, as test names, by commit. The names are a first guess, which each commit settles. Each commit also updates the README and the spec where they describe what it changes. Done when: the watcher tests pass on the macOS runner of CI, except the cases that the README lists as known issues. `brew install` gives a working 0.1.1 on Linux and macOS.
 
-1. A favicon. The page links no icon, and no route serves `/favicon.ico`. `web/favicon.svg` holds a Lucide glyph, such as `file-text`. The `web` task copies it to `web/dist/assets/`, and `web/index.html` links `/assets/favicon.svg`. `the_favicon_is_served_as_svg`, in `tests/assets.rs`.
-   - Lucide icons draw with `currentColor`, which is black in a favicon and hard to see on a dark tab. So the SVG sets its own colours, with a `prefers-color-scheme: dark` rule.
+1. A favicon (done). The page linked no icon, and no route served `/favicon.ico`. `web/favicon.svg` holds Lucide's `file-text`. The `web` task copies it to `web/dist/assets/`, and `web/index.html` links `/assets/favicon.svg`. `the_favicon_is_served_as_svg`, in `tests/assets.rs`.
+   - Lucide icons draw with `currentColor`, which is black in a favicon and hard to see on a dark tab. So the SVG sets its own colours: the accent of the light theme, `#0969da`, and of the dark theme, `#4493f8`, with a `prefers-color-scheme: dark` rule.
+   - The glyph uses the same version of Lucide as the `file` icon of `icons.ts`: `file` with three lines.
    - The `/assets/` route already serves SVG with an ETag, and the CSP allows it. The README's notice for Lucide covers its licence.
 2. Live updates on macOS: the disk check. On FSEvents only, `events()` takes the kind of an event from the disk. A missing path is `removed`. If the path is present, a creation or a rename gives `created`, and any other event gives `changed`. `the_disk_gives_the_kind_of_an_event`: a unit test on a temporary folder, which runs on Linux too.
    - It fixes deletes, renames and saves through a temporary file. A rename becomes `removed` and `created`, so the tab still does not follow a renamed file.
@@ -741,7 +742,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 1, the favicon.
+1. Milestone 11, on the `m11-fixes` branch: commit 2, the disk check for live updates on macOS.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

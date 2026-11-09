@@ -18,6 +18,7 @@ run = [
   "mkdir -p target",
   "{{vars.bundle}} --metafile=target/web-meta.json",
   "cp web/index.html web/dist/index.html",
+  "cp web/favicon.svg web/dist/assets/",
   "mkdir web/dist/assets/files",
   "cp node_modules/@fontsource-variable/ibm-plex-sans/files/*-wght-*.woff2 node_modules/@fontsource/ibm-plex-mono/files/*-400-*.woff2 web/dist/assets/files/",
   "mkdir web/dist/themes",

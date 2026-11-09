@@ -8,9 +8,9 @@
   through a temporary file. The tab still does not follow a renamed file, and a
   deleted folder stays in the tree until you reload the page.
 - A `.gitignore` or `.ignore` that is a FIFO, a link to a device such as
-  `/dev/zero`, or a file over 1 MiB, no longer makes mdame hang or run out of
+  `/dev/zero`, or a file over 256 KiB, no longer makes mdame hang or run out of
   memory. mdame leaves out the folder that holds it, with a warning. Past
-  8 MiB of ignore files in all, it also leaves out the folders that hold the
+  1 MiB of ignore files in all, it also leaves out the folders that hold the
   rest. If such a file is in the folder that mdame opens, or in a folder above
   it, the tree is empty.
 - The search panel cuts a line over 200 characters around its match. A

@@ -65,19 +65,20 @@ static WALKING: Mutex<()> = Mutex::new(());
 /// The files that the walker reads in each folder, for its ignore rules.
 const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
 
-/// The walker builds globs from an ignore file, up to 4 files at once:
-/// crafted patterns took about 700 times the file's size in memory. Real
-/// ignore files hold a few KB.
-const MAX_IGNORE_FILE: u64 = 256 * 1024;
+/// Crafted patterns cost memory as the square of their number when the
+/// walker matches a name against them: a 256 KiB file asked for 11 GB.
+/// Real ignore files hold a few KB.
+const MAX_IGNORE_FILE: u64 = 64 * 1024;
 
-/// The ignore files that one walk reads, in bytes. The walker keeps the
-/// globs of each folder above the one that it reads, so nested folders add
-/// up.
-const MAX_IGNORE_BYTES: u64 = 4 * MAX_IGNORE_FILE;
+/// The ignore files that one walk reads, in bytes. The walker builds the
+/// globs of up to 4 files at once, at about 700 times their size for
+/// crafted patterns, and keeps those of each folder above the one that it
+/// reads.
+const MAX_IGNORE_BYTES: u64 = 1024 * 1024;
 
 /// The ignore file of `folder` that the walker must not read, and why, if
-/// any. Through links, each must be a regular file of 256 KiB at most,
-/// outside procfs and sysfs. Otherwise the walker could read without end:
+/// any. Through links, each must be a regular file of 64 KiB at most,
+/// outside the pseudo file systems of the kernel. Otherwise the walker could read without end:
 /// a FIFO blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0
 /// bytes but holds gigabytes. A cloned repository can hold a link to any of
 /// them. `read` adds up the bytes that the walk reads, up to
@@ -92,9 +93,9 @@ fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static
         let why = if !file.is_file() {
             "is not a regular file"
         } else if file.len() > MAX_IGNORE_FILE {
-            "is over 256 KiB"
-        } else if is_procfs_or_sysfs(&path) {
-            "leads into procfs or sysfs"
+            "is over 64 KiB"
+        } else if is_kernel_file_system(&path) {
+            "leads into a file system of the kernel, such as procfs"
         } else {
             size += file.len();
             continue;
@@ -108,21 +109,24 @@ fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static
     })
 }
 
-/// By the type of the file system, not the path: a container may mount the
-/// host's procfs at `/run/host/proc`.
+/// procfs, sysfs, tracefs or debugfs, whose files can say 0 bytes and hold
+/// gigabytes, or block. By the type of the file system, not the path: a
+/// container may mount the host's procfs at `/run/host/proc`.
 #[cfg(target_os = "linux")]
-fn is_procfs_or_sysfs(path: &Path) -> bool {
+fn is_kernel_file_system(path: &Path) -> bool {
     use rustix::fs::{FsWord, PROC_SUPER_MAGIC, statfs};
-    const SYSFS_MAGIC: FsWord = 0x6265_6572;
+    const SYSFS: FsWord = 0x6265_6572;
+    const TRACEFS: FsWord = 0x7472_6163;
+    const DEBUGFS: FsWord = 0x6462_6720;
     statfs(path).is_ok_and(|fs| {
         let kind = fs.f_type as FsWord;
-        kind == PROC_SUPER_MAGIC || kind == SYSFS_MAGIC
+        [PROC_SUPER_MAGIC, SYSFS, TRACEFS, DEBUGFS].contains(&kind)
     })
 }
 
-/// macOS has neither.
+/// macOS has none of them.
 #[cfg(not(target_os = "linux"))]
-fn is_procfs_or_sysfs(_: &Path) -> bool {
+fn is_kernel_file_system(_: &Path) -> bool {
     false
 }
 
@@ -433,16 +437,17 @@ mod tests {
     fn the_ignore_files_of_a_walk_stop_at_1_mib() {
         let root = crate::workspace::tempdir();
         // Room for the ignore files above the temporary folder, such as a
-        // ~/.gitignore: 4 files still fit with 16 KiB above.
-        let blank = "\n".repeat(MAX_IGNORE_FILE as usize - 4096);
-        for index in 0..10 {
+        // ~/.gitignore: `fit` files still fit with 16 KiB above.
+        let fit = MAX_IGNORE_BYTES / MAX_IGNORE_FILE;
+        let blank = "\n".repeat((MAX_IGNORE_FILE - 16 * 1024 / fit) as usize);
+        for index in 0..fit + 2 {
             write(root.path(), &format!("{index}/a.md"), 1);
             fs::write(root.path().join(format!("{index}/.gitignore")), &blank).unwrap();
         }
 
         let paths = tree_paths(&walk_within_seconds(root.path()));
         let shown = paths.iter().filter(|path| path.ends_with("/a.md")).count();
-        assert_eq!(shown, (MAX_IGNORE_BYTES / MAX_IGNORE_FILE) as usize);
+        assert_eq!(shown as u64, fit);
     }
 
     #[test]

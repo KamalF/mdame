@@ -74,7 +74,8 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
         modified: modified_secs(&metadata).unwrap_or(0),
         size,
         too_large,
-        editable: editable_in(dir, Path::new(path)).is_ok() && size <= EDIT_LIMIT,
+        editable: size <= EDIT_LIMIT
+            && fd_path(dir).is_ok_and(|root| editable_name(&root.join(path)).is_ok()),
     })
 }
 
@@ -281,14 +282,15 @@ pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
     if Path::new(path).is_absolute() {
         return Err(outside());
     }
-    editable_in(dir, Path::new(path))?;
+    let root = fd_path(dir)?;
+    editable_name(&root.join(path))?;
     // Created through a handle on its folder: a folder swapped after the
     // check cannot move the new file.
     let (folder, name) = match path.rsplit_once('/') {
         Some((folder, name)) => (dir.open_dir(folder)?, name),
         None => (dir.try_clone()?, path),
     };
-    editable_in(dir, &real_path(dir, &folder)?.join(name))?;
+    editable_name(&root.join(real_path(&root, &folder)?).join(name))?;
     let file = folder.open_with(name, OpenOptions::new().write(true).create_new(true))?;
     saved(version(b""), &file)
 }
@@ -313,8 +315,11 @@ fn open_editable(
     options: &OpenOptions,
 ) -> io::Result<(File, Metadata, PathBuf)> {
     let (file, metadata) = open_file(dir, path, options)?;
-    editable_in(dir, Path::new(path))?;
-    match real_path(dir, &file).and_then(|real| editable_in(dir, &real).map(|()| real)) {
+    let root = fd_path(dir)?;
+    editable_name(&root.join(path))?;
+    let checked =
+        real_path(&root, &file).and_then(|real| editable_name(&root.join(&real)).map(|()| real));
+    match checked {
         // A program saved the file by a rename after the open: the open file
         // is deleted, or now has the name of a backup.
         Err(_) if !is_at(dir, path, &file) => open_editable(dir, path, options),
@@ -332,12 +337,11 @@ fn is_at(dir: &Dir, path: &str, file: &File) -> bool {
     opened.nlink() > 0 && (opened.dev(), opened.ino()) == (on_path.dev(), on_path.ino())
 }
 
-/// Where `handle` is, relative to the workspace root, as the kernel knows it.
-/// The path asked may lead elsewhere, through a link or a swapped entry.
-fn real_path(dir: &Dir, handle: &impl AsFd) -> io::Result<PathBuf> {
-    let root = fd_path(dir)?;
+/// Where `handle` is, relative to `root`, as the kernel knows it. The path
+/// asked may lead elsewhere, through a link or a swapped entry.
+fn real_path(root: &Path, handle: &impl AsFd) -> io::Result<PathBuf> {
     let path = fd_path(handle)?;
-    match path.strip_prefix(&root) {
+    match path.strip_prefix(root) {
         Ok(relative) => Ok(relative.to_path_buf()),
         Err(_) => Err(outside()),
     }
@@ -349,12 +353,8 @@ fn outside() -> io::Error {
     io::Error::new(ErrorKind::PermissionDenied, "outside the workspace")
 }
 
-/// `editable_name` of the path under the root: in a root such as
+/// `path` is the whole path, the root's included: in a root such as
 /// `~/.claude`, the rules of hidden folders apply to every file.
-fn editable_in(dir: &Dir, relative: &Path) -> io::Result<()> {
-    editable_name(&fd_path(dir)?.join(relative))
-}
-
 fn editable_name(path: &Path) -> io::Result<()> {
     if path
         .components()

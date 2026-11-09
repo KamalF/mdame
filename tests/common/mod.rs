@@ -103,14 +103,14 @@ pub fn etag_of(response: &Response) -> &str {
     response.headers()["etag"].to_str().unwrap()
 }
 
-/// A workspace in `dir/ws` holding `files`, with `secret.md` next to it,
-/// outside the workspace.
 /// `tempfile::tempdir()` names its folders `.tmp…`, and in a hidden root,
 /// the tree and the editor take markdown only.
 pub fn tempdir() -> tempfile::TempDir {
     tempfile::Builder::new().prefix("mdame").tempdir().unwrap()
 }
 
+/// A workspace in `dir/ws` holding `files`, with `secret.md` next to it,
+/// outside the workspace.
 pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {
     let root = dir.join("ws");
     for (path, content) in files {

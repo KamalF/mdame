@@ -125,7 +125,6 @@ fn matching_lines(text: &str, phrase: &str) -> Option<(Vec<Line>, bool)> {
     let more = hits.len() > MAX_MATCHES;
     hits.truncate(MAX_MATCHES);
     let all: Vec<&str> = text.lines().collect();
-    let searched: Vec<&str> = haystack.lines().collect();
     let mut lines = Vec::new();
     // The first line that is not printed yet.
     let mut next = 0;
@@ -135,19 +134,14 @@ fn matching_lines(text: &str, phrase: &str) -> Option<(Vec<Line>, bool)> {
         for (offset, text) in all[start..end].iter().enumerate() {
             let index = start + offset;
             let matched = hits.binary_search(&index).is_ok();
-            let text = if text.len() > MAX_LINE {
-                let at = if matched {
-                    first_match(text, searched[index], &needle, lowered)
-                } else {
-                    0
-                };
-                cut(text, at)
+            let at = if matched && text.len() > MAX_LINE {
+                first_match(text, &needle, lowered)
             } else {
-                (*text).to_owned()
+                0
             };
             lines.push(Line {
                 number: index + 1,
-                text,
+                text: cut(text, at),
                 matched,
             });
         }
@@ -156,14 +150,15 @@ fn matching_lines(text: &str, phrase: &str) -> Option<(Vec<Line>, bool)> {
     Some((lines, more))
 }
 
-/// The character of `line` where `needle` first appears in `searched`, the
-/// line as searched. When `lowered`, `searched` is the lowercase of `line`,
-/// and a letter can grow there: `İ` becomes `i̇`, two characters.
-fn first_match(line: &str, searched: &str, needle: &str, lowered: bool) -> usize {
-    let offset = searched.find(needle).unwrap_or(0);
+/// The character of `line` where `needle` first appears. When `lowered`,
+/// `needle` is found in the lowercase of `line`, where a letter can grow:
+/// `İ` becomes `i̇`, two characters.
+fn first_match(line: &str, needle: &str, lowered: bool) -> usize {
     if !lowered {
+        let offset = line.find(needle).unwrap_or(0);
         return line[..offset].chars().count();
     }
+    let offset = line.to_lowercase().find(needle).unwrap_or(0);
     let mut bytes = 0;
     line.chars()
         .take_while(|letter| {
@@ -176,6 +171,10 @@ fn first_match(line: &str, searched: &str, needle: &str, lowered: bool) -> usize
 /// `line` cut to `MAX_LINE` characters around the character `at`, with `…`
 /// where text was left out.
 fn cut(line: &str, at: usize) -> String {
+    // Cheaper than a count: a character takes one byte or more.
+    if line.len() <= MAX_LINE {
+        return line.to_owned();
+    }
     let count = line.chars().count();
     if count <= MAX_LINE {
         return line.to_owned();

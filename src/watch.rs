@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode, WatcherKind,
-    event::{EventKind, ModifyKind, RenameMode},
+    event::{CreateKind, DataChange, EventKind, ModifyKind, RemoveKind, RenameMode},
 };
 use notify_debouncer_full::{DebounceEventResult, Debouncer, NoCache, new_debouncer_opt};
 use serde::Serialize;
@@ -364,17 +364,16 @@ fn events(
         if notify_event.need_rescan() {
             return vec![Event::Resync];
         }
-        if fsevents {
-            if let Some(event) = from_disk(notify_event, folders) {
-                push(&mut events, event);
-            }
-            continue;
-        }
         let path = |index: usize| {
             let path = notify_event.paths.get(index)?;
             folders.relative(path)
         };
-        let event = match notify_event.kind {
+        let kind = if fsevents {
+            kind_from_disk(notify_event)
+        } else {
+            notify_event.kind
+        };
+        let event = match kind {
             EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
                 path(0).map(|path| Event::Created { path })
             }
@@ -425,24 +424,25 @@ fn events(
 
 /// For each path, FSEvents reports all the flags that the path collected, in
 /// no order, and never the side of a rename: only the disk tells whether
-/// the path is gone.
-fn from_disk(event: &notify::Event, folders: &Folders) -> Option<Event> {
-    let absolute = event.paths.first()?;
-    let path = folders.relative(absolute)?;
+/// the path is gone. A path that is there was created after a creation or
+/// a rename, and changed after anything else.
+fn kind_from_disk(event: &notify::Event) -> EventKind {
     // Not `exists()`, which follows a link: a link to a hung mount would
     // block the watcher.
     let gone = || {
-        absolute
-            .symlink_metadata()
-            .is_err_and(|error| error.kind() == ErrorKind::NotFound)
+        event.paths.first().is_some_and(|path| {
+            path.symlink_metadata()
+                .is_err_and(|error| error.kind() == ErrorKind::NotFound)
+        })
     };
-    let event = match event.kind {
-        EventKind::Access(_) | EventKind::Any | EventKind::Other => return None,
-        _ if gone() => Event::Removed { path },
-        EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(_)) => Event::Created { path },
-        _ => Event::Changed { path },
-    };
-    Some(event)
+    match event.kind {
+        EventKind::Access(_) | EventKind::Any | EventKind::Other => event.kind,
+        _ if gone() => EventKind::Remove(RemoveKind::Any),
+        EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(_)) => {
+            EventKind::Create(CreateKind::Any)
+        }
+        _ => EventKind::Modify(ModifyKind::Data(DataChange::Any)),
+    }
 }
 
 /// Sends no event twice in a row for a path, and no change to a file just
@@ -837,7 +837,7 @@ mod tests {
     /// Maps `batch`, made of `(kind, name)` in a folder that holds `here.md`
     /// only, as on FSEvents.
     fn on_fsevents(batch: &[(EventKind, &str)]) -> Vec<Event> {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         std::fs::write(root.path().join("here.md"), "").unwrap();
         let folders = Folders {
             root: root.path().to_owned(),

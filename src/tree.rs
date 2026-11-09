@@ -35,12 +35,13 @@ pub struct Node {
 /// file are left out.
 pub fn build(workspace: &Workspace) -> Node {
     let root = &workspace.root;
+    let hidden_root = is_hidden(root);
     let found = walk(root, |entry| {
         // Paths that are not UTF-8 could not be asked for again by the page.
         let relative = entry.path().strip_prefix(root).ok()?.to_str()?;
         Some((
             relative.to_owned(),
-            viewable_file(&workspace.dir, root, relative)?,
+            viewable_file(&workspace.dir, hidden_root, relative)?,
         ))
     });
     let mut top = Folder::default();
@@ -75,9 +76,10 @@ fn bad_ignore_file(folder: &Path) -> Option<PathBuf> {
 
 /// What `keep` gives for each entry of the workspace that the tree may
 /// show, folders included: gitignored entries, `.git` and `.mdame` stay
-/// out, and so does a folder with a bad ignore file. A folder comes before its entries: the walker visits it first,
-/// since a visit can skip a folder's entries (`WalkState::Skip`). The rest
-/// of the order changes from walk to walk.
+/// out, and so does a folder with a bad ignore file. A folder comes before
+/// its entries: the walker visits it first, since a visit can skip a
+/// folder's entries (`WalkState::Skip`). The rest of the order changes from
+/// walk to walk.
 pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) -> Vec<T> {
     let _walking = WALKING.lock().unwrap_or_else(PoisonError::into_inner);
     let kept = Mutex::new(Vec::new());
@@ -85,17 +87,14 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
     // Ignore files above the root count only inside a repository, as in
     // git: a `.gitignore` in a home folder without `.git` must not hide
     // the notes below it.
-    let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
+    let repo_depth = root.ancestors().position(|dir| dir.join(".git").exists());
+    let in_repo = repo_depth.is_some();
     // The walker reads the ignore files of the root, and of the folders
     // above it up to the repository's root, before any filter.
-    let mut read_first = Vec::new();
-    for folder in root.ancestors() {
-        read_first.push(folder);
-        if !in_repo || folder.join(".git").exists() {
-            break;
-        }
-    }
-    if let Some(file) = read_first.into_iter().find_map(bad_ignore_file) {
+    let mut read_first = root
+        .ancestors()
+        .take(repo_depth.map_or(1, |depth| depth + 1));
+    if let Some(file) = read_first.find_map(bad_ignore_file) {
         tracing::warn!(
             "the tree is empty: {} is not a regular file",
             file.display()
@@ -138,13 +137,13 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
 
 /// The family and modified time of a viewable file, or `None` for
 /// anything else. In hidden folders, only markdown is viewable, also when
-/// the root itself is in one.
+/// the root itself is hidden or in one.
 /// The `Dir` follows a symlink only while it stays in the workspace, so a
 /// link to a file inside counts as a file and a link out is left out; the
 /// walker does not descend into a link to a folder.
-fn viewable_file(dir: &Dir, root: &Path, relative: &str) -> Option<File> {
+fn viewable_file(dir: &Dir, hidden_root: bool, relative: &str) -> Option<File> {
     let family = Family::of(relative)?;
-    if family != Family::Markdown && is_hidden(&root.join(relative)) {
+    if family != Family::Markdown && (hidden_root || is_hidden(Path::new(relative))) {
         return None;
     }
     let metadata = dir

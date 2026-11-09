@@ -78,11 +78,11 @@ const MAX_IGNORE_BYTES: u64 = 1024 * 1024;
 
 /// The ignore file of `folder` that the walker must not read, and why, if
 /// any. Through links, each must be a regular file of 16 KiB at most,
-/// outside the pseudo file systems of the kernel. Otherwise the walker could read without end:
-/// a FIFO blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0
-/// bytes but holds gigabytes. A cloned repository can hold a link to any of
-/// them. `read` adds up the bytes that the walk reads, up to
-/// `MAX_IGNORE_BYTES`.
+/// outside the pseudo file systems of the kernel. Otherwise the walker
+/// could read without end: a FIFO blocks, `/dev/zero` never ends, and
+/// `/proc/self/pagemap` says 0 bytes but holds gigabytes. A cloned
+/// repository can hold a link to any of them. `read` adds up the bytes that
+/// the walk reads, up to `MAX_IGNORE_BYTES`.
 fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static str)> {
     let mut size = 0;
     for name in IGNORE_FILES {

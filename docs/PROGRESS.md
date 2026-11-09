@@ -732,7 +732,9 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 9. `.github/check-release.sh` reads the port from the URL that mdame prints (done). If port 4891 was busy, mdame took the next free one, but the script still requested 4891. Check 19 found it: another mdame held 4891 and answered 403.
    - The script sends mdame's output to a file, and reads the address from the line `mdame on http://…/`. Rust's stdout writes each line at once, also into a file. `--port 4891` goes: it was the default.
    - Checked on the debug build, with a Python server on 4891: the old script got 404 from it, and the new one passed on 4892. shellcheck passes.
-10. CI skips tags. CI runs twice for a release: on the branch and on the tag. `ci.yml` now leaves tags out.
+10. CI skips tags (done). CI ran twice for a release: on the branch and on the tag. `ci.yml` now leaves tags out.
+    - `push` lists `branches: ['**']`. A trigger that names only branches does not run for tags. `tags-ignore` alone would do the opposite: it names only tags, so no branch would run CI.
+    - Check, at the release of 0.1.1: the push of `main` runs CI, and the push of the tag does not.
 11. Smaller release binaries, with attestations. `strip = true` in the `dist` profile removes the symbols, so the binaries get smaller than 18 MB. `github-attestations = true` in dist lets users check an archive with `gh attestation verify`. `dist plan` checks the config.
 12. A licence that GitHub detects. GitHub's API returns `NOASSERTION` for mdame, and the sidebar shows "View license", not "MIT". `LICENSE` keeps the MIT text with its three copyright lines. The sentence on mdlive and the notices of Lucide, Feather and Primer move to a file of their own. That file goes into the package and into the release archives. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
     - Check, after the merge: `gh api repos/KamalF/mdame/license` returns `MIT`.
@@ -763,7 +765,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 10, CI skips tags.
+1. Milestone 11, on the `m11-fixes` branch: commit 11, smaller release binaries, with attestations.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

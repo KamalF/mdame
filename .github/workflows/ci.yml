@@ -1,6 +1,11 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  # Only branches, so not tags: CI already tested the commit of a release
+  # tag on its branch.
+  push:
+    branches: ['**']
+  pull_request:
 
 permissions:
   contents: read

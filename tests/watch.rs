@@ -1,9 +1,5 @@
 //! Watcher cases ported from mdlive's `tests/websocket_test.rs`.
 
-// On macOS, FSEvents merges the kinds of the events of a path: a known
-// issue, listed in the README.
-#![cfg(target_os = "linux")]
-
 mod common;
 
 use std::fs;
@@ -55,9 +51,28 @@ impl Watched {
 
     async fn assert_next(&mut self, expected: &[Event]) {
         let events = self.next().await;
-        let same = events.len() == expected.len() && expected.iter().all(|e| events.contains(e));
-        assert!(same, "expected {expected:?}, got {events:?}");
+        assert!(
+            same(&events, expected),
+            "expected {expected:?}, got {events:?}"
+        );
     }
+}
+
+/// In any order. On macOS, a write can be `created`: for some seconds after
+/// the creation of a file, FSEvents keeps reporting it.
+fn same(events: &[Event], expected: &[Event]) -> bool {
+    let matches = |expected: &Event, event: &Event| {
+        expected == event
+            || cfg!(target_os = "macos")
+                && matches!(
+                    (expected, event),
+                    (Event::Changed { path }, Event::Created { path: created }) if path == created
+                )
+    };
+    events.len() == expected.len()
+        && expected
+            .iter()
+            .all(|expected| events.iter().any(|event| matches(expected, event)))
 }
 
 fn changed(path: &str) -> Event {
@@ -82,6 +97,16 @@ fn renamed(from: &str, to: &str) -> Event {
     Event::Renamed {
         from: from.to_owned(),
         to: to.to_owned(),
+    }
+}
+
+/// On macOS, the disk gives the kinds of the events: FSEvents merges the
+/// events of a path, and never tells the side of a rename.
+fn per_os<'a>(linux: &'a [Event], macos: &'a [Event]) -> &'a [Event] {
+    if cfg!(target_os = "macos") {
+        macos
+    } else {
+        linux
     }
 }
 
@@ -123,7 +148,10 @@ async fn emacs_save_is_a_rename_then_a_creation() {
     fs::rename(&file, watched.path("a.md~")).unwrap();
     fs::write(&file, "# Saved\n").unwrap();
     watched
-        .assert_next(&[renamed("a.md", "a.md~"), created("a.md")])
+        .assert_next(per_os(
+            &[renamed("a.md", "a.md~"), created("a.md")],
+            &[created("a.md"), created("a.md~")],
+        ))
         .await;
 }
 
@@ -145,7 +173,12 @@ async fn save_through_a_temporary_file_creates_it() {
     let temporary = watched.path("a.md.tmp.12345");
     fs::write(&temporary, "# Saved\n").unwrap();
     fs::rename(&temporary, watched.path("a.md")).unwrap();
-    watched.assert_next(&[created("a.md")]).await;
+    watched
+        .assert_next(per_os(
+            &[created("a.md")],
+            &[removed("a.md.tmp.12345"), created("a.md")],
+        ))
+        .await;
 }
 
 #[tokio::test]
@@ -161,7 +194,10 @@ async fn delete_then_create_is_removed_and_created() {
     fs::remove_file(watched.path("a.md")).unwrap();
     fs::write(watched.path("a.md"), "# Rewritten\n").unwrap();
     watched
-        .assert_next(&[removed("a.md"), created("a.md")])
+        .assert_next(per_os(
+            &[removed("a.md"), created("a.md")],
+            &[created("a.md")],
+        ))
         .await;
 }
 
@@ -171,7 +207,10 @@ async fn folder_deleted_then_created_is_removed_and_created() {
     fs::remove_dir_all(watched.path("docs")).unwrap();
     fs::create_dir(watched.path("docs")).unwrap();
     watched
-        .assert_next(&[removed("docs"), created("docs")])
+        .assert_next(per_os(
+            &[removed("docs"), created("docs")],
+            &[created("docs")],
+        ))
         .await;
 }
 
@@ -184,7 +223,10 @@ async fn folder_swapped_through_moves_is_removed_and_created() {
     fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
     fs::rename(outside.path().join("new"), watched.path("docs")).unwrap();
     watched
-        .assert_next(&[removed("docs"), created("docs"), created("docs/b.md")])
+        .assert_next(per_os(
+            &[removed("docs"), created("docs"), created("docs/b.md")],
+            &[created("docs"), created("docs/b.md")],
+        ))
         .await;
 }
 
@@ -194,7 +236,16 @@ async fn renames_are_paired() {
     fs::rename(watched.path("a.md"), watched.path("c.md")).unwrap();
     fs::rename(watched.path("sub"), watched.path("moved")).unwrap();
     watched
-        .assert_next(&[renamed("a.md", "c.md"), renamed("sub", "moved")])
+        .assert_next(per_os(
+            &[renamed("a.md", "c.md"), renamed("sub", "moved")],
+            &[
+                removed("a.md"),
+                created("c.md"),
+                removed("sub"),
+                created("moved"),
+                created("moved/b.md"),
+            ],
+        ))
         .await;
 }
 
@@ -212,6 +263,10 @@ async fn populated_folder_moved_in_is_created() {
 }
 
 #[tokio::test]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "notify-debouncer-full drops the events of a folder delete on FSEvents: a known issue"
+)]
 async fn folder_delete_is_one_removal() {
     let mut watched = Watched::new(&[A, ("doomed/child.md", b"")]);
     fs::remove_dir_all(watched.path("doomed")).unwrap();
@@ -229,7 +284,7 @@ async fn unreadable_folder_does_not_stop_the_watch() {
     fs::write(watched.path("sub/b.md"), "# B\n").unwrap();
     let result = watched.next().await;
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
-    assert_eq!(result, [changed("sub/b.md")]);
+    assert!(same(&result, &[changed("sub/b.md")]), "got {result:?}");
 }
 
 #[tokio::test]
@@ -288,7 +343,12 @@ async fn a_file_written_right_after_its_folder_is_created_is_seen() {
 async fn a_renamed_folder_stays_watched() {
     let mut watched = Watched::new(&[A, ("sub/b.md", b"")]);
     fs::rename(watched.path("sub"), watched.path("moved")).unwrap();
-    watched.assert_next(&[renamed("sub", "moved")]).await;
+    watched
+        .assert_next(per_os(
+            &[renamed("sub", "moved")],
+            &[removed("sub"), created("moved"), created("moved/b.md")],
+        ))
+        .await;
     fs::write(watched.path("moved/b.md"), "# B\n").unwrap();
     watched.assert_next(&[changed("moved/b.md")]).await;
 }
@@ -319,7 +379,10 @@ async fn a_folder_created_again_stays_watched() {
     fs::remove_dir_all(watched.path("docs")).unwrap();
     fs::create_dir(watched.path("docs")).unwrap();
     watched
-        .assert_next(&[removed("docs"), created("docs")])
+        .assert_next(per_os(
+            &[removed("docs"), created("docs")],
+            &[created("docs")],
+        ))
         .await;
     fs::write(watched.path("docs/b.md"), "# B\n").unwrap();
     watched.assert_next(&[created("docs/b.md")]).await;
@@ -333,7 +396,10 @@ async fn a_folder_swapped_through_moves_stays_watched() {
     fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
     fs::rename(outside.path().join("new"), watched.path("docs")).unwrap();
     watched
-        .assert_next(&[removed("docs"), created("docs")])
+        .assert_next(per_os(
+            &[removed("docs"), created("docs")],
+            &[created("docs")],
+        ))
         .await;
     fs::write(watched.path("docs/b.md"), "# B\n").unwrap();
     watched.assert_next(&[created("docs/b.md")]).await;

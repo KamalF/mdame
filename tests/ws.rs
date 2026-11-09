@@ -37,19 +37,20 @@ async fn next_text(client: &mut Client) -> String {
 }
 
 #[tokio::test]
-#[cfg_attr(
-    not(target_os = "linux"),
-    ignore = "FSEvents reports this write as created: a known issue"
-)]
 async fn file_change_reaches_the_tab_with_a_relative_path() {
     let dir = tempfile::tempdir().unwrap();
     let (_state, url) = serve(common::workspace(dir.path(), &[("docs/a.md", b"# A\n")])).await;
     let mut client = connect(&url).await;
 
     fs::write(dir.path().join("ws/docs/a.md"), "# Changed\n").unwrap();
-    assert_eq!(
-        next_text(&mut client).await,
-        r#"{"type":"changed","path":"docs/a.md"}"#
+    let text = next_text(&mut client).await;
+    let changed = r#"{"type":"changed","path":"docs/a.md"}"#;
+    // For some seconds after the creation of a file, FSEvents keeps
+    // reporting it.
+    let created = r#"{"type":"created","path":"docs/a.md"}"#;
+    assert!(
+        text == changed || cfg!(target_os = "macos") && text == created,
+        "got {text}"
     );
 }
 

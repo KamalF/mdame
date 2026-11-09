@@ -705,8 +705,12 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - `events()` takes a `fsevents` flag, which `forward` sets from `watches_whole_trees()`. The two tests pass `true` on a temporary folder, so the macOS branch runs on Linux too. The other unit tests pass `false`: their paths, such as `/ws/a.md`, do not exist, and would all give `removed`.
    - The check reads the disk with `symlink_metadata()`, which does not follow a link, for the reason of the nit of milestone 10 on `is_dir()` and `exists()`.
    - The cause is under Open points.
-3. The watcher tests on macOS. `tests/watch.rs` runs on macOS too. The cases that still differ get `ignore` on macOS, with the reason. macOS gets its own cases for the kinds of commit 2. The README's known issue shrinks to folder deletes and renamed files, in a clearer wording than "merges the kinds of the events of a file".
-   - Before the push, Kamal runs the tests on a Mac, through `ssh sachamac`. After it, the macOS runner of CI runs them.
+3. The watcher tests on macOS (done). `tests/watch.rs` runs on macOS too, and so does `file_change_reaches_the_tab_with_a_relative_path` of `tests/ws.rs`. The README's known issue shrinks to folder deletes and renamed files.
+   - Changed from the plan: no case gets `ignore` for its kinds. Where FSEvents gives other events, the test expects them on macOS: `per_os(linux, macos)` picks the expected events. So every case runs on macOS. Only `folder_delete_is_one_removal` gets `ignore` on macOS: it gets no event there, and expecting none would hide the bug.
+   - On macOS, a rename gives `removed` and `created`, and the entries of a renamed folder come as `created`. A delete then a create of one path gives `created` only. A save through a temporary file also gives `removed` for the temporary file.
+   - On macOS, a write gives `created` while FSEvents still reports the creation of the file, for some seconds, and then `changed`. A first version expected `created`: on the Mac, one test failed in each run, and one in one run of three. So on macOS, the tests accept `created` where they expect `changed`.
+   - A fix that the tests found: a folder swapped for another one sent no entries of the new one on macOS. FSEvents gives `RenameMode::Any`, which did not count as gone, so the folder kept its place in the watched folders. `Any` now counts. inotify never gives it.
+   - Kamal ran the tests on a Mac, through `ssh sachamac`, with the runbook `~/dev/claude/runbooks/2026-11-09-mdame-m11-macos.md`. On commit 2, 13 of the 25 tests failed, all as above. With this commit, the watcher and WebSocket tests passed in 5 runs of 5, and all the tests passed once, with 2 ignored: the folder delete, and the save test that needs `O_PATH`.
 4. The rules of hidden folders apply to the root. `mdame ~/.claude` lists `settings.json`, and a leaked token can rewrite it: the hidden and `.git`/`.mdame` rules look only below the root. They now apply to the root's own real path too. In a hidden root, the tree lists and the editor edits markdown only. If the root is in `.git` or `.mdame`, mdame stops at start with a readable error. `a_hidden_root_lists_only_markdown`, `a_hidden_root_edits_only_markdown`, `a_root_in_git_or_mdame_stops_mdame`.
 5. Cross-site requests. The guard refuses `/api/*` when `Sec-Fetch-Site` is `cross-site`. Browsers send this header on each request, also on the image and script loads that carry no `Origin`. It is a check beside the `Origin` check and the `SameSite=Strict` cookie. A request without the header, such as one from curl, passes. `a_cross_site_api_request_is_refused`, `an_api_request_without_sec_fetch_site_passes`.
 6. Long lines in search answers. A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A line over a few hundred characters is now cut around its first match. `a_long_line_is_cut_around_the_match`.
@@ -745,17 +749,16 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 3, the watcher tests on macOS.
+1. Milestone 11, on the `m11-fixes` branch: commit 4, the rules of hidden folders on the root.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 
 ## Open points
 
-- Live updates on macOS, a known issue of 0.1.0. Commits 2 and 3 of milestone 11 fix most of it. Measured on an Intel Mac with macOS 15.7.9, on 8 November 2026: 16 of the 25 tests of `tests/watch.rs` fail, and so does the ignored test of `tests/ws.rs`.
-  - What a user sees. A write gives `created`, which costs only a reload of the tree. A delete gives `changed`, so the file stays in the tree and in the list of changes. A folder delete gives nothing, so the folder stays in the tree. A rename, a save through a temporary file, and a vim or emacs save give `resync`: the tab reloads the tree and the file on screen, and does not follow a renamed file.
-  - The failures do not come from the tests. Files that existed 5 s before the watch started give the same events, and so does a file written 5 s after its creation: FSEvents keeps reporting a creation for many seconds.
-  - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. A rename of unknown side is `RenameMode::Any`, and `events()` answers it with `resync`.
-  - After the disk check, a folder delete still sends nothing: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
+- Live updates on macOS: two known issues are left after commits 2 and 3 of milestone 11. A tab does not follow a renamed file, and a folder delete sends nothing, so the folder stays in the tree.
+  - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. Since commit 2, the disk gives the kinds, so a rename gives `removed` and `created`.
+  - For some seconds after the creation of a file, FSEvents keeps reporting it, so a write gives `created`. It costs a reload of the tree. Measured on an Intel Mac with macOS 15.7.9, on 8 and 9 November 2026.
+  - A folder delete: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
 - For milestone 12, from the review of milestone 3: `aria-selected` on the row that the arrow keys choose, with the arrow keys in the sidebar tree.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
@@ -768,7 +771,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 - Nits deferred by the review of milestone 10:
   - The watcher's `is_dir()` and `exists()` follow symlinks out of the workspace: a link to a hung or automounted path can block the watcher. `symlink_metadata()` would not follow it.
-  - The README's macOS known issue, "merges the kinds of the events of a file", reads slowly.
 - From the review of milestone 9, for later:
   - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. On HFS+, so do names with an ignorable code point, such as `.mdam\u{200C}e`: macOS editing, new in milestone 10, makes it reachable. Git guards the same aliases. Not checked.
   - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`.

@@ -184,14 +184,18 @@ impl Folders {
         // watches: every folder is watched again.
         let rescan = batch.iter().any(notify::Event::need_rescan);
         // notify drops the watches of a folder removed or moved away, and
-        // of the folders below it, even if the path is back by now.
+        // of the folders below it, even if the path is back by now. FSEvents
+        // never tells the side of a rename (`Any`): a folder swapped for
+        // another one then counts as new, and its entries are sent.
         let gone: HashSet<&Path> = batch
             .iter()
             .filter(|event| {
                 matches!(
                     event.kind,
                     EventKind::Remove(_)
-                        | EventKind::Modify(ModifyKind::Name(RenameMode::From | RenameMode::Both))
+                        | EventKind::Modify(ModifyKind::Name(
+                            RenameMode::From | RenameMode::Both | RenameMode::Any
+                        ))
                 )
             })
             .filter_map(|event| event.paths.first().map(PathBuf::as_path))

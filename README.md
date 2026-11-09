@@ -20,9 +20,9 @@ changed block, and the status bar lists another file that changed. Then diff
 mode shows the text that you last saw.](docs/demo.gif)
 
 0.1.0 is the first release. I have used it on Linux only. On macOS, live
-updates have [a known issue](#known-issues), and their end-to-end tests run on
-Linux only. All other tests pass on macOS, except one that needs a Linux
-feature. mdame does not run on Windows.
+updates have [two known issues](#known-issues). The tests pass on macOS too,
+except one that needs a Linux feature, and one of the known issues. mdame does
+not run on Windows.
 
 ## Install
 
@@ -182,9 +182,10 @@ options turns this off.
 
 - On Linux, on a large folder, live updates start some seconds after mdame
   starts: 12 to 18 s for 15,000 folders, as measured on one machine.
-- On macOS, the page can miss a change made outside mdame. macOS merges the
-  kinds of the events of a file, so mdame reads some deletions as changes, and
-  misses some folder deletions. Reload the page to see them.
+- On macOS, if a program renames the file on screen, the tab does not follow
+  it. Open the new name from the tree.
+- On macOS, a folder deleted outside mdame stays in the tree until you reload
+  the page.
 
 ## Design, tests and reviews
 
@@ -207,10 +208,10 @@ tests at one layer: the lowest one that sees it. The tests use the real parts,
 with no mocks: real files in a temporary folder, and the real HTTP router.
 Rendering has snapshot tests, and paths and URLs have property tests. From
 milestone 6, at the end of each milestone, `cargo mutants` changes the code to
-find the rules that no test checks. CI runs the tests on Linux and macOS,
-except the end-to-end tests of live updates and one test of saving, which run
-on Linux only. After each release,
-CI installs mdame with Homebrew, and checks that it starts.
+find the rules that no test checks. CI runs the tests on Linux and macOS. On
+macOS, it skips one test of saving, which needs a Linux feature, and the test
+of a folder delete, a known issue. After each release, CI installs mdame with
+Homebrew, and checks that it starts.
 
 ### Reviews
 

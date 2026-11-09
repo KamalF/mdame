@@ -129,6 +129,12 @@ as the git worktrees that an agent keeps in `.claude/worktrees/`, list them in
 a `.ignore` file at the root of the folder, or in `.git/info/exclude`. Both
 use the syntax of `.gitignore`.
 
+mdame leaves out a folder whose ignore file it cannot read safely: a file over
+64 KiB, or one that is not a regular file, such as a link to `/dev/zero`. It
+also stops past 1 MiB of ignore files in all. The terminal says which file. If
+such a file is in the folder that mdame opens, or in a folder above it, the
+tree is empty.
+
 For the keyboard shortcuts, press `?` or click the keyboard button in the status bar.
 
 ## Compared with VS Code

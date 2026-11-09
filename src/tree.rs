@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
@@ -64,14 +65,28 @@ static WALKING: Mutex<()> = Mutex::new(());
 /// The files that the walker reads in each folder, for its ignore rules.
 const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
 
-/// The ignore file of `folder` that is not a regular file, through links,
-/// if any. The walker would read it without end: a FIFO blocks, and
-/// `/dev/zero` never ends. A cloned repository can hold a link to it.
+/// The walker builds globs from an ignore file: they take tens of times its
+/// size in memory.
+const MAX_IGNORE_FILE: u64 = 1024 * 1024;
+
+/// The ignore file of `folder` that the walker must not read, if any.
+/// Through links, it must be a regular file of 1 MiB at most, on the device
+/// of its folder. Otherwise the walker could read without end: a FIFO
+/// blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0 bytes
+/// but holds gigabytes. A cloned repository can hold a link to any of them.
 fn bad_ignore_file(folder: &Path) -> Option<PathBuf> {
     IGNORE_FILES
         .iter()
         .map(|name| folder.join(name))
-        .find(|path| path.metadata().is_ok_and(|metadata| !metadata.is_file()))
+        .find(|path| {
+            let Ok(file) = path.metadata() else {
+                return false;
+            };
+            let same_device = folder
+                .metadata()
+                .is_ok_and(|folder| folder.dev() == file.dev());
+            !file.is_file() || file.len() > MAX_IGNORE_FILE || !same_device
+        })
 }
 
 /// What `keep` gives for each entry of the workspace that the tree may
@@ -87,14 +102,10 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
     // Ignore files above the root count only inside a repository, as in
     // git: a `.gitignore` in a home folder without `.git` must not hide
     // the notes below it.
-    let repo_depth = root.ancestors().position(|dir| dir.join(".git").exists());
-    let in_repo = repo_depth.is_some();
-    // The walker reads the ignore files of the root, and of the folders
-    // above it up to the repository's root, before any filter.
-    let mut read_first = root
-        .ancestors()
-        .take(repo_depth.map_or(1, |depth| depth + 1));
-    if let Some(file) = read_first.find_map(bad_ignore_file) {
+    let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
+    // The walker reads the ignore files of the root and of each folder above
+    // it before any filter, even those whose rules it does not apply.
+    if let Some(file) = root.ancestors().find_map(bad_ignore_file) {
         tracing::warn!(
             "the tree is empty: {} is not a regular file",
             file.display()
@@ -356,13 +367,21 @@ mod tests {
     fn a_folder_with_a_bad_ignore_file_is_skipped() {
         use std::os::unix::fs::symlink;
         let root = crate::workspace::tempdir();
-        for folder in ["fifo", "device", "repo", "fine"] {
+        for folder in ["fifo", "device", "repo", "large", "fine"] {
             write(root.path(), &format!("{folder}/a.md"), 1);
         }
         mkfifo(&root.path().join("fifo/.gitignore"));
         symlink("/dev/null", root.path().join("device/.ignore")).unwrap();
         fs::create_dir_all(root.path().join("repo/.git/info")).unwrap();
         symlink("/dev/null", root.path().join("repo/.git/info/exclude")).unwrap();
+        let large = fs::File::create(root.path().join("large/.gitignore")).unwrap();
+        large.set_len(MAX_IGNORE_FILE + 1).unwrap();
+        // A regular file on another device, small should the check break.
+        if cfg!(target_os = "linux") {
+            write(root.path(), "procfs/a.md", 1);
+            symlink("/proc/self/status", root.path().join("procfs/.gitignore")).unwrap();
+        }
+        fs::write(root.path().join("fine/.gitignore"), "").unwrap();
 
         let paths = tree_paths(&walk_within_seconds(root.path()));
         assert_eq!(paths, ["", "fine", "fine/a.md"]);
@@ -375,11 +394,17 @@ mod tests {
         mkfifo(&root.path().join(".gitignore"));
         assert_eq!(tree_paths(&walk_within_seconds(root.path())), [""]);
 
-        let repo = crate::workspace::tempdir();
-        fs::create_dir(repo.path().join(".git")).unwrap();
-        mkfifo(&repo.path().join(".ignore"));
-        write(repo.path(), "notes/a.md", 1);
-        let notes = repo.path().join("notes");
+        let parent = crate::workspace::tempdir();
+        mkfifo(&parent.path().join(".ignore"));
+        write(parent.path(), "notes/a.md", 1);
+        let notes = parent.path().join("notes");
+        assert_eq!(tree_paths(&walk_within_seconds(&notes)), [""]);
+
+        let outer = crate::workspace::tempdir();
+        mkfifo(&outer.path().join(".gitignore"));
+        fs::create_dir_all(outer.path().join("repo/.git")).unwrap();
+        write(outer.path(), "repo/notes/a.md", 1);
+        let notes = outer.path().join("repo/notes");
         assert_eq!(tree_paths(&walk_within_seconds(&notes)), [""]);
     }
 

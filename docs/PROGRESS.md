@@ -729,7 +729,9 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The tests link to `/dev/null`, not `/dev/zero`: if the check broke, `/dev/zero` would fill the memory of the test run. A FIFO test waits 5 s at most for the walk.
    - Cost, measured on 11,935 folders in `~/.cargo/registry/src`, as the median of 25 walks: 104 to 120 ms without the check, 137 to 150 ms with it. That is about 3 µs for each folder, for 3 `stat` calls. Checking `.gitignore` and `.ignore` only gave 127 ms.
 8. Two notes in the README (done). "With a coding agent" repeats the advice of the spec: deny the agent reads of mdame's state folder, which holds the token, and of the browser profile. And spellcheck is on by default, but a browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor.
-9. `.github/check-release.sh` reads the port from the URL that mdame prints. If port 4891 is busy, mdame takes the next free one, but the script still requests 4891. Check 19 found it: another mdame held 4891 and answered 403.
+9. `.github/check-release.sh` reads the port from the URL that mdame prints (done). If port 4891 was busy, mdame took the next free one, but the script still requested 4891. Check 19 found it: another mdame held 4891 and answered 403.
+   - The script sends mdame's output to a file, and reads the address from the line `mdame on http://…/`. Rust's stdout writes each line at once, also into a file. `--port 4891` goes: it was the default.
+   - Checked on the debug build, with a Python server on 4891: the old script got 404 from it, and the new one passed on 4892. shellcheck passes.
 10. CI skips tags. CI runs twice for a release: on the branch and on the tag. `ci.yml` now leaves tags out.
 11. Smaller release binaries, with attestations. `strip = true` in the `dist` profile removes the symbols, so the binaries get smaller than 18 MB. `github-attestations = true` in dist lets users check an archive with `gh attestation verify`. `dist plan` checks the config.
 12. A licence that GitHub detects. GitHub's API returns `NOASSERTION` for mdame, and the sidebar shows "View license", not "MIT". `LICENSE` keeps the MIT text with its three copyright lines. The sentence on mdlive and the notices of Lucide, Feather and Primer move to a file of their own. That file goes into the package and into the release archives. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
@@ -761,7 +763,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 9, the port in `check-release.sh`.
+1. Milestone 11, on the `m11-fixes` branch: commit 10, CI skips tags.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

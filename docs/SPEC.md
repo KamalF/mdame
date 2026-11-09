@@ -298,7 +298,7 @@ mdame/
   node_modules/         installed by bun ci (git-ignored)
   tests/                route and watcher integration tests; fixtures/
   docs/SPEC.md          this document
-  LICENSE, NOTICE, README.md, CLAUDE.md
+  LICENSE, NOTICE, README.md, CHANGELOG.md, CLAUDE.md
 ```
 
 **Library plus thin binary.** Integration tests in `tests/` are separate crates and can only use what `lib.rs` exports, so the modules live in the library and `main.rs` only parses flags, sets up tracing and calls `mdame::app::run`.

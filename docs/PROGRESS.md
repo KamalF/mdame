@@ -764,7 +764,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 
 Kamal, with no commit, before the release:
 
-- Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies, with a `GH_TOKEN` that can write the repository's contents. A compromised crate could push to `main` or replace the assets of earlier releases. The two settings limit it.
+- Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies. Since commit 11, that job can read the repository's contents only, but it can write attestations. The jobs that can write the contents run no dependency's code. The two settings still limit what a compromised action or tool could do: push to `main`, or replace the assets of earlier releases.
 - Topics for the repository on GitHub.
 - Yank mdame 0.0.1 on crates.io: the early build that held the name. `cargo install` already picks 0.1.0.
 - Report to the `ignore` crate, in BurntSushi/ripgrep, that an ignore file that is a FIFO or a link to `/dev/zero` makes the walker read without end. ripgrep has the same problem.

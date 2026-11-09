@@ -82,6 +82,12 @@ Then run `mdame` at the root of the project, and ask Claude Code for a plan.
    opens diff mode, where "Last seen" shows the text that you last saw, and
    its Restore button brings it back.
 
+Each request to mdame needs a token, so that other programs on your machine
+cannot change your files through it. An agent that can read the token can use
+it too. If your agent runs in a sandbox, deny it reads of
+`~/.local/state/mdame/`, which holds the token, and of your browser's profile,
+whose cookies hold it too.
+
 ## Usage
 
 ```sh
@@ -177,7 +183,8 @@ At the right of the text, an outline lists the h2 and h3 headings of the file.
 View options hides it.
 
 The editor underlines spelling mistakes, with your browser's dictionary. View
-options turns this off.
+options turns this off. If your browser checks spelling online, as Chrome does
+with Enhanced spell check, it sends the text that you edit to its vendor.
 
 ## Known issues
 

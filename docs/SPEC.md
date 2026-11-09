@@ -102,7 +102,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 - Change bars: each block that changed since you last saw the file gets a bar in the margin, as in a git gutter. Diff mode compares the text with that version, and can restore it.
 - Search: a panel searches the contents of the files, and shows the matching lines beside the list of files.
 
-**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist), and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. The binaries are stripped of their symbols, and each archive has an attestation of its build, which `gh attestation verify` checks. Each archive carries the licence texts of the Rust crates, written at the release. No install script: in `~/.local/bin`, the script of dist 0.33 takes over the PATH setup of other tools that dist built, such as uv. A public GitHub repository, and the crate on crates.io.
+**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist), and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. The binaries are stripped of their symbols, and each archive has an attestation of its build, which `gh attestation verify` checks. Each archive carries the licence texts of the Rust crates, written at the release. The release notes are the version's section of `CHANGELOG.md`. No install script: in `~/.local/bin`, the script of dist 0.33 takes over the PATH setup of other tools that dist built, such as uv. A public GitHub repository, and the crate on crates.io.
 
 ### Later, by cost
 

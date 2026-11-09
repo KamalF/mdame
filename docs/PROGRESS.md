@@ -755,7 +755,9 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
     - The toolchains went into a rustup home of their own, in the sandbox's temporary folder: `~/.rustup` is read-only there. rustup's own HTTP client lost the connection through the sandbox's proxy; `RUSTUP_USE_CURL=1` worked.
     - With edition 2024, cargo's resolver now prefers dependency versions that support 1.89: `cargo update` may hold back a crate that needs a newer Rust. To take it, raise `rust-version` first.
     - The README's Install says that Cargo needs Rust 1.89 or later.
-15. `CHANGELOG.md`, with a section for 0.1.0 and one for 0.1.1. dist takes the release notes of a version from it. Without it, the notes hold only the install instructions.
+15. `CHANGELOG.md`, with a section for 0.1.0 and one for 0.1.1 (done). dist takes the release notes of a version from it. Without it, the notes held only the install instructions.
+    - `dist plan --tag=v0.1.0` takes its title and notes from the section `## 0.1.0 - 2026-11-08`. dist also adds `CHANGELOG.md` to each archive.
+    - The section of 0.1.1 gets its date in commit 16. Its lines are for users: what changed for them, not how.
 16. Version 0.1.1, then the release. Kamal pushes the tag, and the job "Check release" runs on Linux and macOS. Then the manual checklist of milestone 11.
 
 Kamal, with no commit, before the release:
@@ -779,7 +781,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 15, `CHANGELOG.md`.
+1. Milestone 11, on the `m11-fixes` branch: the review, then commit 16, version 0.1.1.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

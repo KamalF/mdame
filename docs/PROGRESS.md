@@ -719,7 +719,10 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - Wider than the plan: only `same-origin` and `none` pass, so `same-site` is refused too. A page on another port of the same host is same-site, and the browser sends it the `SameSite=Strict` cookie. The page itself only fetches from its own origin, and a typed address sends `none`.
    - `/raw/` gets the check too: it serves the files of the workspace, as `/api/` does. `is_private` holds the two prefixes, for this check and for `Cache-Control: no-store`.
    - Pages get no check of `Sec-Fetch-Site`. A link from another site still gets no cookie, as before: the cookie is `SameSite=Strict`.
-6. Long lines in search answers. A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A line over a few hundred characters is now cut around its first match. `a_long_line_is_cut_around_the_match`.
+6. Long lines in search answers (done). A search answer had no limit on the length of a line, so a minified file could make it tens of MB. A line over 200 characters is now cut to 200, from 50 characters before its first match, with `…` where text was left out. A context line keeps its first 200 characters. `a_long_line_is_cut_around_the_match`, `a_cut_keeps_the_match_after_letters_that_lowercase_longer`.
+   - An answer now holds at most 50 files of 100 lines of 202 characters: about 4 MB with 4-byte characters, and far less in practice.
+   - Lowercasing can make a letter longer: `İ` becomes `i̇`, two characters. So without the case, the match's place in the lowercase line is not its place in the line. `first_match` adds up the length of each letter's lowercase until it reaches the match.
+   - The page highlights the phrase in the text that it gets, so it needs no change.
 7. Ignore files that are not regular files. A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, makes the walker read without end: mdame runs out of memory, or hangs. A cloned repository can hold such a link. In the parallel walker of the `ignore` crate, `filter_entry` runs before the crate reads the ignore files of a folder. So the filter can skip such a folder, with a warning. `a_folder_whose_gitignore_is_a_fifo_is_skipped`, `a_gitignore_linked_to_dev_zero_is_skipped`.
    - The walker reads the ignore files of the root and of its parents, and `.git/info/exclude`, before any filter. So mdame checks them before each walk. The commit settles what mdame does with a bad one.
    - ripgrep has the same problem. Report it to the `ignore` crate too.
@@ -755,7 +758,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 6, long lines in search answers.
+1. Milestone 11, on the `m11-fixes` branch: commit 7, ignore files that are not regular files.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

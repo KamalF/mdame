@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{self, ErrorKind, Read, Seek, Write};
 use std::os::fd::AsFd;
@@ -365,7 +366,11 @@ fn editable_name(path: &Path) -> io::Result<()> {
             "mdame does not edit files in .git or .mdame",
         ));
     }
-    let family = path.to_str().and_then(Family::of);
+    // From the name alone: the root's path may not be UTF-8.
+    let family = path
+        .file_name()
+        .and_then(OsStr::to_str)
+        .and_then(Family::of);
     if family != Some(Family::Markdown) && is_hidden(path) {
         return Err(io::Error::new(
             ErrorKind::Unsupported,
@@ -539,6 +544,21 @@ mod tests {
         let created = create(&dir, "hooks.json").unwrap_err();
         assert_eq!(created.kind(), ErrorKind::Unsupported);
         assert!(create(&dir, "notes.md").is_ok());
+    }
+
+    // macOS refuses a name that is not UTF-8.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_root_whose_path_is_not_utf8_edits_its_files() {
+        use std::os::unix::ffi::OsStrExt;
+        let tmp = crate::workspace::tempdir();
+        let root = tmp.path().join(OsStr::from_bytes(b"caf\xe9"));
+        std::fs::create_dir(&root).unwrap();
+        let dir = Dir::open_ambient_dir(&root, ambient_authority()).unwrap();
+        dir.write("a.md", "# A\n").unwrap();
+
+        assert!(view(&dir, "a.md").unwrap().editable);
+        assert!(create(&dir, "b.md").is_ok());
     }
 
     #[test]

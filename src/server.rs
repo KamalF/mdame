@@ -60,7 +60,9 @@ async fn state(State(app): State<Arc<AppState>>) -> Result<Json<StateResponse>, 
 /// The Host check stops DNS rebinding: a hostile domain that resolves to
 /// 127.0.0.1 still sends its own name as Host. The Origin check stops other
 /// web pages, which browsers mark with their own Origin. Requests without an
-/// Origin (curl, the page loading itself) pass.
+/// Origin (curl, the page loading itself) pass. An image or a script on
+/// another page sends no Origin: for the private routes, `Sec-Fetch-Site`
+/// stops it.
 ///
 /// Every request also needs the token: in the `t` query parameter, or the
 /// open code in `c`, either of which sets a cookie, or in that cookie.
@@ -118,6 +120,17 @@ fn admit(app: &AppState, req: &Request) -> Result<Admission, ApiError> {
             tracing::debug!(?origin, "refused: origin not allowed");
             return Err(ApiError::Forbidden("origin not allowed"));
         }
+    }
+
+    // Only the page fetches these, from its own origin. A typed address
+    // sends `none`, and curl sends nothing.
+    if let Some(site) = headers.get("sec-fetch-site")
+        && is_private(req.uri().path())
+        && site != "same-origin"
+        && site != "none"
+    {
+        tracing::debug!(?site, "refused: request from another site");
+        return Err(ApiError::Forbidden("request from another site"));
     }
 
     let Some(token) = access.token.clone() else {
@@ -292,10 +305,14 @@ fn same_secret(a: &str, b: &str) -> bool {
 
 const PAGE_CSP: &str = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src 'none'; object-src 'none'; frame-ancestors 'none'";
 
+/// The routes that answer with the files and the state of the workspace.
+fn is_private(path: &str) -> bool {
+    path.starts_with("/api/") || path.starts_with("/raw/")
+}
+
 async fn security_headers(req: Request, next: Next) -> Response {
     // A file may be private, and the browser's cache outlives the tab.
-    let path = req.uri().path();
-    let private = path.starts_with("/api/") || path.starts_with("/raw/");
+    let private = is_private(req.uri().path());
     let mut response = next.run(req).await;
     let headers = response.headers_mut();
     if private {

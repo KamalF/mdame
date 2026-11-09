@@ -42,7 +42,7 @@ fn with_access(bound: &str, open_codes: Vec<OpenCode>) -> AppState {
 #[tokio::test]
 async fn request_passes_only_with_own_host_own_origin_and_the_token() {
     #[rustfmt::skip]
-    let cases: [(_, _, _, &[(&str, &str)], _); 21] = [
+    let cases: [(_, _, _, &[(&str, &str)], _); 27] = [
         ("loopback, cookie", LOOPBACK, "/api/state", &[HOST, COOKIE], OK),
         ("own origin, 127.0.0.1", LOOPBACK, "/api/state", &[HOST, COOKIE, ("origin", "http://127.0.0.1:4891")], OK),
         ("own origin, localhost", LOOPBACK, "/api/state", &[("host", "localhost:4891"), COOKIE, ("origin", "http://localhost:4891")], OK),
@@ -51,6 +51,13 @@ async fn request_passes_only_with_own_host_own_origin_and_the_token() {
         ("origin on another local port", LOOPBACK, "/api/state", &[HOST, COOKIE, ("origin", "http://127.0.0.1:3000")], FORBIDDEN),
         // Sandboxed documents, such as files served by /raw, send "null".
         ("null origin", LOOPBACK, "/api/state", &[HOST, COOKIE, ("origin", "null")], FORBIDDEN),
+        // An image or a script on another page sends no origin.
+        ("the page's own fetch", LOOPBACK, "/api/state", &[HOST, COOKIE, ("sec-fetch-site", "same-origin")], OK),
+        ("typed address", LOOPBACK, "/api/state", &[HOST, COOKIE, ("sec-fetch-site", "none")], OK),
+        ("load from another site", LOOPBACK, "/api/state", &[HOST, COOKIE, ("sec-fetch-site", "cross-site")], FORBIDDEN),
+        ("load from another local port", LOOPBACK, "/api/state", &[HOST, COOKIE, ("sec-fetch-site", "same-site")], FORBIDDEN),
+        ("raw file loaded from another site", LOOPBACK, "/raw/a.md", &[HOST, COOKIE, ("sec-fetch-site", "cross-site")], FORBIDDEN),
+        ("link to the page from another site", LOOPBACK, "/", &[HOST, COOKIE, ("sec-fetch-site", "cross-site")], OK),
         // DNS rebinding: evil.example resolves to 127.0.0.1.
         ("foreign host", LOOPBACK, "/api/state", &[("host", "evil.example:4891"), COOKIE], FORBIDDEN),
         ("host with another port", LOOPBACK, "/api/state", &[("host", "127.0.0.1:3000"), COOKIE], FORBIDDEN),

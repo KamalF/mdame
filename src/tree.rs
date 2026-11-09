@@ -69,24 +69,30 @@ const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
 /// size in memory.
 const MAX_IGNORE_FILE: u64 = 1024 * 1024;
 
-/// The ignore file of `folder` that the walker must not read, if any.
-/// Through links, it must be a regular file of 1 MiB at most, on the device
-/// of its folder. Otherwise the walker could read without end: a FIFO
-/// blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0 bytes
-/// but holds gigabytes. A cloned repository can hold a link to any of them.
-fn bad_ignore_file(folder: &Path) -> Option<PathBuf> {
-    IGNORE_FILES
-        .iter()
-        .map(|name| folder.join(name))
-        .find(|path| {
-            let Ok(file) = path.metadata() else {
-                return false;
-            };
-            let same_device = folder
-                .metadata()
-                .is_ok_and(|folder| folder.dev() == file.dev());
-            !file.is_file() || file.len() > MAX_IGNORE_FILE || !same_device
-        })
+/// The ignore file of `folder` that the walker must not read, if any, and
+/// why. Through links, it must be a regular file of 1 MiB at most, on the
+/// device of its folder. Otherwise the walker could read without end: a
+/// FIFO blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0
+/// bytes but holds gigabytes. A cloned repository can hold a link to any of
+/// them.
+fn bad_ignore_file(folder: &Path) -> Option<(PathBuf, &'static str)> {
+    IGNORE_FILES.iter().find_map(|name| {
+        let path = folder.join(name);
+        let file = path.metadata().ok()?;
+        let why = if !file.is_file() {
+            "is not a regular file"
+        } else if file.len() > MAX_IGNORE_FILE {
+            "is over 1 MiB"
+        } else if !folder
+            .metadata()
+            .is_ok_and(|folder| folder.dev() == file.dev())
+        {
+            "is on another device than its folder"
+        } else {
+            return None;
+        };
+        Some((path, why))
+    })
 }
 
 /// What `keep` gives for each entry of the workspace that the tree may
@@ -105,11 +111,8 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
     let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
     // The walker reads the ignore files of the root and of each folder above
     // it before any filter, even those whose rules it does not apply.
-    if let Some(file) = root.ancestors().find_map(bad_ignore_file) {
-        tracing::warn!(
-            "the tree is empty: {} is not a regular file",
-            file.display()
-        );
+    if let Some((file, why)) = root.ancestors().find_map(bad_ignore_file) {
+        tracing::warn!("the tree is empty: {} {why}", file.display());
         return Vec::new();
     }
     WalkBuilder::new(root)
@@ -126,8 +129,8 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
             let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
             // Before the walker reads them.
             let bad = is_folder.then(|| bad_ignore_file(entry.path())).flatten();
-            if let Some(file) = &bad {
-                tracing::warn!("skipped: {} is not a regular file", file.display());
+            if let Some((file, why)) = &bad {
+                tracing::warn!("skipped: {} {why}", file.display());
             }
             bad.is_none()
         })
@@ -349,7 +352,9 @@ mod tests {
         assert_eq!(tree_paths(&walk(&root)), ["", "plans", "plans/a.md"]);
     }
 
-    /// `walk`, which fails rather than block: a FIFO would hold it forever.
+    /// `walk`, which fails this test rather than block it on a FIFO. The walk
+    /// that blocks still holds the walk lock, so the other tests that walk
+    /// wait too.
     fn walk_within_seconds(root: &Path) -> Node {
         let (sender, receiver) = std::sync::mpsc::channel();
         let root = root.to_owned();

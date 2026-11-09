@@ -109,7 +109,8 @@ lists the options.
   diagrams, and updates the page when a file changes on disk.
 - It shows and edits the markdown files in hidden folders too, such as the
   plans of a coding agent in `.claude/plans/`. Other files there stay out,
-  also when mdame opens a hidden folder itself. `.git` and `.mdame` stay out.
+  also when mdame opens a hidden folder, or a folder in one, such as a
+  worktree in `.claude/worktrees/`. `.git` and `.mdame` stay out.
 - When a file changes on disk, a bar at the left marks each block that changed
   since you last saw the file. The status bar lists the other markdown files
   that changed, and a click opens one.

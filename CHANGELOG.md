@@ -16,9 +16,10 @@
 
 ### Security
 
-- If the folder that mdame opens is hidden, such as `~/.claude`, the tree and
-  the editor take markdown only, as they do in hidden folders below it. mdame
-  does not open a folder in `.git` or `.mdame`.
+- If the folder that mdame opens is hidden or in a hidden folder, such as
+  `~/.claude` or a worktree in `.claude/worktrees/`, the tree and the editor
+  take markdown only, as they do in hidden folders below it. mdame does not
+  open a folder in `.git` or `.mdame`.
 - The API and the raw files answer only the mdame page itself, an address
   that you type, and programs such as curl. A request that a browser sends for
   another page gets 403, such as for an image on a page of another local

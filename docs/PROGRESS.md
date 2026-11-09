@@ -735,7 +735,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 10. CI skips tags (done). CI ran twice for a release: on the branch and on the tag. `ci.yml` now leaves tags out.
     - `push` lists `branches: ['**']`. A trigger that names only branches does not run for tags. `tags-ignore` alone would do the opposite: it names only tags, so no branch would run CI.
     - Check, at the release of 0.1.1: the push of `main` runs CI, and the push of the tag does not.
-11. Smaller release binaries, with attestations. `strip = true` in the `dist` profile removes the symbols, so the binaries get smaller than 18 MB. `github-attestations = true` in dist lets users check an archive with `gh attestation verify`. `dist plan` checks the config.
+11. Smaller release binaries, with attestations (done). `strip = true` in the `dist` profile removes the symbols, so the binaries get smaller than 18 MB. `github-attestations = true` in dist lets users check an archive with `gh attestation verify`. `dist plan` checks the config.
+    - On x86_64 Linux with glibc, the `dist` build goes from 21.3 MB to 15.0 MB. A panic's backtrace then shows no function names.
+    - `dist generate` adds an `Attest` step, with `actions/attest@v4`, and the permissions `id-token: write` and `attestations: write` for the build job. `github-action-commits` pins it to the commit of v4.2.2, published on 4 August 2026.
+    - The README's Install tells how to check an archive.
+    - Check, at the release of 0.1.1: `gh attestation verify` passes on a downloaded archive.
 12. A licence that GitHub detects. GitHub's API returns `NOASSERTION` for mdame, and the sidebar shows "View license", not "MIT". `LICENSE` keeps the MIT text with its three copyright lines. The sentence on mdlive and the notices of Lucide, Feather and Primer move to a file of their own. That file goes into the package and into the release archives. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
     - Check, after the merge: `gh api repos/KamalF/mdame/license` returns `MIT`.
 13. The licence texts of the Rust dependencies. The release archives hold `LICENSE` and `README.md`, but not these texts, and MIT and Apache-2.0 ask for them in each copy. `cargo-about` writes them into a file that the archives hold. `web/dist/assets/THIRD-PARTY-LICENSES.txt` already holds the texts of the npm packages.
@@ -765,7 +769,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 11, smaller release binaries, with attestations.
+1. Milestone 11, on the `m11-fixes` branch: commit 12, a licence that GitHub detects.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

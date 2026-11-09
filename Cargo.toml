@@ -44,3 +44,4 @@ tower = { version = "0.5.3", features = ["util"] }
 [profile.dist]
 inherits = "release"
 lto = "thin"
+strip = true

@@ -50,6 +50,13 @@ On Linux, you can also download the archive for your system from the
 static, so they run on any distribution. On macOS, use Homebrew or mise: the
 binaries are not notarized, so macOS blocks one that a browser downloaded.
 
+From 0.1.1, each archive has an attestation: a record, signed by GitHub, that
+the release workflow of this repository built it. To check an archive:
+
+```sh
+gh attestation verify mdame-x86_64-unknown-linux-musl.tar.xz --repo KamalF/mdame
+```
+
 ## With a coding agent
 
 mdame shows the markdown files in hidden folders too, where agents keep their

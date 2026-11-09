@@ -19,10 +19,11 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 7 | Revisions | Done 29 October 2026, merged into `main` the same day | 31, with the review fixes |
 | 8 | Themes and polish | Done 3 November 2026, merged into `main` the same day | 31, with the review fixes |
 | 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
-| 10 | Release, then Show HN | Planned 7 November 2026 | About 9, without the review fixes |
-| 11 | Small Later items | — | About 10, without the review fixes |
+| 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
+| 11 | Fixes for 0.1.1 | Planned 9 November 2026 | About 16, without the review fixes |
+| 12 | Small Later items, then Show HN | — | About 10, without the review fixes |
 
-The commits of milestones 9 to 11 are estimates, made on 3 November 2026. Before their reviews, milestones 7 and 8 made one commit for each commit of their plan. The plan of milestone 9 has 12 commits before its review. Milestones 10 and 11 have no plan yet; each has about 10 items in the build order of `docs/SPEC.md`.
+The plan of milestone 11 has 16 commits before its review. Milestone 12 has no plan yet: it has 10 items in the build order of `docs/SPEC.md`.
 
 ## Milestone 1: skeleton
 
@@ -621,7 +622,7 @@ Rules, as test names, by commit. Each commit also updates the README and the spe
 
 ### Manual checklist
 
-Run on 8 November 2026: checks 1 to 18 pass, and checks 19 to 21 wait for the release. Kamal ran checks 1 to 7, and the narrow window of check 11, in Chrome and Firefox. Claude ran checks 8 to 18 in the headless Chrome of agent-browser, at 1280×633, on the release build; the measures are below the checks. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal or another editor, not from mdame's editor. The test folder is a git repository that holds:
+Run on 8 November 2026: checks 1 to 21 pass. Kamal ran checks 1 to 7, and the narrow window of check 11, in Chrome and Firefox. Claude ran checks 8 to 18 in the headless Chrome of agent-browser, at 1280×633, on the release build; the measures are below the checks. After the release, Kamal ran checks 19 to 21. Check 19 passed on port 4991, since another mdame held port 4891: see the candidates for milestone 11. These checks cover what no test covers: the watcher in the browser, on a real repository and a large one, and the release as a user installs it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal or another editor, not from mdame's editor. The test folder is a git repository that holds:
 
 - `a.md` and `notes/b.md`;
 - a `.gitignore` that lists `build/`, and `build/c.md`;
@@ -683,6 +684,49 @@ Release, after 0.1.0 is published:
 20. `mise use -g github:KamalF/mdame` and `cargo install --locked mdame` give a working mdame.
 21. On GitHub, the README shows the demo, and the link "a known issue" leads to Known issues.
 
+## Milestone 11: fixes for 0.1.1
+
+Decided on 9 November 2026, before the milestone started. `docs/SPEC.md` holds the scope: milestone 11 in the build order.
+
+- Milestone 11 takes the fixes that 0.1.0 needs, from the release and from the open points, and releases 0.1.1.
+- The small Later items become milestone 12, released as 0.2.0. Toasts stay in Later until a feature needs them.
+- The Show HN waits for 0.2.0.
+- The watcher items of milestone 10 and the folder deletes on macOS wait, under Open points.
+
+Rules, as test names, by commit. The names are a first guess, which each commit settles. Each commit also updates the README and the spec where they describe what it changes. Done when: the watcher tests pass on the macOS runner of CI, except the cases that the README lists as known issues. `brew install` gives a working 0.1.1 on Linux and macOS.
+
+1. A favicon. The page links no icon, and no route serves `/favicon.ico`. `web/favicon.svg` holds a Lucide glyph, such as `file-text`. The `web` task copies it to `web/dist/assets/`, and `web/index.html` links `/assets/favicon.svg`. `the_favicon_is_served_as_svg`, in `tests/assets.rs`.
+   - Lucide icons draw with `currentColor`, which is black in a favicon and hard to see on a dark tab. So the SVG sets its own colours, with a `prefers-color-scheme: dark` rule.
+   - The `/assets/` route already serves SVG with an ETag, and the CSP allows it. The README's notice for Lucide covers its licence.
+2. Live updates on macOS: the disk check. On FSEvents only, `events()` takes the kind of an event from the disk. A missing path is `removed`. If the path is present, a creation or a rename gives `created`, and any other event gives `changed`. `the_disk_gives_the_kind_of_an_event`: a unit test on a temporary folder, which runs on Linux too.
+   - It fixes deletes, renames and saves through a temporary file. A rename becomes `removed` and `created`, so the tab still does not follow a renamed file.
+   - The cause is under Open points.
+3. The watcher tests on macOS. `tests/watch.rs` runs on macOS too. The cases that still differ get `ignore` on macOS, with the reason. macOS gets its own cases for the kinds of commit 2. The README's known issue shrinks to folder deletes and renamed files, in a clearer wording than "merges the kinds of the events of a file".
+   - Before the push, Kamal runs the tests on a Mac, through `ssh sachamac`. After it, the macOS runner of CI runs them.
+4. The rules of hidden folders apply to the root. `mdame ~/.claude` lists `settings.json`, and a leaked token can rewrite it: the hidden and `.git`/`.mdame` rules look only below the root. They now apply to the root's own real path too. In a hidden root, the tree lists and the editor edits markdown only. If the root is in `.git` or `.mdame`, mdame stops at start with a readable error. `a_hidden_root_lists_only_markdown`, `a_hidden_root_edits_only_markdown`, `a_root_in_git_or_mdame_stops_mdame`.
+5. Cross-site requests. The guard refuses `/api/*` when `Sec-Fetch-Site` is `cross-site`. Browsers send this header on each request, also on the image and script loads that carry no `Origin`. It is a check beside the `Origin` check and the `SameSite=Strict` cookie. A request without the header, such as one from curl, passes. `a_cross_site_api_request_is_refused`, `an_api_request_without_sec_fetch_site_passes`.
+6. Long lines in search answers. A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A line over a few hundred characters is now cut around its first match. `a_long_line_is_cut_around_the_match`.
+7. Ignore files that are not regular files. A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, makes the walker read without end: mdame runs out of memory, or hangs. A cloned repository can hold such a link. In the parallel walker of the `ignore` crate, `filter_entry` runs before the crate reads the ignore files of a folder. So the filter can skip such a folder, with a warning. `a_folder_whose_gitignore_is_a_fifo_is_skipped`, `a_gitignore_linked_to_dev_zero_is_skipped`.
+   - The walker reads the ignore files of the root and of its parents, and `.git/info/exclude`, before any filter. So mdame checks them before each walk. The commit settles what mdame does with a bad one.
+   - ripgrep has the same problem. Report it to the `ignore` crate too.
+8. Two notes in the README. "With a coding agent" repeats the advice of the spec: deny the agent reads of mdame's state folder, which holds the token, and of the browser profile. And spellcheck is on by default, but a browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor.
+9. `.github/check-release.sh` reads the port from the URL that mdame prints. If port 4891 is busy, mdame takes the next free one, but the script still requests 4891. Check 19 found it: another mdame held 4891 and answered 403.
+10. CI skips tags. CI runs twice for a release: on the branch and on the tag. `ci.yml` now leaves tags out.
+11. Smaller release binaries, with attestations. `strip = true` in the `dist` profile removes the symbols, so the binaries get smaller than 18 MB. `github-attestations = true` in dist lets users check an archive with `gh attestation verify`. `dist plan` checks the config.
+12. A licence that GitHub detects. GitHub's API returns `NOASSERTION` for mdame, and the sidebar shows "View license", not "MIT". `LICENSE` keeps the MIT text with its three copyright lines. The sentence on mdlive and the notices of Lucide, Feather and Primer move to a file of their own. That file goes into the package and into the release archives. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
+    - Check, after the merge: `gh api repos/KamalF/mdame/license` returns `MIT`.
+13. The licence texts of the Rust dependencies. The release archives hold `LICENSE` and `README.md`, but not these texts, and MIT and Apache-2.0 ask for them in each copy. `cargo-about` writes them into a file that the archives hold. `web/dist/assets/THIRD-PARTY-LICENSES.txt` already holds the texts of the npm packages.
+    - cargo-about is a new tool in `mise.toml`, with its line in `docs/runbook.md`.
+14. `rust-version` in `Cargo.toml`. comrak needs Rust 1.89, and the let chains of mdame need 1.88. On an older Rust, `cargo install` fails with a compile error that does not name the version that mdame needs. Builds with older toolchains find the real minimum: `cargo check` passes with it and fails with the version before.
+15. `CHANGELOG.md`, with a section for 0.1.0 and one for 0.1.1. dist takes the release notes of a version from it. Without it, the notes hold only the install instructions.
+16. Version 0.1.1, then the release. Kamal pushes the tag, and the job "Check release" runs on Linux and macOS. Then the manual checklist of milestone 11.
+
+Kamal, with no commit, before the release:
+
+- Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies, with a `GH_TOKEN` that can write the repository's contents. A compromised crate could push to `main` or replace the assets of earlier releases. The two settings limit it.
+- Topics for the repository on GitHub.
+- Yank mdame 0.0.1 on crates.io: the early build that held the name. `cargo install` already picks 0.1.0.
+
 ## Public repository and crate
 
 Decided on 29 October 2026, before milestone 8:
@@ -697,48 +741,32 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 10, on the `m10-release` branch: checks 19 to 21 of the manual checklist, then the Show HN.
-2. Milestone 11: a decision on each of its candidates, under Open points, then its plan.
-3. After 0.1.0: the disk check for live updates on macOS, under Open points.
+1. Milestone 11, on the `m11-fixes` branch: commit 1, the favicon.
+2. Milestone 12: its plan.
+3. After 0.2.0: the Show HN.
 
 ## Open points
 
-- Candidates for milestone 11, from the check before the release of 0.1.0 on 8 November 2026:
-  - `Cargo.toml` sets no `rust-version`. comrak needs Rust 1.89, and the let chains of mdame need 1.88. On an older Rust, `cargo install` fails with a compile error, and does not name the version that mdame needs. Before setting it, find the real minimum: build with older toolchains.
-  - GitHub does not detect the licence of mdame: its API returns `NOASSERTION`, and the sidebar shows "View license", not "MIT". The cause: `LICENSE` also holds the notices of mdlive, Lucide, Feather and Primer. If the notices move to a file of their own, GitHub can match the MIT text. That file then goes into the package and into the release archives. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
-  - The release archives hold `LICENSE` and `README.md`, but not the licence texts of the Rust dependencies. MIT and Apache-2.0 ask for them in each copy. `web/dist/THIRD-PARTY-LICENSES.txt` already holds them for the npm packages. `cargo-about` can write the Rust ones.
-  - Without a `CHANGELOG.md`, the release notes that dist writes hold only the install instructions. dist takes the notes of a version from that file. The repository on GitHub has no topics either.
-  - Yank mdame 0.0.1 on crates.io. It is the early build that held the name. Even without the yank, `cargo install` picks 0.1.0.
+- Live updates on macOS, a known issue of 0.1.0. Commits 2 and 3 of milestone 11 fix most of it. Measured on an Intel Mac with macOS 15.7.9, on 8 November 2026: 16 of the 25 tests of `tests/watch.rs` fail, and so does the ignored test of `tests/ws.rs`.
+  - What a user sees. A write gives `created`, which costs only a reload of the tree. A delete gives `changed`, so the file stays in the tree and in the list of changes. A folder delete gives nothing, so the folder stays in the tree. A rename, a save through a temporary file, and a vim or emacs save give `resync`: the tab reloads the tree and the file on screen, and does not follow a renamed file.
+  - The failures do not come from the tests. Files that existed 5 s before the watch started give the same events, and so does a file written 5 s after its creation: FSEvents keeps reporting a creation for many seconds.
+  - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. A rename of unknown side is `RenameMode::Any`, and `events()` answers it with `resync`.
+  - After the disk check, a folder delete still sends nothing: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
+- For milestone 12, from the review of milestone 3: `aria-selected` on the row that the arrow keys choose, with the arrow keys in the sidebar tree.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.
   - A change to `.git/info/exclude`, or to the global gitignore, updates the watches only at the next walk.
   - A folder renamed over an empty shown folder, from a hidden folder or from outside the workspace, sends nothing, and is not watched again until an overflow or a restart: notify-debouncer-full 0.7 drops the creation and the removal of one path in one batch. `main` watched it, through notify's recursive watch. Only a program that calls `rename` on a folder does it; `mv` moves the folder into the empty one. A fix: keep each folder's inode from the walk, and watch again a folder whose inode changed, at the next walk.
   - notify-debouncer-full keeps a root for each folder that mdame ever watched, even after notify dropped its watch: it has no call to drop one. In 0.7, each new watch scans the roots, so over a long session with many folders made and removed, watching gets slower, and so does the watching after an overflow. 0.8 searches them, so only their memory stays.
-- CI runs twice for a release: on the branch and on the tag. `ci.yml` could leave tags out.
-- A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, makes the walker read without end: mdame runs out of memory, or hangs. A cloned repository can hold such a link. `main` and ripgrep have the same problem, in the `ignore` crate. A fix: skip an ignore file that is not a regular file, or limit its size.
 - A write to an existing `.gitignore` or `.ignore` that hides folders changes the watched folders, but the tab gets only `changed`, which does not reload the tree. `main` has the same gap in the tree. One that shows folders sends `created` for their files.
-- The release build runs `dist build`, so every build script and proc macro of the dependencies, with a `GH_TOKEN` that can write the repository's contents. A compromised crate could push to `main` or replace the assets of earlier releases. Branch protection on `main` and GitHub's immutable releases limit it, through the repository's settings.
-- The release archives have no provenance: `github-attestations = true` in dist would let users check them with `gh attestation verify`.
 - dist's shell installer, from 0.33.0: in a flat layout such as `~/.local/bin`, it migrates any `<install dir>/env` that matches dist's template, so it takes over the env file of another tool that dist built, such as uv. Report it to axodotdev/cargo-dist: the migration should touch only an env file that this app wrote.
-- The release binaries keep their symbols: `strip = true` in the `dist` profile would make them smaller than 18 MB.
-- Live updates on macOS, a known issue of 0.1.0. Measured on an Intel Mac with macOS 15.7.9, on 8 November 2026: 16 of the 25 tests of `tests/watch.rs` fail, and so does the ignored test of `tests/ws.rs`.
-  - What a user sees. A write gives `created`, which costs only a reload of the tree. A delete gives `changed`, so the file stays in the tree and in the list of changes. A folder delete gives nothing, so the folder stays in the tree. A rename, a save through a temporary file, and a vim or emacs save give `resync`: the tab reloads the tree and the file on screen, and does not follow a renamed file.
-  - The failures do not come from the tests. Files that existed 5 s before the watch started give the same events, and so does a file written 5 s after its creation: FSEvents keeps reporting a creation for many seconds.
-  - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. A rename of unknown side is `RenameMode::Any`, and `events()` answers it with `resync`.
-  - The fix, after 0.1.0: the disk check. On FSEvents only, `events()` takes the kind from the disk. A missing path is `removed`. A present path is `changed`, or `created` if the event is a creation or a rename. About 15 lines, and a unit test on a temporary folder, which runs on Linux too. It fixes deletes, renames and saves through a temporary file. A rename becomes `removed` and `created`, so the tab still does not follow a renamed file.
-  - Its tests: `tests/watch.rs` runs on macOS too. The cases that still differ get `ignore` on macOS, with the reason, and macOS gets its own cases for the kinds above. The README's known issue shrinks to folder deletes and renamed files. The macOS runner of CI checks it, or a Mac.
-  - After the disk check, a folder delete still sends nothing: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
 
-- From the review of milestone 10, for later: the README's "With a coding agent" could repeat the spec's advice to deny the agent reads of mdame's state folder, which holds the token, and of the browser profile.
 - Nits deferred by the review of milestone 10:
   - The watcher's `is_dir()` and `exists()` follow symlinks out of the workspace: a link to a hung or automounted path can block the watcher. `symlink_metadata()` would not follow it.
   - The README's macOS known issue, "merges the kinds of the events of a file", reads slowly.
 - From the review of milestone 9, for later:
-  - `mdame ~/.claude` lists `settings.json`, and a leaked token can rewrite it: the hidden and `.git`/`.mdame` rules look only below the root. Apply them to the root's own real path too. `main` has the same gap.
   - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. On HFS+, so do names with an ignorable code point, such as `.mdam\u{200C}e`: macOS editing, new in milestone 10, makes it reachable. Git guards the same aliases. Not checked.
-  - A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A limit such as `rg --max-columns` would bound it.
-  - Spellcheck is on by default. A browser's cloud spellcheck, such as Chrome's Enhanced spell check, may send the editor's text to its vendor. The README could say so.
   - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`.
 - Nits deferred by the review of milestone 9:
   - `marks()` costs blocks × lines, and the outline's `entries()` costs marks × headings. A crafted file can block the tab for seconds at each change.
@@ -800,10 +828,9 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.
 - Debug builds render a dense 1 MB markdown file in about 10 s. If `mise run dev` feels slow, `[profile.dev.package."*"] opt-level = 2` optimizes the dependencies only.
 - From the review of 18 October 2026, for later:
-  - Security: refuse `/api/*` when `Sec-Fetch-Site: cross-site`.
   - Usability: unknown `/api/*` routes and wrong methods should use the spec's error shape; `-p 80` gets 403.
 - From the review of milestone 3, for later:
-  - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions; `aria-selected` for the arrow-key choice.
+  - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions.
   - Big workspaces: latinized names computed once for the filter. The limit on the filter results, the cached icons and a faster `/api/tree` came in milestone 10.
 - From the second review of the performance fixes, and the run of the manual checklist of milestone 10, for after 0.1.0:
   - Tree: a virtual tree, which builds only the rows in view. A drag of the sidebar runs at 22 fps with 1,614 rows.

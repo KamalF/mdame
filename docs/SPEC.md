@@ -106,13 +106,14 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 ### Later, by cost
 
-The small items form milestone 11, after v1, except copy as quote. The medium ones wait.
+The small items form milestone 12, except copy as quote and toasts. The medium ones wait.
 
 | Item | Cost | Notes |
 | --- | --- | --- |
 | Custom key bindings | Small | A `[keys]` table in `config.toml` mapping action names to keys, sent in `/api/state`; `keys.ts` builds its map from it with the defaults as fallback. Two actions on one key stop mdame at start |
 | Alternative built-in themes: Catppuccin (Latte, Frappé, Macchiato, Mocha) and Minimal | Small | Extra CSS files. Catppuccin from its official palette and style guide, with `subtext1` as muted text in Latte (5.53:1; `subtext0` fails at 4.37). Minimal from its default HSL formulas, with Primer's code colours since it has none; its default accent needs checking as link text. Both MIT |
 | New file with `n`, new-file editor | Small | Reuses the folder hover action |
+| Arrow keys in the sidebar tree | Small | ↑↓ move between the visible rows. → opens a folder, or moves to its first row if it is open. ← closes a folder, or moves to the parent folder. Enter opens the file. As in the WAI-ARIA tree pattern. The filter's ↑↓ stay as they are |
 | Side-by-side diff in diff mode | Small | `MergeView` from `@codemirror/merge`, already a dependency, as a toggle beside the inline diff, remembered in `localStorage`. It needs width: with the sidebar open, each pane gets about 370 px on a 1280 px window |
 | Mono toggle | Small | Content in `--font-mono` at `--content-width-mono`; out of v1 on 29 October 2026 |
 | Toasts | Small | At the bottom of the page, once a feature needs them; out of v1 on 29 October 2026 |
@@ -623,7 +624,7 @@ Watcher tests are timing-sensitive: use generous timeouts (2 s) and assert on th
 
 ## Build order
 
-Ten milestones for v1, the version for a Show HN, then an eleventh, each ending in something the owner can run, with a review before the next starts. The wireframes were signed off on 15 October 2026.
+Ten milestones for v1, released as 0.1.0, then two more before the Show HN. Each ends in something the owner can run, with a review before the next starts. The wireframes were signed off on 15 October 2026.
 
 1. **Skeleton.** clap flags, tracing, `AppState`, port fallback, security guard, rust-embed serving `web/dist`, `mise.toml` with tools and tasks, Bun install and the bundler reproducibility check (Bun, else esbuild), `open` on start, a page that shows `/api/state`.
    - Done when: guard tests pass (foreign Origin, wrong Host, missing token on 0.0.0.0), the bundler choice is settled, and `mdame` opens a page.
@@ -646,11 +647,13 @@ Ten milestones for v1, the version for a Show HN, then an eleventh, each ending 
    - Done when: a user theme dropped into `~/.config/mdame/themes/` appears in the theme picker without a restart.
 9. **Agent workflow.** Markdown in hidden folders, shown and editable; the list of changes in the status bar; the change bars and "Last seen" in diff mode; the search panel; the content width; the outline; spellcheck in the editor; the shortcut help with its footer line.
    - Done when: Claude Code, with `plansDirectory` set to `.claude/plans`, writes a plan. The plan shows in the tree and in the list of changes, and one click opens it. When the agent rewrites it, the changed blocks get bars and the outline gets dots. In diff mode, "Last seen" shows what changed and restores it.
-10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through dist, and release 0.1.0 of the crate on crates.io. The watcher stops watching gitignored folders. With no Mac at hand, a CI job checks the release on macOS. The memory of mdame and of its tab is measured against VS Code, idle and on a large repository. The open points of milestone 8 close: CI actions pinned by SHA, a warning to use only themes that you trust, and the notice of `@primer/primitives`. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, and its demo of the agent loop sets `plansDirectory`. Then the Show HN.
+10. **Release.** Editing on macOS, CI on a macOS runner, release binaries through dist, and release 0.1.0 of the crate on crates.io. The watcher stops watching gitignored folders. With no Mac at hand, a CI job checks the release on macOS. The memory of mdame and of its tab is measured against VS Code, idle and on a large repository. The open points of milestone 8 close: CI actions pinned by SHA, a warning to use only themes that you trust, and the notice of `@primer/primitives`. The README leads with the reason for mdame: a markdown viewer and editor in the browser, beside the terminal, lighter than VS Code. Its comparison starts with VS Code, and its demo of the agent loop sets `plansDirectory`.
    - Done when: `brew install` gives a working mdame on Linux and macOS.
-11. **Small Later items.** Custom key bindings, the Catppuccin and Minimal themes, new file with `n`, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle, toasts.
+11. **Fixes for 0.1.1.** Live updates on macOS, through a check of the disk for each event, and the watcher tests on macOS. Security: the rules of hidden folders apply to the root too, `/api/*` refuses cross-site requests, the walker skips an ignore file that is not a regular file, and search answers cut long lines. Release: a licence that GitHub detects, the licence texts of the Rust dependencies in the archives, a changelog, `rust-version`, stripped binaries with attestations. A favicon. Then release 0.1.1.
+   - Done when: the watcher tests pass on the macOS runner of CI, except the cases that the README lists as known issues. `brew install` gives a working 0.1.1 on Linux and macOS.
+12. **Small Later items.** Custom key bindings, the Catppuccin and Minimal themes, new file with `n`, arrow keys in the sidebar tree, side-by-side diff, vim key bindings, a print stylesheet, word count, read-only mode, the mono toggle. Then release 0.2.0, and the Show HN.
 
-After milestone 11, the medium Later items wait.
+After milestone 12, the medium Later items wait.
 
 ## Open decisions
 
@@ -698,6 +701,8 @@ After milestone 11, the medium Later items wait.
 | The first walk of the watcher runs in the background: with notify-debouncer-full 0.7, watching 15,000 folders one by one takes 12 s | 7 November 2026 |
 | No install script: dist's script takes over the PATH setup of other tools that dist built in `~/.local/bin`, such as uv. Homebrew, mise, Cargo and the release archives remain | 8 November 2026 |
 | After tests on a Mac, live updates on macOS stay a known issue of 0.1.0. Their fix, a check of the disk for each event, comes after 0.1.0 | 8 November 2026 |
+| The small Later items gain arrow keys in the sidebar tree | 6 November 2026 |
+| Milestone 11 takes the fixes that 0.1.0 needs, and releases 0.1.1. The small Later items become milestone 12, without toasts, and release 0.2.0. The Show HN waits for 0.2.0 | 9 November 2026 |
 
 ### Review log, 14 October 2026
 

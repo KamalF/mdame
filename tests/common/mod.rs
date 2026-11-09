@@ -107,10 +107,11 @@ pub fn etag_of(response: &Response) -> &str {
 /// the tree and the editor take markdown only.
 pub fn tempdir() -> tempfile::TempDir {
     let dir = tempfile::Builder::new().prefix("mdame").tempdir().unwrap();
-    let path = dir.path();
+    // Its real path, as the rule sees it: TMPDIR may be a link.
+    let real = dir.path().canonicalize().unwrap();
     assert!(
-        !is_hidden(path),
-        "set TMPDIR outside hidden folders: {path:?}"
+        !is_hidden(&real),
+        "set TMPDIR outside hidden folders: {real:?}"
     );
     dir
 }

@@ -29,4 +29,6 @@ jobs:
       - run: mise run test
       - run: mise run check-dist
       # A new crate under a licence that about.toml does not accept would stop the release.
+      # The file is the same on each system.
       - run: mise run licenses
+        if: runner.os == 'Linux'

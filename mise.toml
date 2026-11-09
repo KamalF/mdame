@@ -2,6 +2,8 @@
 bun = "1.4.3"
 cargo-dist = "0.33.1"
 cargo-insta = "1.49.0"
+# The release workflow builds the same version: .github/build-setup.yml.
+"github:EmbarkStudios/cargo-about" = "0.9.3"
 # Mutation testing runs on Linux only: cargo-mutants has no build for ARM macOS.
 "github:nextest-rs/nextest" = { version = "cargo-nextest-0.9.148", os = ["linux"] }
 "github:sourcefrog/cargo-mutants" = { version = "27.1.0", os = ["linux"] }
@@ -45,3 +47,7 @@ description = "Fail if the committed web/dist is not what web/ builds"
 depends = ["web"]
 # git status, not git diff: a new chunk file is untracked and git diff misses it.
 run = ["git status --short -- web/dist", "test -z \"$(git status --porcelain -- web/dist)\""]
+
+[tasks.licenses]
+description = "Write the licence texts of the Rust crates, as each release archive carries them"
+run = "cargo about generate --locked --fail --output-file THIRD-PARTY-LICENSES-RUST.txt about.hbs"

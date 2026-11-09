@@ -1,0 +1,15 @@
+The licence texts of the Rust crates that the mdame binary holds.
+
+The page of mdame also holds npm packages. Their licence texts are in the
+binary: in mdame, open /assets/THIRD-PARTY-LICENSES.txt, or click Licences in
+the shortcut help.
+{{#each licenses}}
+
+================================================================================
+{{{name}}} ({{{id}}}), for:
+{{#each used_by}}
+- {{{crate.name}}} {{{crate.version}}}{{#if crate.repository}}, {{{crate.repository}}}{{/if}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

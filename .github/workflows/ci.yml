@@ -28,3 +28,5 @@ jobs:
       - run: mise run lint
       - run: mise run test
       - run: mise run check-dist
+      # A new crate under a licence that about.toml does not accept would stop the release.
+      - run: mise run licenses

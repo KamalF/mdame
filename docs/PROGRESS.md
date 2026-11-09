@@ -743,8 +743,13 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 12. A licence that GitHub detects (done). GitHub's API returns `NOASSERTION` for mdame, and the sidebar shows "View license", not "MIT". `LICENSE` keeps the MIT text with its three copyright lines. The sentence on mdlive and the notices of Lucide, Feather and Primer move to `NOTICE`. The package and the release archives hold it: `include` in `Cargo.toml`, and `include` in `dist-workspace.toml`. crates.io reads `license = "MIT"` from `Cargo.toml`, so it is not affected.
     - `LICENSE` matches the MIT template of GitHub's API, `/licenses/mit`, word for word, once the title and the copyright lines are left out. `dist plan` lists `NOTICE` in each archive, and `cargo package --list` in the package.
     - Check, after the merge: `gh api repos/KamalF/mdame/license` returns `MIT`.
-13. The licence texts of the Rust dependencies. The release archives hold `LICENSE` and `README.md`, but not these texts, and MIT and Apache-2.0 ask for them in each copy. `cargo-about` writes them into a file that the archives hold. `web/dist/assets/THIRD-PARTY-LICENSES.txt` already holds the texts of the npm packages.
-    - cargo-about is a new tool in `mise.toml`, with its line in `docs/runbook.md`.
+13. The licence texts of the Rust dependencies (done). The release archives held `LICENSE` and `README.md`, but not these texts, and MIT and Apache-2.0 ask for them in each copy. `cargo-about` now writes them into `THIRD-PARTY-LICENSES-RUST.txt`, which the archives hold. `web/dist/assets/THIRD-PARTY-LICENSES.txt` already holds the texts of the npm packages.
+    - Decided by Kamal on 9 November 2026: a file of its own, beside the npm one, and written at the release, not committed. `.gitignore` lists it.
+    - `about.toml` accepts 9 licences, MIT first: where a crate offers a choice, the first accepted one wins. A crate under any other licence stops the task, and CI runs `mise run licenses` to find it before a release. MPL-2.0 comes from `cssparser` and `dtoa-short`, through ammonia.
+    - `targets` lists the 4 targets of the release, so that each archive gets the same file: 188 KB, 110 licence texts, of which 94 are MIT texts with their own copyright lines.
+    - cargo-about 0.9.3, published on 26 October 2026: `mise.toml` installs its binary. It has no binary for Intel macOS, so each build of the release builds it with `cargo install --locked --features cli`, in `.github/build-setup.yml`: dist's `github-build-setup`. Locally, the build took 2 min 14 s, and gave the same file as the binary of mise.
+    - `--features cli`: without it, `cargo install` builds cargo-about but installs no binary.
+    - Check, at the release of 0.1.1: each archive holds the file.
 14. `rust-version` in `Cargo.toml`. comrak needs Rust 1.89, and the let chains of mdame need 1.88. On an older Rust, `cargo install` fails with a compile error that does not name the version that mdame needs. Builds with older toolchains find the real minimum: `cargo check` passes with it and fails with the version before.
 15. `CHANGELOG.md`, with a section for 0.1.0 and one for 0.1.1. dist takes the release notes of a version from it. Without it, the notes hold only the install instructions.
 16. Version 0.1.1, then the release. Kamal pushes the tag, and the job "Check release" runs on Linux and macOS. Then the manual checklist of milestone 11.
@@ -770,7 +775,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 13, the licence texts of the Rust dependencies.
+1. Milestone 11, on the `m11-fixes` branch: commit 14, `rust-version` in `Cargo.toml`.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

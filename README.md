@@ -248,7 +248,9 @@ their notices, and `LICENSE` the copyright lines of mdlive. The fonts are IBM
 Plex Sans and IBM Plex Mono,
 under the SIL Open Font License 1.1. The page bundles them and other npm
 packages, such as CodeMirror and Mermaid:
-`web/dist/assets/THIRD-PARTY-LICENSES.txt` carries their licence texts.
+`web/dist/assets/THIRD-PARTY-LICENSES.txt` carries their licence texts. Each
+release archive carries those of the Rust crates in the binary, in
+`THIRD-PARTY-LICENSES-RUST.txt`.
 
 ## License
 

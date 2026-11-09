@@ -102,7 +102,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 - Change bars: each block that changed since you last saw the file gets a bar in the margin, as in a git gutter. Diff mode compares the text with that version, and can restore it.
 - Search: a panel searches the contents of the files, and shows the matching lines beside the list of files.
 
-**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist), and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. The binaries are stripped of their symbols, and each archive has an attestation of its build, which `gh attestation verify` checks. No install script: in `~/.local/bin`, the script of dist 0.33 takes over the PATH setup of other tools that dist built, such as uv. A public GitHub repository, and the crate on crates.io.
+**Distribution.** Release binaries for Linux and macOS through dist (formerly cargo-dist), and a Homebrew tap. The Linux binaries are static, built with musl, so one file runs on any distribution. The binaries are stripped of their symbols, and each archive has an attestation of its build, which `gh attestation verify` checks. Each archive carries the licence texts of the Rust crates, written at the release. No install script: in `~/.local/bin`, the script of dist 0.33 takes over the PATH setup of other tools that dist built, such as uv. A public GitHub repository, and the crate on crates.io.
 
 ### Later, by cost
 
@@ -262,7 +262,8 @@ One Cargo package (no Cargo workspace), one `web/` folder for the front end, and
 ```
 mdame/
   Cargo.toml
-  mise.toml             tools (rust, bun, cargo-insta) and tasks: web, dev, fmt, lint, test, check-dist
+  mise.toml             tools (rust, bun, cargo-insta) and tasks: web, dev, fmt, lint, test, check-dist, licenses
+  about.toml, about.hbs cargo-about: the accepted licences, and the text of THIRD-PARTY-LICENSES-RUST.txt
   package.json          browser dependencies (no scripts beyond our own)
   bun.lock              committed text lockfile
   bunfig.toml           linker = "hoisted"
@@ -573,6 +574,7 @@ mise manages the repo. `mise.toml` pins the tools (Rust toolchain, Bun) and defi
 | `lint` | `cargo clippy -- -D warnings` |
 | `test` | `cargo test` and `bun test` |
 | `check-dist` | `mise run web`, then fails if `git status --porcelain -- web/dist` lists anything: a stale committed bundle. `git diff` alone misses new, untracked chunk files |
+| `licenses` | cargo-about writes `THIRD-PARTY-LICENSES-RUST.txt`, git-ignored: the licence texts of the Rust crates in the binary, for each target of the release. It stops on a licence that `about.toml` does not accept. CI runs it, and so does each build of the release, through `.github/build-setup.yml` |
 
 **No Node.** Bun is the package manager: `package.json`, a committed text `bun.lock`, and `bunfig.toml` with `linker = "hoisted"`, so there is one flat `node_modules/` (git-ignored) and a single copy of `@codemirror/state`, checked with `bun pm ls` (and `bun dedupe` if needed). Dependency install scripts stay off, which is Bun's default. `bun audit` and `bun outdated` cover maintenance; Renovate understands `bun.lock`.
 
@@ -707,6 +709,7 @@ After milestone 12, the medium Later items wait.
 | Milestone 11 takes the fixes that 0.1.0 needs, and releases 0.1.1. The small Later items become milestone 12, without toasts, and release 0.2.0. The Show HN waits for 0.2.0 | 9 November 2026 |
 | The watcher tests run on macOS too. Where FSEvents gives other events, a test expects them on macOS. The folder delete, which sends nothing on macOS, is ignored there | 9 November 2026 |
 | `LICENSE` holds only the MIT text and its copyright lines, so that GitHub detects it. The notices of mdlive, Lucide, Feather and Primer move to `NOTICE`, which the package and the release archives hold | 9 November 2026 |
+| The release archives carry the licence texts of the Rust crates, which cargo-about writes in each build of the release. The file stays out of git, and the npm texts stay in their own file | 9 November 2026 |
 
 ### Review log, 14 October 2026
 

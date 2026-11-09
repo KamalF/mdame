@@ -129,7 +129,7 @@ fn forward(
         } else {
             Vec::new()
         };
-        let mut events = events(&folders, &batch, &found);
+        let mut events = events(&folders, &batch, &found, watches_whole_trees());
         drop_echoes(&mut events, &mut renamed, Instant::now());
         for event in events {
             // An error only means that no tab is connected.
@@ -331,8 +331,13 @@ fn denied(error: &notify::Error) -> bool {
 
 /// Turns one debounced batch into events with workspace-relative paths.
 /// `found` holds the entries of the folders that mdame started to watch
-/// after the batch.
-fn events(folders: &Folders, batch: &[notify::Event], found: &[PathBuf]) -> Vec<Event> {
+/// after the batch. With `fsevents`, the disk gives the kinds.
+fn events(
+    folders: &Folders,
+    batch: &[notify::Event],
+    found: &[PathBuf],
+    fsevents: bool,
+) -> Vec<Event> {
     // Reads count for nothing: mdame's own tree walk opens every folder,
     // and a resync makes each tab walk it again. Nor do the events of the
     // folders that the tree hides, which reach the watcher on macOS.
@@ -354,6 +359,12 @@ fn events(folders: &Folders, batch: &[notify::Event], found: &[PathBuf]) -> Vec<
     for notify_event in batch {
         if notify_event.need_rescan() {
             return vec![Event::Resync];
+        }
+        if fsevents {
+            if let Some(event) = from_disk(notify_event, folders) {
+                push(&mut events, event);
+            }
+            continue;
         }
         let path = |index: usize| {
             let path = notify_event.paths.get(index)?;
@@ -406,6 +417,28 @@ fn events(folders: &Folders, batch: &[notify::Event], found: &[PathBuf]) -> Vec<
         }
     }
     events
+}
+
+/// For each path, FSEvents reports all the flags that the path collected, in
+/// no order, and never the side of a rename: only the disk tells whether
+/// the path is gone.
+fn from_disk(event: &notify::Event, folders: &Folders) -> Option<Event> {
+    let absolute = event.paths.first()?;
+    let path = folders.relative(absolute)?;
+    // Not `exists()`, which follows a link: a link to a hung mount would
+    // block the watcher.
+    let gone = || {
+        absolute
+            .symlink_metadata()
+            .is_err_and(|error| error.kind() == ErrorKind::NotFound)
+    };
+    let event = match event.kind {
+        EventKind::Access(_) | EventKind::Any | EventKind::Other => return None,
+        _ if gone() => Event::Removed { path },
+        EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(_)) => Event::Created { path },
+        _ => Event::Changed { path },
+    };
+    Some(event)
 }
 
 /// Sends no event twice in a row for a path, and no change to a file just
@@ -479,7 +512,7 @@ mod tests {
             root: PathBuf::from("/ws"),
             watched: HashSet::from(["/ws".into(), "/ws/sub".into()]),
         };
-        events(&folders, batch, &[])
+        events(&folders, batch, &[], false)
     }
 
     #[test]
@@ -522,9 +555,9 @@ mod tests {
                 .map(|i| PathBuf::from(format!("/ws/new/{i}.md")))
                 .collect()
         };
-        let under = events(&folders, &batch, &found(BURST_THRESHOLD - 1));
+        let under = events(&folders, &batch, &found(BURST_THRESHOLD - 1), false);
         assert_eq!(under.len(), BURST_THRESHOLD);
-        let over = events(&folders, &batch, &found(BURST_THRESHOLD));
+        let over = events(&folders, &batch, &found(BURST_THRESHOLD), false);
         assert_eq!(over, [Event::Resync]);
     }
 
@@ -616,7 +649,7 @@ mod tests {
         };
         let found = [PathBuf::from("/ws/b/y.md")];
         assert_eq!(
-            events(&folders, &[create("/ws/sub/x.md")], &found),
+            events(&folders, &[create("/ws/sub/x.md")], &found, false),
             [
                 Event::Created {
                     path: path("sub/x.md")
@@ -627,7 +660,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            events(&folders, &[rename("/ws/old", "/ws/b")], &found),
+            events(&folders, &[rename("/ws/old", "/ws/b")], &found, false),
             [Event::Renamed {
                 from: path("old"),
                 to: path("b")
@@ -794,6 +827,81 @@ mod tests {
             [Event::Changed {
                 path: path(".mdamex.md")
             }]
+        );
+    }
+
+    /// Maps `batch`, made of `(kind, name)` in a folder that holds `here.md`
+    /// only, as on FSEvents.
+    fn on_fsevents(batch: &[(EventKind, &str)]) -> Vec<Event> {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("here.md"), "").unwrap();
+        let folders = Folders {
+            root: root.path().to_owned(),
+            watched: HashSet::from([root.path().to_owned()]),
+        };
+        let batch: Vec<_> = batch
+            .iter()
+            .map(|(kind, name)| notify::Event::new(*kind).add_path(root.path().join(name)))
+            .collect();
+        events(&folders, &batch, &[], true)
+    }
+
+    const CREATE: EventKind = EventKind::Create(CreateKind::File);
+    const REMOVE: EventKind = EventKind::Remove(RemoveKind::File);
+    const RENAME: EventKind = EventKind::Modify(ModifyKind::Name(RenameMode::Any));
+    const WRITE: EventKind = EventKind::Modify(ModifyKind::Data(DataChange::Content));
+
+    #[test]
+    fn on_fsevents_the_disk_gives_the_kind_of_an_event() {
+        for kind in [CREATE, REMOVE, RENAME, WRITE] {
+            assert_eq!(
+                on_fsevents(&[(kind, "gone.md")]),
+                [Event::Removed {
+                    path: path("gone.md")
+                }],
+                "{kind:?}"
+            );
+        }
+        let here = |kind| on_fsevents(&[(kind, "here.md")]);
+        let created = [Event::Created {
+            path: path("here.md"),
+        }];
+        let changed = [Event::Changed {
+            path: path("here.md"),
+        }];
+        assert_eq!(here(CREATE), created);
+        assert_eq!(here(RENAME), created);
+        assert_eq!(here(REMOVE), changed);
+        assert_eq!(here(WRITE), changed);
+    }
+
+    #[test]
+    fn on_fsevents_the_flags_of_a_path_give_one_event() {
+        let deleted = on_fsevents(&[(CREATE, "gone.md"), (REMOVE, "gone.md"), (WRITE, "gone.md")]);
+        assert_eq!(
+            deleted,
+            [Event::Removed {
+                path: path("gone.md")
+            }]
+        );
+        let written = on_fsevents(&[(CREATE, "here.md"), (WRITE, "here.md")]);
+        assert_eq!(
+            written,
+            [Event::Created {
+                path: path("here.md")
+            }]
+        );
+        let renamed = on_fsevents(&[(RENAME, "gone.md"), (RENAME, "here.md")]);
+        assert_eq!(
+            renamed,
+            [
+                Event::Removed {
+                    path: path("gone.md")
+                },
+                Event::Created {
+                    path: path("here.md")
+                }
+            ]
         );
     }
 

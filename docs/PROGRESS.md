@@ -699,8 +699,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - Lucide icons draw with `currentColor`, which is black in a favicon and hard to see on a dark tab. So the SVG sets its own colours: the accent of the light theme, `#0969da`, and of the dark theme, `#4493f8`, with a `prefers-color-scheme: dark` rule.
    - The glyph uses the same version of Lucide as the `file` icon of `icons.ts`: `file` with three lines.
    - The `/assets/` route already serves SVG with an ETag, and the CSP allows it. The README's notice for Lucide covers its licence.
-2. Live updates on macOS: the disk check. On FSEvents only, `events()` takes the kind of an event from the disk. A missing path is `removed`. If the path is present, a creation or a rename gives `created`, and any other event gives `changed`. `the_disk_gives_the_kind_of_an_event`: a unit test on a temporary folder, which runs on Linux too.
+2. Live updates on macOS: the disk check (done). On FSEvents only, `events()` takes the kind of an event from the disk. A missing path is `removed`. If the path is present, a creation or a rename gives `created`, and any other event gives `changed`. `on_fsevents_the_disk_gives_the_kind_of_an_event`, `on_fsevents_the_flags_of_a_path_give_one_event`.
    - It fixes deletes, renames and saves through a temporary file. A rename becomes `removed` and `created`, so the tab still does not follow a renamed file.
+   - A write still gives `created`: FSEvents keeps the creation flag of a file for many seconds. It costs a reload of the tree.
+   - `events()` takes a `fsevents` flag, which `forward` sets from `watches_whole_trees()`. The two tests pass `true` on a temporary folder, so the macOS branch runs on Linux too. The other unit tests pass `false`: their paths, such as `/ws/a.md`, do not exist, and would all give `removed`.
+   - The check reads the disk with `symlink_metadata()`, which does not follow a link, for the reason of the nit of milestone 10 on `is_dir()` and `exists()`.
    - The cause is under Open points.
 3. The watcher tests on macOS. `tests/watch.rs` runs on macOS too. The cases that still differ get `ignore` on macOS, with the reason. macOS gets its own cases for the kinds of commit 2. The README's known issue shrinks to folder deletes and renamed files, in a clearer wording than "merges the kinds of the events of a file".
    - Before the push, Kamal runs the tests on a Mac, through `ssh sachamac`. After it, the macOS runner of CI runs them.
@@ -742,7 +745,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 2, the disk check for live updates on macOS.
+1. Milestone 11, on the `m11-fixes` branch: commit 3, the watcher tests on macOS.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

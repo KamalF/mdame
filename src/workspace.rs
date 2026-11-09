@@ -61,7 +61,13 @@ pub fn is_hidden(path: &Path) -> bool {
 /// hidden root, the tree and the editor take markdown only.
 #[cfg(test)]
 pub(crate) fn tempdir() -> tempfile::TempDir {
-    tempfile::Builder::new().prefix("mdame").tempdir().unwrap()
+    let dir = tempfile::Builder::new().prefix("mdame").tempdir().unwrap();
+    let path = dir.path();
+    assert!(
+        !is_hidden(path),
+        "set TMPDIR outside hidden folders: {path:?}"
+    );
+    dir
 }
 
 pub struct Workspace {

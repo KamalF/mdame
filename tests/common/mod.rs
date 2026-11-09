@@ -13,7 +13,7 @@ use mdame::{
     config::Config,
     server::router,
     watch::{EVENT_CAPACITY, Event},
-    workspace::Workspace,
+    workspace::{Workspace, is_hidden},
 };
 use serde_json::Value;
 use tokio::sync::broadcast;
@@ -106,7 +106,13 @@ pub fn etag_of(response: &Response) -> &str {
 /// `tempfile::tempdir()` names its folders `.tmp…`, and in a hidden root,
 /// the tree and the editor take markdown only.
 pub fn tempdir() -> tempfile::TempDir {
-    tempfile::Builder::new().prefix("mdame").tempdir().unwrap()
+    let dir = tempfile::Builder::new().prefix("mdame").tempdir().unwrap();
+    let path = dir.path();
+    assert!(
+        !is_hidden(path),
+        "set TMPDIR outside hidden folders: {path:?}"
+    );
+    dir
 }
 
 /// A workspace in `dir/ws` holding `files`, with `secret.md` next to it,

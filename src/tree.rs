@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use cap_std::fs::Dir;
 use ignore::{DirEntry, WalkBuilder, WalkState};
@@ -69,29 +69,42 @@ const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
 /// size in memory.
 const MAX_IGNORE_FILE: u64 = 1024 * 1024;
 
-/// The ignore file of `folder` that the walker must not read, if any, and
-/// why. Through links, it must be a regular file of 1 MiB at most, on the
-/// device of its folder. Otherwise the walker could read without end: a
-/// FIFO blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0
+/// The ignore files that one walk reads, in bytes. The walker keeps the
+/// globs of each folder above the one that it reads, so nested folders add
+/// up: 100 levels of 1 MiB took 2.5 GB.
+const MAX_IGNORE_BYTES: u64 = 8 * MAX_IGNORE_FILE;
+
+/// The ignore file of `folder` that the walker must not read, and why, if
+/// any. Through links, each must be a regular file of 1 MiB at most,
+/// outside `/proc` and `/sys`. Otherwise the walker could read without end:
+/// a FIFO blocks, `/dev/zero` never ends, and `/proc/self/pagemap` says 0
 /// bytes but holds gigabytes. A cloned repository can hold a link to any of
-/// them.
-fn bad_ignore_file(folder: &Path) -> Option<(PathBuf, &'static str)> {
-    IGNORE_FILES.iter().find_map(|name| {
+/// them. `read` adds up the bytes that the walk reads, up to
+/// `MAX_IGNORE_BYTES`.
+fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static str)> {
+    let mut size = 0;
+    for name in IGNORE_FILES {
         let path = folder.join(name);
-        let file = path.metadata().ok()?;
+        let Ok(file) = path.metadata() else {
+            continue;
+        };
+        let pseudo = |real: PathBuf| real.starts_with("/proc") || real.starts_with("/sys");
         let why = if !file.is_file() {
             "is not a regular file"
         } else if file.len() > MAX_IGNORE_FILE {
             "is over 1 MiB"
-        } else if !folder
-            .metadata()
-            .is_ok_and(|folder| folder.dev() == file.dev())
-        {
-            "is on another device than its folder"
+        } else if path.canonicalize().is_ok_and(pseudo) {
+            "leads into /proc or /sys"
         } else {
-            return None;
+            size += file.len();
+            continue;
         };
-        Some((path, why))
+        return Some((path, why));
+    }
+    let past_budget = size > 0 && read.fetch_add(size, Ordering::Relaxed) + size > MAX_IGNORE_BYTES;
+    past_budget.then(|| {
+        let why = "has ignore files past the 8 MiB that one walk reads";
+        (folder.to_owned(), why)
     })
 }
 
@@ -111,7 +124,11 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
     let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
     // The walker reads the ignore files of the root and of each folder above
     // it before any filter, even those whose rules it does not apply.
-    if let Some((file, why)) = root.ancestors().find_map(bad_ignore_file) {
+    let read = Arc::new(AtomicU64::new(0));
+    let bad = root
+        .ancestors()
+        .find_map(|folder| bad_ignore_file(folder, &read));
+    if let Some((file, why)) = bad {
         tracing::warn!("the tree is empty: {} {why}", file.display());
         return Vec::new();
     }
@@ -122,13 +139,15 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
         .git_global(in_repo)
         .parents(in_repo)
         .hidden(false)
-        .filter_entry(|entry| {
+        .filter_entry(move |entry| {
             if is_git_or_mdame(entry.file_name()) {
                 return false;
             }
             let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
             // Before the walker reads them.
-            let bad = is_folder.then(|| bad_ignore_file(entry.path())).flatten();
+            let bad = is_folder
+                .then(|| bad_ignore_file(entry.path(), &read))
+                .flatten();
             if let Some((file, why)) = &bad {
                 tracing::warn!("skipped: {} {why}", file.display());
             }
@@ -381,7 +400,7 @@ mod tests {
         symlink("/dev/null", root.path().join("repo/.git/info/exclude")).unwrap();
         let large = fs::File::create(root.path().join("large/.gitignore")).unwrap();
         large.set_len(MAX_IGNORE_FILE + 1).unwrap();
-        // A regular file on another device, small should the check break.
+        // A regular file in /proc, small should the check break.
         if cfg!(target_os = "linux") {
             write(root.path(), "procfs/a.md", 1);
             symlink("/proc/self/status", root.path().join("procfs/.gitignore")).unwrap();
@@ -390,6 +409,20 @@ mod tests {
 
         let paths = tree_paths(&walk_within_seconds(root.path()));
         assert_eq!(paths, ["", "fine", "fine/a.md"]);
+    }
+
+    #[test]
+    fn the_ignore_files_of_a_walk_stop_at_8_mib() {
+        let root = crate::workspace::tempdir();
+        let blank = "\n".repeat(MAX_IGNORE_FILE as usize);
+        for index in 0..10 {
+            write(root.path(), &format!("{index}/a.md"), 1);
+            fs::write(root.path().join(format!("{index}/.gitignore")), &blank).unwrap();
+        }
+
+        let paths = tree_paths(&walk_within_seconds(root.path()));
+        let shown = paths.iter().filter(|path| path.ends_with("/a.md")).count();
+        assert_eq!(shown, 8);
     }
 
     #[test]

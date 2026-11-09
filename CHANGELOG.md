@@ -9,8 +9,10 @@
   deleted folder stays in the tree until you reload the page.
 - A `.gitignore` or `.ignore` that is a FIFO, a link to a device such as
   `/dev/zero`, or a file over 1 MiB, no longer makes mdame hang or run out of
-  memory. mdame leaves out the folder that holds it, with a warning. If the file is in the folder
-  that mdame opens, or in a folder above it, the tree is empty.
+  memory. mdame leaves out the folder that holds it, with a warning. Past
+  8 MiB of ignore files in all, it also leaves out the folders that hold the
+  rest. If such a file is in the folder that mdame opens, or in a folder above
+  it, the tree is empty.
 - The search panel cuts a line over 200 characters around its match. A
   minified file no longer makes a search answer of tens of MB.
 

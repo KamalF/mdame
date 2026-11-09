@@ -8,7 +8,7 @@ use tokio::sync::broadcast;
 
 #[tokio::test]
 async fn state_gives_the_workspace_and_its_start_file() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let file = dir.path().join("a.md");
     fs::write(&file, "").unwrap();
     let workspace = Workspace::open(&file).unwrap();

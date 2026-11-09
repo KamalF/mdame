@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn the_token_is_kept_for_the_next_start() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let state = dir.path().join("state");
         let path = state.join("token");
         let first = kept_token(&state, &path).unwrap();
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn two_starts_at_once_get_the_same_token() {
         for _ in 0..100 {
-            let dir = tempfile::tempdir().unwrap();
+            let dir = crate::workspace::tempdir();
             let path = dir.path().join("token");
             let barrier = std::sync::Barrier::new(2);
             let tokens = std::thread::scope(|scope| {
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn a_token_file_that_others_can_read_is_refused() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let path = dir.path().join("token");
         kept_token(dir.path(), &path).unwrap();
         fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
@@ -363,7 +363,7 @@ mod tests {
     fn a_token_file_with_no_token_is_refused() {
         let cases = ["", "secret", "0123456789abcdef0123456789abcdeg"];
         for content in cases {
-            let dir = tempfile::tempdir().unwrap();
+            let dir = crate::workspace::tempdir();
             let path = dir.path().join("token");
             fs::write(&path, content).unwrap();
             fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn a_new_token_replaces_the_kept_one() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let path = dir.path().join("token");
         kept_token(dir.path(), &path).unwrap();
 

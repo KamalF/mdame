@@ -6,7 +6,7 @@ use serde_json::json;
 
 #[tokio::test]
 async fn search_gives_the_matching_lines_with_their_context() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("a.md", b"# A\n\nThe needle.\n")]);
     let (status, body) = get_json(state, "/api/search?q=needle").await;
 
@@ -25,7 +25,7 @@ async fn search_gives_the_matching_lines_with_their_context() {
 
 #[tokio::test]
 async fn an_empty_query_is_400() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     for uri in ["/api/search?q=", "/api/search"] {
         let state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
         let (status, body) = get_json(state, uri).await;

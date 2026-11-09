@@ -50,7 +50,7 @@ fn workspace(dir: &Path) -> AppState {
 
 #[tokio::test]
 async fn every_route_refuses_a_foreign_origin() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     for (method, uri) in ROUTES {
         let origin = ("origin", "https://evil.example");
         let response = send_body(workspace(dir.path()), method, uri, &[HOST, origin], "{}").await;
@@ -76,7 +76,7 @@ async fn routes_that_change_state_take_json_only() {
 
 #[tokio::test]
 async fn path_routes_stay_in_the_workspace() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     let secret = dir.path().join("secret.md");
     symlink(&secret, dir.path().join("ws/out.md")).unwrap();

@@ -521,7 +521,7 @@ mod tests {
 
     #[test]
     fn only_folders_and_ignore_files_change_the_shown_folders() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let root = tmp.path().to_owned();
         std::fs::create_dir(root.join("new")).unwrap();
         let folders = Folders {
@@ -581,7 +581,7 @@ mod tests {
         use std::fs::{self, Permissions};
         use std::os::unix::fs::PermissionsExt;
 
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let root = tmp.path().to_owned();
         let denied = root.join("b");
         fs::create_dir(&denied).unwrap();
@@ -603,7 +603,7 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn after_a_rescan_a_folder_created_again_is_watched_again() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let root = tmp.path().canonicalize().unwrap();
         std::fs::create_dir(root.join("docs")).unwrap();
         let (mut debouncer, received) = debouncer();

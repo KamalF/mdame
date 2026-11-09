@@ -61,7 +61,7 @@ async fn a_theme_name_is_one_segment() {
 
 #[tokio::test]
 async fn state_lists_user_themes_after_the_builtins() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files = [
         ("nord.css", ""),
         ("arc.css", ""),
@@ -78,7 +78,7 @@ async fn state_lists_user_themes_after_the_builtins() {
 
 #[tokio::test]
 async fn a_user_theme_overrides_a_builtin() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = with_themes(dir.path(), &[("light.css", "/* mine */")]);
     let response = send(state, "/themes/light.css", &[HOST]).await;
 
@@ -92,7 +92,7 @@ async fn a_user_theme_overrides_a_builtin() {
 
 #[tokio::test]
 async fn a_new_user_theme_shows_without_a_restart() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let app = router(Arc::new(with_themes(dir.path(), &[])));
     fs::write(dir.path().join("themes/nord.css"), "/* nord */").unwrap();
 
@@ -105,7 +105,7 @@ async fn a_new_user_theme_shows_without_a_restart() {
 #[tokio::test]
 async fn a_link_in_the_folder_is_a_theme() {
     // As a dotfile manager makes it: the file is in another folder.
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     fs::create_dir(dir.path().join("dotfiles")).unwrap();
     fs::write(dir.path().join("dotfiles/nord.css"), "/* nord */").unwrap();
     let state = with_themes(dir.path(), &[]);
@@ -120,7 +120,7 @@ async fn a_link_in_the_folder_is_a_theme() {
 
 #[tokio::test]
 async fn a_theme_outside_the_folder_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     fs::write(dir.path().join("secret.css"), "/* secret */").unwrap();
     let state = with_themes(dir.path(), &[]);
     let response = send(state, "/themes/..%2Fsecret.css", &[HOST]).await;
@@ -129,7 +129,7 @@ async fn a_theme_outside_the_folder_is_refused() {
 
 #[tokio::test]
 async fn an_unreadable_theme_is_an_error() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = with_themes(dir.path(), &[("nord.css", "/* nord */")]);
     let locked = dir.path().join("themes/nord.css");
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();

@@ -42,7 +42,7 @@ fn snapshots(dir: &Path, path: &str) -> Vec<String> {
 
 #[tokio::test]
 async fn save_writes_the_content_when_the_version_matches() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = put(
         workspace(dir.path()),
         "a.md",
@@ -60,7 +60,7 @@ async fn save_writes_the_content_when_the_version_matches() {
 
 #[tokio::test]
 async fn save_snapshots_the_old_content_first() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     put(
         workspace(dir.path()),
         "a.md",
@@ -74,7 +74,7 @@ async fn save_snapshots_the_old_content_first() {
 
 #[tokio::test]
 async fn a_hidden_file_keeps_its_revisions() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let path = ".claude/plans/a.md";
     let state = common::workspace(dir.path(), &[(path, b"old\n")]);
     let response = put(state, path, Some(&etag(b"old\n")), "new\n").await;
@@ -90,7 +90,7 @@ async fn a_hidden_file_keeps_its_revisions() {
 #[tokio::test]
 async fn a_snapshot_goes_under_the_real_path_of_the_file() {
     for path in ["link.md", "lnk/../a.md"] {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = common::tempdir();
         let state = common::workspace(dir.path(), &[("sub/a.md", b"old\n")]);
         let ws = dir.path().join("ws");
         symlink("sub/a.md", ws.join("link.md")).unwrap();
@@ -108,7 +108,7 @@ async fn a_snapshot_goes_under_the_real_path_of_the_file() {
 async fn save_prunes_to_snapshots_per_file() {
     // The spec's default, then a value from config.toml.
     for (setting, keep) in [(None, 20), (Some(2), 2)] {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = common::tempdir();
         let mut state = workspace(dir.path());
         state.config.snapshots_per_file = setting;
         let folder = dir.path().join("ws/.mdame/history/a.md");
@@ -128,7 +128,7 @@ async fn save_prunes_to_snapshots_per_file() {
 
 #[tokio::test]
 async fn a_save_keeps_its_snapshot_when_later_names_fill_the_history() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let mut state = workspace(dir.path());
     state.config.snapshots_per_file = Some(2);
     let folder = dir.path().join("ws/.mdame/history/a.md");
@@ -147,7 +147,7 @@ async fn a_save_keeps_its_snapshot_when_later_names_fill_the_history() {
 // macOS lacks. There, the snapshot fails too.
 #[cfg_attr(not(target_os = "linux"), ignore = "needs O_PATH")]
 async fn a_save_succeeds_when_pruning_fails() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let mut state = workspace(dir.path());
     state.config.snapshots_per_file = Some(1);
     // The snapshot can go in, but the prune cannot list the folder.
@@ -163,7 +163,7 @@ async fn a_save_succeeds_when_pruning_fails() {
 
 #[tokio::test]
 async fn the_snapshot_is_named_by_the_time_of_the_save() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let before = now_ms();
     put(
         workspace(dir.path()),
@@ -200,7 +200,7 @@ fn now_ms() -> u128 {
 
 #[tokio::test]
 async fn save_of_an_empty_file_makes_no_snapshot() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("a.md", b"")]);
     let response = put(state, "a.md", Some(&etag(b"")), "new\n").await;
 
@@ -210,7 +210,7 @@ async fn save_of_an_empty_file_makes_no_snapshot() {
 
 #[tokio::test]
 async fn save_of_the_text_on_disk_writes_nothing() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     let file = fs::File::options()
         .write(true)
@@ -229,7 +229,7 @@ async fn save_of_the_text_on_disk_writes_nothing() {
 
 #[tokio::test]
 async fn save_writes_the_file_in_place() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("a.md", b"a longer text\n")]);
     let file = dir.path().join("ws/a.md");
     fs::set_permissions(&file, Permissions::from_mode(0o600)).unwrap();
@@ -245,7 +245,7 @@ async fn save_writes_the_file_in_place() {
 
 #[tokio::test]
 async fn save_with_a_stale_version_is_refused_and_writes_nothing() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = put(
         workspace(dir.path()),
         "a.md",
@@ -263,7 +263,7 @@ async fn save_with_a_stale_version_is_refused_and_writes_nothing() {
 
 #[tokio::test]
 async fn save_without_if_match_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = put(workspace(dir.path()), "a.md", None, "new\n").await;
 
     assert_eq!(response.status(), StatusCode::PRECONDITION_REQUIRED);
@@ -272,7 +272,7 @@ async fn save_without_if_match_is_refused() {
 
 #[tokio::test]
 async fn if_match_must_be_one_strong_etag() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let hash = version(b"old\n");
     let forms = [
         "*".to_owned(),
@@ -290,7 +290,7 @@ async fn if_match_must_be_one_strong_etag() {
 
 #[tokio::test]
 async fn if_match_sent_twice_never_matches() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let uri = "/api/file?path=a.md";
     let body = json!({ "content": "new\n" }).to_string();
     let (good, other) = (etag(b"old\n"), etag(b"other\n"));
@@ -304,7 +304,7 @@ async fn if_match_sent_twice_never_matches() {
 /// The body limit is the same refusal as the edit limit, not a bad request.
 #[tokio::test]
 async fn save_of_a_body_over_the_limit_is_too_large() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let content = "a".repeat(33 * 1024 * 1024);
     let response = put(
         workspace(dir.path()),
@@ -321,7 +321,7 @@ async fn save_of_a_body_over_the_limit_is_too_large() {
 
 #[tokio::test]
 async fn save_of_a_file_that_mdame_may_not_write_leaves_no_snapshot() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     fs::set_permissions(dir.path().join("ws/a.md"), Permissions::from_mode(0o444)).unwrap();
     let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
@@ -343,7 +343,7 @@ async fn save_without_a_writable_history_folder_writes_nothing() {
         |ws| fs::write(ws.join(".mdame"), "").unwrap(),
     ];
     for (n, setup) in setups.into_iter().enumerate() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = common::tempdir();
         let state = workspace(dir.path());
         setup(&dir.path().join("ws"));
         let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
@@ -359,7 +359,7 @@ async fn save_without_a_writable_history_folder_writes_nothing() {
 /// A leaked token must not rewrite `.git/config`, a `Makefile` or a snapshot.
 #[tokio::test]
 async fn save_refuses_what_the_editor_may_not_open() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 4] = [
         ("Makefile", b"all:\n"),
         (".git/x.md", b"# A\n"),
@@ -399,7 +399,7 @@ async fn save_refuses_what_the_editor_may_not_open() {
 
 #[tokio::test]
 async fn save_of_a_deleted_file_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     fs::remove_file(dir.path().join("ws/a.md")).unwrap();
     let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
@@ -419,7 +419,7 @@ async fn save_of_a_deleted_file_is_refused() {
 
 #[tokio::test]
 async fn save_takes_content_up_to_the_edit_limit() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     // The spec's limit, not the constant: a test must fail if the constant moves.
     let limit = 8 * 1024 * 1024;
     // Quotes double in JSON: the body is twice the limit.

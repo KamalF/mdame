@@ -24,7 +24,7 @@ struct Watched {
 
 impl Watched {
     fn new(files: &[(&str, &[u8])]) -> Watched {
-        Watched::in_dir(tempfile::tempdir().unwrap(), files)
+        Watched::in_dir(common::tempdir(), files)
     }
 
     /// For a `dir` prepared before the workspace opens.
@@ -157,7 +157,7 @@ async fn emacs_save_is_a_rename_then_a_creation() {
 
 #[tokio::test]
 async fn symlinked_folder_out_of_the_workspace_is_not_watched() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let outside = dir.path().join("outside");
     fs::create_dir_all(&outside).unwrap();
     fs::create_dir_all(dir.path().join("ws")).unwrap();
@@ -217,7 +217,7 @@ async fn folder_deleted_then_created_is_removed_and_created() {
 #[tokio::test]
 async fn folder_swapped_through_moves_is_removed_and_created() {
     let mut watched = Watched::new(&[A, ("docs/a.md", b"")]);
-    let outside = tempfile::tempdir().unwrap();
+    let outside = common::tempdir();
     fs::create_dir(outside.path().join("new")).unwrap();
     fs::write(outside.path().join("new/b.md"), "").unwrap();
     fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
@@ -252,7 +252,7 @@ async fn renames_are_paired() {
 #[tokio::test]
 async fn populated_folder_moved_in_is_created() {
     let mut watched = Watched::new(&[A]);
-    let staging = tempfile::tempdir().unwrap();
+    let staging = common::tempdir();
     let source = staging.path().join("moved");
     fs::create_dir(&source).unwrap();
     fs::write(source.join("inner.md"), "# Inner\n").unwrap();
@@ -276,7 +276,7 @@ async fn folder_delete_is_one_removal() {
 #[tokio::test]
 async fn unreadable_folder_does_not_stop_the_watch() {
     use std::os::unix::fs::PermissionsExt;
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let locked = dir.path().join("ws/locked");
     fs::create_dir_all(&locked).unwrap();
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
@@ -391,7 +391,7 @@ async fn a_folder_created_again_stays_watched() {
 #[tokio::test]
 async fn a_folder_swapped_through_moves_stays_watched() {
     let mut watched = Watched::new(&[A, ("docs/a.md", b"")]);
-    let outside = tempfile::tempdir().unwrap();
+    let outside = common::tempdir();
     fs::create_dir(outside.path().join("new")).unwrap();
     fs::rename(watched.path("docs"), outside.path().join("old")).unwrap();
     fs::rename(outside.path().join("new"), watched.path("docs")).unwrap();
@@ -407,7 +407,7 @@ async fn a_folder_swapped_through_moves_stays_watched() {
 
 #[tokio::test]
 async fn a_tab_connected_during_the_first_walk_gets_a_resync() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let (sender, mut events) = broadcast::channel(EVENT_CAPACITY);
     let _watcher = mdame::watch::start(dir.path(), sender).unwrap();
     let event = timeout(FIRST_EVENT, events.recv()).await.unwrap().unwrap();

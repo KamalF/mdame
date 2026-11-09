@@ -24,7 +24,7 @@ fn workspace(dir: &Path) -> AppState {
 
 #[tokio::test]
 async fn history_lists_the_revisions_newest_first() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     symlink("a.md", dir.path().join("ws/link.md")).unwrap();
     // A link lists the revisions of its file.
@@ -43,7 +43,7 @@ async fn history_lists_the_revisions_newest_first() {
 
 #[tokio::test]
 async fn history_of_a_file_never_saved_is_empty() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 2] = [("a.md", b"# A\n"), (".mdame/history/b.md/1.md", b"")];
     let state = common::workspace(dir.path(), &files);
     let (status, revisions) = get_json(state, "/api/history?path=a.md").await;
@@ -54,7 +54,7 @@ async fn history_of_a_file_never_saved_is_empty() {
 
 #[tokio::test]
 async fn listing_creates_no_history_folder() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
     let (status, revisions) = get_json(state, "/api/history?path=a.md").await;
 
@@ -67,7 +67,7 @@ async fn listing_creates_no_history_folder() {
 async fn a_history_folder_that_is_a_link_is_refused() {
     // A crafted repository: pruning would delete the notes there.
     for (link, target) in [(".mdame", "notes"), (".mdame/history", "../notes")] {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = common::tempdir();
         let files: [(&str, &[u8]); 2] = [("a.md", b"old\n"), ("notes/1000.md", b"note\n")];
         common::workspace(dir.path(), &files);
         let link = dir.path().join("ws").join(link);
@@ -93,7 +93,7 @@ async fn a_history_folder_that_is_a_link_is_refused() {
 
 #[tokio::test]
 async fn history_view_returns_the_revision_text() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let uri = "/api/history/view?path=a.md&id=999.md";
     let (status, body) = get_json(workspace(dir.path()), uri).await;
 
@@ -103,7 +103,7 @@ async fn history_view_returns_the_revision_text() {
 
 #[tokio::test]
 async fn an_id_names_a_revision_of_this_file_only() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 4] = [
         ("a.md", b"# A\n"),
         (".mdame/history/b.md/1000.md", b"# B\n"),
@@ -128,7 +128,7 @@ async fn an_id_names_a_revision_of_this_file_only() {
         assert_eq!(body["error"]["message"], "a.md: no such revision", "{id}");
     }
     // No history folder: no id names a revision.
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
     let (status, _) = get_json(state, "/api/history/view?path=a.md&id=1000.md").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -136,7 +136,7 @@ async fn an_id_names_a_revision_of_this_file_only() {
 
 #[tokio::test]
 async fn history_view_refuses_a_revision_that_is_not_utf8() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 2] = [
         ("a.md", b"# A\n"),
         (".mdame/history/a.md/1000.md", b"\xff\n"),
@@ -150,7 +150,7 @@ async fn history_view_refuses_a_revision_that_is_not_utf8() {
 
 #[tokio::test]
 async fn history_view_refuses_a_revision_over_the_edit_limit() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     // The spec's limit, not the constant: a test must fail if the constant moves.
     let limit = 8 * 1024 * 1024;
     let files: [(&str, &[u8]); 3] = [
@@ -171,7 +171,7 @@ async fn history_view_refuses_a_revision_over_the_edit_limit() {
 
 #[tokio::test]
 async fn history_view_opens_no_fifo_and_follows_no_link() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 2] = [("a.md", b"# A\n"), (".mdame/history/a.md/1000.md", b"")];
     common::workspace(dir.path(), &files);
     let folder = dir.path().join("ws/.mdame/history/a.md");
@@ -207,7 +207,7 @@ fn read(dir: &Path) -> String {
 
 #[tokio::test]
 async fn restore_writes_the_revision_over_the_file() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = restore(workspace(dir.path()), "a.md", "999.md").await;
 
     assert_eq!(response.status(), StatusCode::OK);
@@ -217,7 +217,7 @@ async fn restore_writes_the_revision_over_the_file() {
 
 #[tokio::test]
 async fn restore_keeps_the_current_content_as_a_revision() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     restore(workspace(dir.path()), "a.md", "999.md").await;
     // No files given: the workspace keeps what the restore wrote.
     let state = common::workspace(dir.path(), &[]);
@@ -231,7 +231,7 @@ async fn restore_keeps_the_current_content_as_a_revision() {
 
 #[tokio::test]
 async fn restore_refuses_a_file_that_is_not_utf8() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 2] = [
         ("a.md", b"\xff\n"),
         (".mdame/history/a.md/999.md", b"# A\n"),
@@ -246,7 +246,7 @@ async fn restore_refuses_a_file_that_is_not_utf8() {
 
 #[tokio::test]
 async fn restore_of_a_deleted_file_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     fs::remove_file(dir.path().join("ws/a.md")).unwrap();
     let response = restore(state, "a.md", "999.md").await;

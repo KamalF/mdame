@@ -21,7 +21,7 @@ fn workspace(dir: &Path) -> AppState {
 
 #[tokio::test]
 async fn preview_gives_the_same_html_as_the_view() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let (_, view) = get_json(workspace(dir.path()), "/api/file?path=docs/a.md").await;
     let (status, preview) = preview(workspace(dir.path()), "docs/a.md", MARKDOWN).await;
 
@@ -31,7 +31,7 @@ async fn preview_gives_the_same_html_as_the_view() {
 
 #[tokio::test]
 async fn preview_over_1_mb_shows_a_notice() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let limit = 1024 * 1024;
     for (length, notice) in [(limit, false), (limit + 1, true)] {
         let content = "a".repeat(length);
@@ -45,7 +45,7 @@ async fn preview_over_1_mb_shows_a_notice() {
 
 #[tokio::test]
 async fn preview_takes_escaped_text_up_to_the_edit_limit() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     // Each newline takes two bytes in JSON: the body is twice the text.
     let content = "\n".repeat(8 * 1024 * 1024);
     let (status, _) = preview(workspace(dir.path()), "a.md", &content).await;

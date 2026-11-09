@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn folder_opens_as_itself() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         fs::write(dir.path().join("a.md"), "# A").unwrap();
 
         let workspace = Workspace::open(dir.path()).unwrap();
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn file_opens_its_folder_with_the_file_first() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         fs::write(dir.path().join("a.md"), "").unwrap();
 
         let workspace = Workspace::open(&dir.path().join("a.md")).unwrap();
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn dotted_path_gives_the_canonical_root() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         fs::create_dir(dir.path().join("sub")).unwrap();
 
         let dotted = Workspace::open(&dir.path().join("sub/../sub/.")).unwrap();
@@ -172,14 +172,14 @@ mod tests {
 
     #[test]
     fn missing_path_is_not_found() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let error = Workspace::open(&dir.path().join("missing")).err().unwrap();
         assert_eq!(error.kind(), ErrorKind::NotFound);
     }
 
     #[test]
     fn fd_path_names_the_open_file() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let root = dir.path().canonicalize().unwrap();
         fs::write(root.join("a.md"), "").unwrap();
         std::os::unix::fs::symlink("a.md", root.join("link.md")).unwrap();
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn a_deleted_file_is_reported_deleted() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         fs::write(dir.path().join("a.md"), "").unwrap();
 
         let file = fs::File::open(dir.path().join("a.md")).unwrap();

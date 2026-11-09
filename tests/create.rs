@@ -25,7 +25,7 @@ fn workspace(dir: &Path) -> AppState {
 
 #[tokio::test]
 async fn create_makes_an_empty_file() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = post(workspace(dir.path()), "b.md").await;
 
     assert_eq!(etag_of(&response), etag(b""));
@@ -37,7 +37,7 @@ async fn create_makes_an_empty_file() {
 
 #[tokio::test]
 async fn create_of_an_existing_file_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let (status, error) = create(workspace(dir.path()), "a.md").await;
 
     assert_eq!(status, StatusCode::CONFLICT);
@@ -47,7 +47,7 @@ async fn create_of_an_existing_file_is_refused() {
 
 #[tokio::test]
 async fn create_refuses_a_type_that_the_editor_cannot_open() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     fs::create_dir_all(dir.path().join("ws/.git")).unwrap();
     fs::create_dir_all(dir.path().join("ws/.claude")).unwrap();
     symlink(".git", dir.path().join("ws/git-link")).unwrap();
@@ -77,7 +77,7 @@ async fn create_refuses_a_type_that_the_editor_cannot_open() {
 
 #[tokio::test]
 async fn create_makes_markdown_in_a_hidden_folder() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     fs::create_dir_all(dir.path().join("ws/.claude/plans")).unwrap();
     for path in [".notes.md", ".claude/plans/b.md"] {
         let (status, _) = create(workspace(dir.path()), path).await;
@@ -93,7 +93,7 @@ async fn create_makes_markdown_in_a_hidden_folder() {
 
 #[tokio::test]
 async fn create_in_a_missing_folder_names_the_folder() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let cases = [
         ("new/deeper/b.md", "new/deeper: no such folder"),
         ("a.md/b.md", "a.md: no such folder"),
@@ -110,7 +110,7 @@ async fn create_in_a_missing_folder_names_the_folder() {
 /// Not in the routes matrix: the path comes in the body.
 #[tokio::test]
 async fn create_stays_in_the_workspace() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     let outside = dir.path().join("outside");
     fs::create_dir(&outside).unwrap();

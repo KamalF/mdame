@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn the_state_folder_is_private_even_if_it_was_not() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let state = dir.path().join("state/mdame");
         private_folder(&state).unwrap();
         fs::set_permissions(&state, fs::Permissions::from_mode(0o755)).unwrap();
@@ -83,20 +83,20 @@ mod tests {
 
     #[test]
     fn missing_file_is_the_default() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let path = dir.path().join("missing.toml");
         assert_eq!(load(&path).unwrap(), Config::default());
     }
 
     #[test]
     fn unreadable_file_is_an_error() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         assert!(load(dir.path()).is_err());
     }
 
     #[test]
     fn reads_config() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let config_path = dir.path().join("config.toml");
         fs::write(&config_path, "snapshots_per_file = 5\n").unwrap();
 
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn a_config_that_sets_theme_stops_mdame() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let path = dir.path().join("config.toml");
         fs::write(&path, "theme = \"dark\"\n").unwrap();
         assert!(load(&path).unwrap_err().contains("unknown field `theme`"));
@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn unknown_config_key_is_an_error() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let path = dir.path().join("config.toml");
         fs::write(&path, "snapshot_per_file = 5\n").unwrap();
         let error = load(&path).unwrap_err();
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn bad_toml_names_the_file() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::workspace::tempdir();
         let path = dir.path().join("config.toml");
         fs::write(&path, "snapshots_per_file = \"many\"").unwrap();
         let error = load(&path).unwrap_err();

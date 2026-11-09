@@ -7,7 +7,7 @@ use common::{HOST, etag, etag_of, get_json, send, status_and_json};
 
 #[tokio::test]
 async fn source_returns_the_text_and_its_version() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("docs/a.md", b"# A\n")]);
 
     let response = send(state, "/api/source?path=docs/a.md", &[HOST]).await;
@@ -21,7 +21,7 @@ async fn source_returns_the_text_and_its_version() {
 /// The editor shows the deleted-file notice on this code.
 #[tokio::test]
 async fn source_of_a_missing_file_is_not_found() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     // The second one has a file where its folder would be.
     for path in ["missing.md", "a.md/b.md"] {
         let state = common::workspace(dir.path(), &[("a.md", b"# A\n")]);
@@ -33,7 +33,7 @@ async fn source_of_a_missing_file_is_not_found() {
 
 #[tokio::test]
 async fn source_refuses_what_the_editor_may_not_open() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 5] = [
         ("Makefile", b"all:\n"),
         (".git/x.md", b"# A\n"),
@@ -63,7 +63,7 @@ async fn source_refuses_what_the_editor_may_not_open() {
 
 #[tokio::test]
 async fn source_refuses_what_is_not_utf8_text() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 2] = [("latin1.md", b"caf\xe9\n"), ("a.png", b"# A\n")];
     for (path, _) in files {
         let state = common::workspace(dir.path(), &files);
@@ -75,7 +75,7 @@ async fn source_refuses_what_is_not_utf8_text() {
 
 #[tokio::test]
 async fn source_refuses_a_file_over_the_edit_limit() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[]);
     // The spec's limit, not the constant: a test must fail if the constant moves.
     let limit = 8 * 1024 * 1024;

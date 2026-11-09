@@ -150,7 +150,7 @@ async fn the_printed_code_works_for_ten_minutes() {
 /// working, at this start and at the next.
 #[tokio::test]
 async fn a_code_used_twice_makes_a_new_token() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let token_file = dir.path().join("token");
     let state = Arc::new(AppState {
         token_file: Some(token_file.clone()),

@@ -5,7 +5,7 @@ use common::get_json;
 
 #[tokio::test]
 async fn tree_of_the_open_workspace() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = common::workspace(dir.path(), &[("docs/a.md", b"")]);
 
     let (status, body) = get_json(state, "/api/tree").await;

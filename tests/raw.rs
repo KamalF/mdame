@@ -35,7 +35,7 @@ async fn body(response: Response) -> Vec<u8> {
 
 #[tokio::test]
 async fn image_keeps_its_type_and_is_sandboxed() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = get_raw(workspace(dir.path()), "img/a%20b.png").await;
     assert_eq!(response.status(), StatusCode::OK);
     let headers = response.headers();
@@ -48,7 +48,7 @@ async fn image_keeps_its_type_and_is_sandboxed() {
 
 #[tokio::test]
 async fn svg_is_sandboxed() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = get_raw(workspace(dir.path()), "logo.SVG").await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.headers()[header::CONTENT_TYPE], "image/svg+xml");
@@ -57,7 +57,7 @@ async fn svg_is_sandboxed() {
 
 #[tokio::test]
 async fn html_is_plain_text_and_sandboxed() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let response = get_raw(workspace(dir.path()), "page.html").await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -69,7 +69,7 @@ async fn html_is_plain_text_and_sandboxed() {
 
 #[tokio::test]
 async fn missing_files_and_folders_are_not_found() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     for path in ["nothing.png", "img"] {
         let response = get_raw(workspace(dir.path()), path).await;
         assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
@@ -78,7 +78,7 @@ async fn missing_files_and_folders_are_not_found() {
 
 #[tokio::test]
 async fn file_over_64_mb_is_refused() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     let limit = 64 * 1024 * 1024;
     // Sparse: they take no disk space.
@@ -95,7 +95,7 @@ async fn file_over_64_mb_is_refused() {
 
 #[tokio::test]
 async fn fifo_is_not_opened() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     let fifo = dir.path().join("ws/pipe.png");
     assert!(

@@ -38,7 +38,7 @@ async fn next_text(client: &mut Client) -> String {
 
 #[tokio::test]
 async fn file_change_reaches_the_tab_with_a_relative_path() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let (_state, url) = serve(common::workspace(dir.path(), &[("docs/a.md", b"# A\n")])).await;
     let mut client = connect(&url).await;
 

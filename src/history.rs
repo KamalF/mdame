@@ -201,7 +201,7 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     fn workspace() -> (tempfile::TempDir, Dir) {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let workspace = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         (tmp, workspace)
     }
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn snapshot_goes_under_the_file_path_named_by_the_time() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         let cases = [
             ("api/rate-limiting.md", "1771271566123.md"),
@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn a_snapshot_is_readable_by_the_owner_only() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         let name = snapshot(&history, Path::new("a.md"), b"old", 1000).unwrap();
 
@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn two_snapshots_in_the_same_millisecond_are_both_kept() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
 
         let first = snapshot(&history, Path::new("a.md"), b"one", 1000).unwrap();
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn a_snapshot_that_cannot_be_written_gives_the_error() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         fs::create_dir(tmp.path().join("a.md")).unwrap();
         fs::set_permissions(tmp.path().join("a.md"), fs::Permissions::from_mode(0o555)).unwrap();
         let history = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn prune_keeps_the_newest_snapshots() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         fs::create_dir(tmp.path().join("a.md")).unwrap();
         // In the order of the names, 999 would be the newest.
         for name in ["999.md", "1000.md", "1001.md"] {
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn prune_deletes_no_other_file() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         fs::create_dir(tmp.path().join("a.md")).unwrap();
         let others = ["+5.md", ".1000.md", "12a.md", "notes.txt"];
         for name in others.iter().chain(&["1000.md", "1001"]) {
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn prune_keeps_the_snapshot_just_made_unless_keep_is_0() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         fs::create_dir(tmp.path().join("a.md")).unwrap();
         for name in ["1000.md", "5000.md", "6000.md"] {
             fs::write(tmp.path().join("a.md").join(name), "").unwrap();
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn a_name_dated_after_now_counts_as_the_oldest() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         fs::create_dir(tmp.path().join("a.md")).unwrap();
         for name in ["1000.md", "2000.md", "99999999999999.md"] {
             fs::write(tmp.path().join("a.md").join(name), "").unwrap();
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn prune_reports_a_snapshot_that_it_cannot_delete() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let folder = tmp.path().join("a.md");
         fs::create_dir(&folder).unwrap();
         fs::write(folder.join("1000.md"), "").unwrap();
@@ -377,7 +377,7 @@ mod tests {
 
     #[test]
     fn a_history_folder_that_cannot_be_searched_is_an_error() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let folder = tmp.path().join("a.md");
         fs::create_dir(&folder).unwrap();
         fs::write(folder.join("1000.md"), "").unwrap();
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn a_folder_or_a_link_is_no_snapshot() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let folder = tmp.path().join("a.md");
         fs::create_dir_all(folder.join("1.md")).unwrap();
         fs::write(folder.join("1000.md"), "").unwrap();

@@ -119,6 +119,9 @@ pub fn tempdir() -> tempfile::TempDir {
 /// outside the workspace.
 pub fn workspace(dir: &Path, files: &[(&str, &[u8])]) -> AppState {
     let root = dir.join("ws");
+    // A hidden root would turn each test of the editor's rules into a test
+    // of the hidden rule.
+    assert!(!is_hidden(&root), "make `dir` with tempdir(): {root:?}");
     for (path, content) in files {
         let path = root.join(path);
         fs::create_dir_all(path.parent().unwrap()).unwrap();

@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn read_at_most_refuses_a_file_over_the_limit() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         std::fs::write(tmp.path().join("a.txt"), "abcd").unwrap();
         let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
 
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn two_saves_from_one_version_let_one_through() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         std::fs::create_dir(tmp.path().join("history")).unwrap();
         let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         let history = dir.open_dir("history").unwrap();
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn a_file_renamed_over_during_the_save_is_left_alone() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         std::fs::create_dir(tmp.path().join("history")).unwrap();
         let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         dir.write("a.md", "old\n").unwrap();
@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn a_file_renamed_over_after_the_open_is_opened_again() {
-        let tmp = tempfile::tempdir().unwrap();
+        let tmp = crate::workspace::tempdir();
         let dir = Dir::open_ambient_dir(tmp.path(), ambient_authority()).unwrap();
         dir.write("a.md", "old\n").unwrap();
         let stop = AtomicBool::new(false);

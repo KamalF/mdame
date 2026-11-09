@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn a_phrase_matches_in_any_case() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "a.md", "The Retry Budget\n", 1);
         write(root.path(), "b.md", "retry, then budget\n", 2);
 
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn an_uppercase_letter_makes_the_case_count() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "a.md", "the retry\n", 1);
         write(root.path(), "b.md", "the Retry\n", 2);
 
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn search_reads_what_the_tree_shows() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         fs::write(root.path().join(".gitignore"), "drafts/\n").unwrap();
         write(root.path(), "drafts/a.md", "needle\n", 1);
         write(root.path(), ".claude/plans/b.md", "needle\n", 2);
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn images_and_files_over_1_mb_are_skipped() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "a.svg", "<svg><text>needle</text></svg>\n", 1);
         // The spec's limit, not the constant.
         let limit = 1024 * 1024;
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn a_file_that_is_not_utf8_is_skipped() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "a.md", "needle\n", 1);
         fs::write(root.path().join("latin1.md"), b"needle caf\xe9\n").unwrap();
 
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn newest_files_come_first() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "old.md", "needle\n", 1);
         write(root.path(), "new.md", "needle\n", 3);
         write(root.path(), "docs/middle.md", "needle\n", 2);
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn results_stop_at_50_files_and_20_matches_per_file() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         let text = "needle\n".repeat(21);
         for index in 0..51 {
             write(root.path(), &format!("{index:02}.md"), &text, index);

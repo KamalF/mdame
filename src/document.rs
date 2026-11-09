@@ -74,7 +74,7 @@ pub fn view(dir: &Dir, path: &str) -> io::Result<View> {
         modified: modified_secs(&metadata).unwrap_or(0),
         size,
         too_large,
-        editable: editable_name(Path::new(path)).is_ok() && size <= EDIT_LIMIT,
+        editable: editable_in(dir, Path::new(path)).is_ok() && size <= EDIT_LIMIT,
     })
 }
 
@@ -281,14 +281,14 @@ pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
     if Path::new(path).is_absolute() {
         return Err(outside());
     }
-    editable_name(Path::new(path))?;
+    editable_in(dir, Path::new(path))?;
     // Created through a handle on its folder: a folder swapped after the
     // check cannot move the new file.
     let (folder, name) = match path.rsplit_once('/') {
         Some((folder, name)) => (dir.open_dir(folder)?, name),
         None => (dir.try_clone()?, path),
     };
-    editable_name(&real_path(dir, &folder)?.join(name))?;
+    editable_in(dir, &real_path(dir, &folder)?.join(name))?;
     let file = folder.open_with(name, OpenOptions::new().write(true).create_new(true))?;
     saved(version(b""), &file)
 }
@@ -313,8 +313,8 @@ fn open_editable(
     options: &OpenOptions,
 ) -> io::Result<(File, Metadata, PathBuf)> {
     let (file, metadata) = open_file(dir, path, options)?;
-    editable_name(Path::new(path))?;
-    match real_path(dir, &file).and_then(|real| editable_name(&real).map(|()| real)) {
+    editable_in(dir, Path::new(path))?;
+    match real_path(dir, &file).and_then(|real| editable_in(dir, &real).map(|()| real)) {
         // A program saved the file by a rename after the open: the open file
         // is deleted, or now has the name of a backup.
         Err(_) if !is_at(dir, path, &file) => open_editable(dir, path, options),
@@ -347,6 +347,12 @@ fn real_path(dir: &Dir, handle: &impl AsFd) -> io::Result<PathBuf> {
 /// "path outside the workspace".
 fn outside() -> io::Error {
     io::Error::new(ErrorKind::PermissionDenied, "outside the workspace")
+}
+
+/// `editable_name` of the path under the root: in a root such as
+/// `~/.claude`, the rules of hidden folders apply to every file.
+fn editable_in(dir: &Dir, relative: &Path) -> io::Result<()> {
+    editable_name(&fd_path(dir)?.join(relative))
 }
 
 fn editable_name(path: &Path) -> io::Result<()> {
@@ -501,6 +507,38 @@ mod tests {
         });
 
         assert!(failed.is_none(), "{failed:?}");
+    }
+
+    #[test]
+    fn a_hidden_root_edits_only_markdown() {
+        let tmp = crate::workspace::tempdir();
+        let root = tmp.path().join(".claude");
+        std::fs::create_dir(&root).unwrap();
+        let dir = Dir::open_ambient_dir(&root, ambient_authority()).unwrap();
+        dir.write("settings.json", "{}\n").unwrap();
+        dir.write("plan.md", "# Plan\n").unwrap();
+
+        assert!(view(&dir, "plan.md").unwrap().editable);
+        assert!(!view(&dir, "settings.json").unwrap().editable);
+        let saved = save(
+            &dir,
+            || {
+                dir.create_dir_all("history")
+                    .and_then(|()| dir.open_dir("history"))
+            },
+            20,
+            "settings.json",
+            "{\"x\": 1}\n",
+            &version(b"{}\n"),
+        );
+        assert!(
+            matches!(&saved, Err(SaveError::Io(error)) if error.kind() == ErrorKind::Unsupported),
+            "{saved:?}"
+        );
+        assert_eq!(dir.read_to_string("settings.json").unwrap(), "{}\n");
+        let created = create(&dir, "hooks.json").unwrap_err();
+        assert_eq!(created.kind(), ErrorKind::Unsupported);
+        assert!(create(&dir, "notes.md").is_ok());
     }
 
     #[test]

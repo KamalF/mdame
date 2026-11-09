@@ -18,7 +18,7 @@ fn workspace(dir: &Path) -> AppState {
 
 #[tokio::test]
 async fn markdown_file_is_rendered() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let (status, body) = get_file(workspace(dir.path()), "docs/a.md").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["family"], "markdown");
@@ -36,7 +36,7 @@ async fn markdown_file_is_rendered() {
 
 #[tokio::test]
 async fn file_returns_the_source_that_it_rendered() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let files: [(&str, &[u8]); 2] = [("a.md", b"# A\n\ntext\n"), ("latin1.md", b"caf\xe9\n")];
     for (path, source) in [("a.md", "# A\n\ntext\n"), ("latin1.md", "caf\u{fffd}\n")] {
         let (status, body) = get_file(common::workspace(dir.path(), &files), path).await;
@@ -47,7 +47,7 @@ async fn file_returns_the_source_that_it_rendered() {
 
 #[tokio::test]
 async fn an_image_and_a_large_file_have_no_source() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     fs::write(dir.path().join("ws/a.png"), b"\x89PNG").unwrap();
     fs::write(dir.path().join("ws/big.md"), "a".repeat(1024 * 1024 + 1)).unwrap();
@@ -61,7 +61,7 @@ async fn an_image_and_a_large_file_have_no_source() {
 
 #[tokio::test]
 async fn file_over_1_mb_is_not_rendered() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     fs::write(dir.path().join("ws/limit.txt"), "a".repeat(1024 * 1024)).unwrap();
     fs::write(dir.path().join("ws/big.txt"), "a".repeat(1024 * 1024 + 1)).unwrap();
@@ -77,7 +77,7 @@ async fn file_over_1_mb_is_not_rendered() {
 
 #[tokio::test]
 async fn the_editor_is_offered_up_to_the_edit_limit() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     workspace(dir.path());
     // The spec's limit, not the constant: a test must fail if the constant moves.
     let limit = 8 * 1024 * 1024;
@@ -96,7 +96,7 @@ async fn the_editor_is_offered_up_to_the_edit_limit() {
 
 #[tokio::test]
 async fn hidden_markdown_is_offered_to_the_editor() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let cases = [
         (".todo.md", true),
         ("notes/.drafts/a.md", true),
@@ -113,7 +113,7 @@ async fn hidden_markdown_is_offered_to_the_editor() {
 
 #[tokio::test]
 async fn image_is_not_read() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     fs::write(dir.path().join("ws/big.png"), vec![0; 1024 * 1024 + 1]).unwrap();
     let (status, body) = get_file(state, "big.png").await;
@@ -125,7 +125,7 @@ async fn image_is_not_read() {
 
 #[tokio::test]
 async fn missing_files_and_folders_are_not_found() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     for path in ["nothing.md", "nothing.pdf", "docs"] {
         let (status, body) = get_file(workspace(dir.path()), path).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
@@ -135,7 +135,7 @@ async fn missing_files_and_folders_are_not_found() {
 
 #[tokio::test]
 async fn file_of_unknown_type_is_not_viewable() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     fs::write(dir.path().join("ws/Makefile"), "").unwrap();
     let (status, body) = get_file(state, "Makefile").await;
@@ -146,7 +146,7 @@ async fn file_of_unknown_type_is_not_viewable() {
 #[tokio::test]
 async fn unreadable_file_is_not_called_outside() {
     use std::os::unix::fs::PermissionsExt;
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let state = workspace(dir.path());
     let locked = dir.path().join("ws/docs/a.md");
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();

@@ -57,6 +57,13 @@ pub fn is_hidden(path: &Path) -> bool {
     )
 }
 
+/// For tests: `tempfile::tempdir()` names its folders `.tmp…`, and in a
+/// hidden root, the tree and the editor take markdown only.
+#[cfg(test)]
+pub(crate) fn tempdir() -> tempfile::TempDir {
+    tempfile::Builder::new().prefix("mdame").tempdir().unwrap()
+}
+
 pub struct Workspace {
     pub root: PathBuf,
     /// Every file access goes through it, so no path can leave `root`.
@@ -91,6 +98,15 @@ impl Workspace {
         // canonicalize must not leave `root` naming another one. If the
         // kernel cannot tell, as without /proc, the resolved path stands.
         let root = fd_path(&dir).unwrap_or(root);
+        if root
+            .components()
+            .any(|part| is_git_or_mdame(part.as_os_str()))
+        {
+            return Err(io::Error::new(
+                ErrorKind::Unsupported,
+                "mdame does not open a folder in .git or .mdame",
+            ));
+        }
         Ok(Workspace {
             root,
             dir,
@@ -133,6 +149,19 @@ mod tests {
 
         let dotted = Workspace::open(&dir.path().join("sub/../sub/.")).unwrap();
         assert_eq!(dotted.root, dir.path().join("sub").canonicalize().unwrap());
+    }
+
+    #[test]
+    fn a_root_in_git_or_mdame_is_refused() {
+        let dir = tempdir();
+        for folder in [".git/notes", ".mdame", "repo/.GIT"] {
+            fs::create_dir_all(dir.path().join(folder)).unwrap();
+            let error = Workspace::open(&dir.path().join(folder)).err().unwrap();
+            assert_eq!(error.kind(), ErrorKind::Unsupported, "{folder}");
+        }
+        fs::write(dir.path().join(".git/notes/a.md"), "").unwrap();
+        let error = Workspace::open(&dir.path().join(".git/notes/a.md")).err();
+        assert_eq!(error.unwrap().kind(), ErrorKind::Unsupported);
     }
 
     #[test]

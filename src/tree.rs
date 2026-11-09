@@ -40,7 +40,7 @@ pub fn build(workspace: &Workspace) -> Node {
         let relative = entry.path().strip_prefix(root).ok()?.to_str()?;
         Some((
             relative.to_owned(),
-            viewable_file(&workspace.dir, relative)?,
+            viewable_file(&workspace.dir, root, relative)?,
         ))
     });
     let mut top = Folder::default();
@@ -97,13 +97,14 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
 }
 
 /// The family and modified time of a viewable file, or `None` for
-/// anything else. In hidden folders, only markdown is viewable.
+/// anything else. In hidden folders, only markdown is viewable, also when
+/// the root itself is in one.
 /// The `Dir` follows a symlink only while it stays in the workspace, so a
 /// link to a file inside counts as a file and a link out is left out; the
 /// walker does not descend into a link to a folder.
-fn viewable_file(dir: &Dir, relative: &str) -> Option<File> {
+fn viewable_file(dir: &Dir, root: &Path, relative: &str) -> Option<File> {
     let family = Family::of(relative)?;
-    if family != Family::Markdown && is_hidden(Path::new(relative)) {
+    if family != Family::Markdown && is_hidden(&root.join(relative)) {
         return None;
     }
     let metadata = dir
@@ -206,7 +207,7 @@ mod tests {
 
     #[test]
     fn nests_viewable_files_by_folder() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "README.md", 10);
         write(root.path(), "docs/SPEC.md", 30);
         write(root.path(), "docs/img/logo.PNG", 20);
@@ -230,7 +231,7 @@ mod tests {
 
     #[test]
     fn folder_date_is_its_newest_file() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "notes/old.md", 10);
         write(root.path(), "notes/sub/new.md", 50);
 
@@ -241,7 +242,7 @@ mod tests {
 
     #[test]
     fn gitignore_applies_without_git() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         fs::write(root.path().join(".gitignore"), "drafts/\n").unwrap();
         write(root.path(), "drafts/wip.md", 1);
         write(root.path(), "notes.md", 1);
@@ -251,7 +252,7 @@ mod tests {
 
     #[test]
     fn markdown_in_a_hidden_folder_is_listed() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), ".claude/plans/a.md", 1);
         write(root.path(), "docs/.drafts/b.markdown", 1);
 
@@ -271,7 +272,7 @@ mod tests {
 
     #[test]
     fn a_hidden_markdown_file_is_listed() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), ".notes.md", 1);
 
         assert_eq!(tree_paths(&walk(root.path())), ["", ".notes.md"]);
@@ -279,7 +280,7 @@ mod tests {
 
     #[test]
     fn other_types_in_a_hidden_folder_stay_out() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), ".claude/settings.json", 1);
         write(root.path(), ".github/logo.png", 1);
         write(root.path(), ".notes.txt", 1);
@@ -289,8 +290,18 @@ mod tests {
     }
 
     #[test]
+    fn a_hidden_root_lists_only_markdown() {
+        let parent = crate::workspace::tempdir();
+        let root = parent.path().join(".claude");
+        write(&root, "settings.json", 1);
+        write(&root, "plans/a.md", 1);
+
+        assert_eq!(tree_paths(&walk(&root)), ["", "plans", "plans/a.md"]);
+    }
+
+    #[test]
     fn git_and_mdame_are_never_listed() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), ".git/a.md", 1);
         write(root.path(), ".mdame/history/a.md/1.md", 1);
         write(root.path(), "sub/.git/b.md", 1);
@@ -303,7 +314,7 @@ mod tests {
 
     #[test]
     fn gitignore_applies_in_hidden_folders() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         fs::write(root.path().join(".gitignore"), ".claude/local/\n").unwrap();
         write(root.path(), ".claude/local/a.md", 1);
         write(root.path(), ".claude/plans/b.md", 1);
@@ -316,7 +327,7 @@ mod tests {
 
     #[test]
     fn gitignore_above_the_root_applies_only_in_a_repository() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = crate::workspace::tempdir();
         fs::write(parent.path().join(".gitignore"), "*.md\n").unwrap();
         write(parent.path(), "ws/a.md", 1);
         let root = parent.path().join("ws");
@@ -328,7 +339,7 @@ mod tests {
 
     #[test]
     fn gitignore_above_the_repository_does_not_apply() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = crate::workspace::tempdir();
         fs::write(parent.path().join(".gitignore"), "*.md\n").unwrap();
         write(parent.path(), "repo/a.md", 1);
         let root = parent.path().join("repo");
@@ -338,10 +349,10 @@ mod tests {
 
     #[test]
     fn links_inside_are_listed_but_links_out_and_linked_folders_are_not() {
-        let outside = tempfile::tempdir().unwrap();
+        let outside = crate::workspace::tempdir();
         write(outside.path(), "secret.md", 1);
         write(outside.path(), "folder/inner.md", 1);
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "a.md", 1);
         let link = |target: &Path, name: &str| {
             std::os::unix::fs::symlink(target, root.path().join(name)).unwrap();
@@ -361,7 +372,7 @@ mod tests {
 
     #[test]
     fn the_walk_gives_a_folder_before_its_entries() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         for a in 0..4 {
             for b in 0..4 {
                 write(root.path(), &format!("{a}/{b}/c.md"), 1);
@@ -380,7 +391,7 @@ mod tests {
 
     #[test]
     fn empty_workspace_is_an_empty_root() {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::workspace::tempdir();
         write(root.path(), "main.rs", 1);
         let tree = walk(root.path());
         assert!(tree.children.is_empty());

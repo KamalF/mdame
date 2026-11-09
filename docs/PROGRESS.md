@@ -711,7 +711,10 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - On macOS, a write gives `created` while FSEvents still reports the creation of the file, for some seconds, and then `changed`. A first version expected `created`: on the Mac, one test failed in each run, and one in one run of three. So on macOS, the tests accept `created` where they expect `changed`.
    - A fix that the tests found: a folder swapped for another one sent no entries of the new one on macOS. FSEvents gives `RenameMode::Any`, which did not count as gone, so the folder kept its place in the watched folders. `Any` now counts. inotify never gives it.
    - Kamal ran the tests on a Mac, through `ssh sachamac`, with the runbook `~/dev/claude/runbooks/2026-11-09-mdame-m11-macos.md`. On commit 2, 13 of the 25 tests failed, all as above. With this commit, the watcher and WebSocket tests passed in 5 runs of 5, and all the tests passed once, with 2 ignored: the folder delete, and the save test that needs `O_PATH`.
-4. The rules of hidden folders apply to the root. `mdame ~/.claude` lists `settings.json`, and a leaked token can rewrite it: the hidden and `.git`/`.mdame` rules look only below the root. They now apply to the root's own real path too. In a hidden root, the tree lists and the editor edits markdown only. If the root is in `.git` or `.mdame`, mdame stops at start with a readable error. `a_hidden_root_lists_only_markdown`, `a_hidden_root_edits_only_markdown`, `a_root_in_git_or_mdame_stops_mdame`.
+4. The rules of hidden folders apply to the root (done). `mdame ~/.claude` listed `settings.json`, and a leaked token could rewrite it: the hidden and `.git`/`.mdame` rules looked only below the root. They now look at the whole real path, the root's own path included. In a hidden root, the tree lists and the editor edits markdown only. If the root is in `.git` or `.mdame`, mdame stops at start: "mdame does not open a folder in .git or .mdame". `a_hidden_root_lists_only_markdown`, `a_hidden_root_edits_only_markdown`, `a_root_in_git_or_mdame_is_refused`.
+   - The editor gets the root's path from the kernel, through `fd_path`, as the save already did for the file: `editable_in` checks the path under it.
+   - A root in a hidden folder counts too, such as `~/.config/notes`. So does a Claude Code worktree in `.claude/worktrees/`: mdame opened there shows markdown only.
+   - `tempfile::tempdir()` names its folders `.tmp…`, which are hidden. Four tests that need other types failed. `crate::workspace::tempdir()` and `common::tempdir()` make folders named `mdame…`, and the three files of those tests use them throughout.
 5. Cross-site requests. The guard refuses `/api/*` when `Sec-Fetch-Site` is `cross-site`. Browsers send this header on each request, also on the image and script loads that carry no `Origin`. It is a check beside the `Origin` check and the `SameSite=Strict` cookie. A request without the header, such as one from curl, passes. `a_cross_site_api_request_is_refused`, `an_api_request_without_sec_fetch_site_passes`.
 6. Long lines in search answers. A search answer has no limit on the length of a line, so a minified file can make it tens of MB. A line over a few hundred characters is now cut around its first match. `a_long_line_is_cut_around_the_match`.
 7. Ignore files that are not regular files. A `.gitignore` or `.ignore` that is a symlink to `/dev/zero`, or a FIFO, makes the walker read without end: mdame runs out of memory, or hangs. A cloned repository can hold such a link. In the parallel walker of the `ignore` crate, `filter_entry` runs before the crate reads the ignore files of a folder. So the filter can skip such a folder, with a warning. `a_folder_whose_gitignore_is_a_fifo_is_skipped`, `a_gitignore_linked_to_dev_zero_is_skipped`.
@@ -749,7 +752,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: commit 4, the rules of hidden folders on the root.
+1. Milestone 11, on the `m11-fixes` branch: commit 5, cross-site requests.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

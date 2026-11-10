@@ -919,7 +919,7 @@ View options:
 
 Wide blocks:
 
-5. With the sidebar open and the outline beside the column: the table, the code block, the diagram and `wide.png` grow past the column, mostly to the left, and stop before the outline. The text keeps its width, and `small.png` stays in its sentence. Hide the outline in View options: the blocks centre on the text. Narrow the window: the blocks shrink back, and the table scrolls inside. With Width: Full, no block grows. Add a column to the table on disk: its change bar sits at the left of the grown table.
+5. With the sidebar open and the outline beside the column: the table, the code block, the diagram and `wide.png` grow past the column, mostly to the left, and stop before the outline. The text keeps its width, and `small.png` stays in its sentence. Hide the outline in View options: the blocks centre on the text. Narrow the window: the blocks shrink back, and the table scrolls inside. With Width: Full and the outline hidden, no block grows. Add a column to the table on disk: its change bar sits at the left of the grown table.
 
 Editor:
 

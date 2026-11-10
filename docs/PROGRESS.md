@@ -20,7 +20,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 8 | Themes and polish | Done 3 November 2026, merged into `main` the same day | 31, with the review fixes |
 | 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
-| 11 | Fixes for 0.1.1 | Planned 9 November 2026 | About 16, without the review fixes |
+| 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Small Later items, then Show HN | — | About 10, without the review fixes |
 
 The plan of milestone 11 has 16 commits before its review. Milestone 12 has no plan yet: it has 10 items in the build order of `docs/SPEC.md`.
@@ -770,10 +770,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
     - The section of 0.1.1 gets its date in commit 16. Its lines are for users: what changed for them, not how.
 16. Version 0.1.1 (done). `Cargo.toml` says 0.1.1, and the section of 0.1.1 in `CHANGELOG.md` has the date of 10 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.1.1 an early release.
     - Then checks 1 to 8 of the manual checklist, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.1.1`, and runs `cargo publish`. Then checks 9 to 12.
+    - Done on 10 November 2026: mdame 0.1.1 is on GitHub, in the tap and on crates.io. Before the merge, the first CI runs of the branch on the macOS runner found the late events of FSEvents, under commit 3.
 
-Kamal, with no commit, before the release:
+Kamal, with no commit:
 
-- Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies. Since commit 11, that job can read the repository's contents only, but it can write attestations. The jobs that can write the contents run no dependency's code. The two settings still limit what a compromised action or tool could do: push to `main`, or replace the assets of earlier releases.
+- Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies. Since commit 11, that job can read the repository's contents only, but it can write attestations. The jobs that can write the contents run no dependency's code. The two settings still limit what a compromised action or tool could do: push to `main`, or replace the assets of earlier releases. Before 0.2.0, check that the release job of dist works with immutable releases on.
 - Topics for the repository on GitHub.
 - Yank mdame 0.0.1 on crates.io: the early build that held the name. `cargo install` already picks 0.1.0.
 - Report to the `ignore` crate, in BurntSushi/ripgrep, that an ignore file that is a FIFO or a link to `/dev/zero` makes the walker read without end, and so does a `.git` file whose `commondir` is one. ripgrep has the same problem. Report to globset, in the same repository, that `new_regex_set` keeps the capture groups: with crafted patterns, matching a name asked for 11 GB, and 82 MB with `which_captures(WhichCaptures::None)`. Even then, a 15 KB file of `?XY` lines next to 20,000 names took 19.5 s per walk: the lazy DFA gives up, and the PikeVM matches each name against each pattern.
@@ -785,6 +786,11 @@ Run on 10 November 2026, before the merge: checks 1 to 8 pass. Kamal ran checks 
 - 4: Chrome refused the image, and Firefox's DevTools showed 403 for a request that carried the cookie and `Sec-Fetch-Site: same-site`.
 - 7: the page says "This folder has no file that mdame shows". Only the terminal gives the cause.
 - 8: the delete ran before the create, since `n.md` was there when mdame started. Each change reached the page in a few seconds.
+
+Run on 10 November 2026, after the release: checks 9 to 12 pass. Kamal ran them with the runbook `~/dev/claude/runbooks/2026-11-10-mdame-release-0.1.1.md`. Notes:
+
+- 10: `gh attestation verify` prints its verdict only to a terminal. With `--format json`, it named the signer: `release.yml@refs/tags/v0.1.1`.
+- 11: `mise which mdame` returned the binary of `cargo install`, in `~/.cargo/bin`. The check of mise ran the binary in mise's install folder instead. The global mise config now pins 0.1.1.
 
 These checks cover what no test covers: the requests that Chrome and Firefox send through the guard against other sites, the page with a cut search line or a bad ignore file, live updates on a Mac, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds:
 
@@ -831,9 +837,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: checks 1 to 8 of its manual checklist, the merge, and the release of 0.1.1. Then checks 9 to 12.
-2. Milestone 12: its plan.
-3. After 0.2.0: the Show HN.
+1. Milestone 12: its plan. For each commit, Kamal decides who writes the message.
+2. After 0.2.0: the Show HN.
 
 ## Open points
 
@@ -842,6 +847,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - For some seconds after the creation of a file, FSEvents keeps reporting it, so a write gives `created`. It costs a reload of the tree. Measured on an Intel Mac with macOS 15.7.9, on 8 and 9 November 2026.
   - A folder delete: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
 - For milestone 12, from the review of milestone 3: `aria-selected` on the row that the arrow keys choose, with the arrow keys in the sidebar tree.
+- From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
+- From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. Find out whether dist can write it.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.

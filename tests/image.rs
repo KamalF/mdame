@@ -96,7 +96,7 @@ async fn an_image_never_goes_in_a_hidden_folder() {
             error["error"]["message"]
                 .as_str()
                 .unwrap()
-                .ends_with("mdame saves no image in a hidden folder"),
+                .ends_with("mdame saves no hidden image, and no image in a hidden folder"),
             "{path}: {error}"
         );
     }

@@ -369,7 +369,7 @@ fn image_name(path: &Path) -> io::Result<()> {
     if is_hidden(path) {
         return Err(io::Error::new(
             ErrorKind::Unsupported,
-            "mdame saves no image in a hidden folder",
+            "mdame saves no hidden image, and no image in a hidden folder",
         ));
     }
     Ok(())

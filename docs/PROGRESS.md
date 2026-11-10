@@ -876,7 +876,13 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - A paste with text keeps CodeMirror's paste: copying part of a web page brings its images with the text. A drop of an image of another type, such as BMP or HEIC, shows an error: CodeMirror would insert the bytes of the file as text.
    - The error of a failed image shows in the status bar of the editor, as a failed save does.
    - Found by the browser check: a second paste right after the first landed in the empty alt text of the first, as `![![](b.png)](a.png)`, since the cursor waits there. With the cursor in an empty alt text and nothing selected, a new image now goes on the next line. `skipEmptyAlt` in `paste.test.ts`.
-7. The print stylesheet. Ctrl+P prints the content alone, without the sidebar, the status bar and the outline. No test: the manual checklist covers it.
+7. The print stylesheet (done). Ctrl+P prints the whole file alone, without the sidebar, the status bar, the outline, the change bars and the copy buttons. `print.css`. No test: CSS only, so the browser check and the manual checklist cover it.
+   - Paper always takes the built-in Light theme, whatever the screen shows: light text of a dark theme would be faint on white paper, and browsers leave out backgrounds when they print. `index.html` loads `light.css` once more, last, for print, and a user or built-in theme other than Light and Dark loads for the screen only.
+   - On screen the content scrolls inside its pane, which would print only the part in view: on paper, the page, the frame and the pane grow to the whole file.
+   - The page gives the width: the column takes it, without the outline's margins, and the wide blocks lose their shift. A long code line wraps, and a block is not cut across two pages when it fits on one.
+   - In the editor, the preview prints. CodeMirror draws only the lines on screen, so with the preview hidden, the text prints in part: print from the view.
+   - A Mermaid diagram prints in the theme it was drawn in, as on screen: from a dark theme, it prints dark. The browser prints before an async redraw could end. Tried and dropped: an inversion of the dark drawing on paper (`filter: invert(1) hue-rotate(180deg)`). Kamal did not like it: who minds can pick a light theme before printing. The README says so.
+   - Found by the check, a print to PDF from Catppuccin Mocha: the wide blocks kept their shift, and were cut at the left edge of the page. The print rule must repeat the selector of the wide blocks, which is more specific than `.mdame-document > *`.
 8. Word count and reading time in the status bar, for the open file. `words counts the words of a text`, on a pure function. The commit settles which text counts: the source or the rendered text, with or without code.
 9. Version 0.2.0. `Cargo.toml` and `CHANGELOG.md` say 0.2.0. Before the tag, check that the release job of dist works with GitHub's immutable releases: see Open points. Then the manual checklist, the merge into `main`, and the release, as for 0.1.1. Then the Show HN.
 
@@ -894,7 +900,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 7, the print stylesheet.
+1. Milestone 12, on the `m12-later` branch: commit 8, the word count.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

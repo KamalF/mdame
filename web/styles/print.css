@@ -1,0 +1,65 @@
+/* Ctrl+P prints the content alone, and the whole file, not the part on
+   screen. Paper takes the built-in light theme: index.html loads it last
+   for print. */
+@media print {
+  html,
+  body,
+  main,
+  .mdame-frame,
+  #mdame-content,
+  .mdame-split,
+  .mdame-preview {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  #mdame-sidebar,
+  .mdame-resize,
+  .mdame-backdrop,
+  #mdame-status,
+  .mdame-outline,
+  .mdame-bars,
+  .mdame-code > button,
+  .mdame-divider,
+  .mdame-revisions {
+    display: none !important;
+  }
+
+  /* In the editor, the preview prints. CodeMirror draws only the lines on
+     screen, so the text would print in part. */
+  .mdame-split:not(.preview-hidden, .diff-mode) .mdame-editor {
+    display: none;
+  }
+
+  /* The page gives the width. The margins that the outline sets, and the
+     room of the wide blocks, follow the screen. */
+  .mdame-document {
+    max-width: none;
+    margin: 0 !important;
+    padding: 0;
+  }
+
+  /* The selector of the wide blocks in content.css, to win over it. */
+  .mdame-document > :is(table, .mdame-code, .mdame-diagram, .mdame-image) {
+    max-width: 100%;
+    translate: none;
+  }
+
+  /* Paper cannot scroll: a long line wraps, and a wide table shows whole. */
+  .mdame-document :is(pre, table, .mdame-diagram) {
+    overflow: visible;
+  }
+
+  .mdame-document pre {
+    white-space: pre-wrap;
+  }
+
+  .mdame-document :is(pre, .mdame-diagram, img, tr, blockquote) {
+    break-inside: avoid;
+  }
+
+  .mdame-document :is(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid;
+  }
+}

@@ -53,6 +53,8 @@ export function apply() {
   const link = document.createElement("link");
   link.id = "mdame-theme-user";
   link.rel = "stylesheet";
+  // Paper takes the built-in light theme.
+  link.media = "screen";
   link.href = `/themes/${encodeURIComponent(theme)}.css`;
   link.addEventListener("load", () => {
     showBuiltIn(isDark() ? "dark" : "light");

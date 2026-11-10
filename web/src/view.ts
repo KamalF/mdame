@@ -1,4 +1,6 @@
 import "../styles/content.css";
+// After content.css, whose rules it overrides on paper.
+import "../styles/print.css";
 import { Idiomorph } from "idiomorph";
 import { api, type ApiError } from "./api.ts";
 import { blocksOf, clearBars, drawBars } from "./bars.ts";

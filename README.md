@@ -110,7 +110,9 @@ lists the options.
 - It renders GitHub-flavoured markdown, with alerts, footnotes and Mermaid
   diagrams, and updates the page when a file changes on disk. Wide tables,
   code blocks, diagrams and images grow past the text column, which keeps
-  its width.
+  its width. Ctrl+P prints the file alone, in the Light theme, or saves it as
+  a PDF. A diagram prints in the theme of the screen: for light diagrams on
+  paper, pick a light theme first.
 - It shows and edits the markdown files in hidden folders too, such as the
   plans of a coding agent in `.claude/plans/`. Other files there stay out,
   also when mdame opens a hidden folder, or a folder in one, such as a

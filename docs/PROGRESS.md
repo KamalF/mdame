@@ -839,7 +839,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The visible rows are the rows in the page: a closed folder has no list of its own. The keys work on the filter's results too. They are files, so → does nothing, and ← finds no folder.
    - The keys do nothing with Ctrl, Alt or Meta held: Alt+← is the browser's Back. Enter needs no code: a link opens on Enter, and a button clicks.
    - From Kamal's test in Firefox: a click on empty space in the sidebar left the focus on the page, so the arrows scrolled it. The sidebar now takes the focus, with `tabindex="-1"`, and an arrow key then enters the tree, as ↓ in the filter does. The arrows also work from a row's copy-path and new-file buttons.
-   - The focused row gets a grey background, stronger than a hovered row. The row of the current file keeps its own background. The background replaces the browser's focus ring: the `content-visibility` of each line, from milestone 10, clipped the ring down to four blue corners.
+   - The focused row gets a grey background, stronger than a hovered row. The row of the current file keeps its own background, and gets a ring in `--accent`, which the review added: without it, that row showed no focus. The background replaces the browser's focus ring: the `content-visibility` of each line, from milestone 10, clipped the ring down to four blue corners.
    - The shortcut help gets a fourth group, Sidebar tree. Its arrow keys are now Lucide icons, the filter's ↑↓ too. The bundled IBM Plex Mono has only ↑ and ↓, so ← and → came from a smaller fallback font. Kamal chose the icons from a mock of the two.
    - The new icons rename most chunks of `web/dist`. The build stays reproducible: two runs give the same names.
 2. Side-by-side diff in diff mode (done). A toggle in the header of the revisions panel shows the revision and the text side by side, through `MergeView` of `@codemirror/merge`. `localStorage` keeps the choice. No unit test: the code is all DOM and CodeMirror views, so the browser check covers it.
@@ -906,7 +906,7 @@ These checks cover what no test covers: the keys, the layouts and the paper in C
 
 Sidebar tree:
 
-1. Open `a.md`, press `/`, then ↓: the row of `a.md` gets a grey background. ↑ and ↓ move between the rows, and stop at the first and the last. On `docs`, → opens it, and → again moves to `docs/b.md`. ← moves back to `docs`, and ← again closes it. Enter on a file opens it. Click empty space in the sidebar, then press ↓: the row of the current file gets the focus. Alt+← goes back in the history. `?` shows the group Sidebar tree, with the arrows as icons.
+1. Open `a.md`, press `/`, then ↓: the row of `a.md` gets a ring. ↓ again: the next row gets a grey background. ↑ and ↓ move between the rows, and stop at the first and the last. On `docs`, → opens it, and → again moves to `docs/b.md`. ← moves back to `docs`, and ← again closes it. Enter on a file opens it. Click empty space in the sidebar, then press ↓: the row of the current file gets the focus. Alt+← goes back in the history. `?` shows the group Sidebar tree, with the arrows as icons.
 
 Revisions:
 

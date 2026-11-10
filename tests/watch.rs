@@ -229,12 +229,16 @@ async fn folder_deleted_then_created_is_removed_and_created() {
     let mut watched = Watched::new(&[A, ("docs/child.md", b"")]);
     fs::remove_dir_all(watched.path("docs")).unwrap();
     fs::create_dir(watched.path("docs")).unwrap();
-    watched
-        .assert_next(per_os(
-            &[removed("docs"), created("docs")],
-            &[created("docs")],
-        ))
-        .await;
+    let events = watched.next().await;
+    let (linux, macos) = ([removed("docs"), created("docs")], [created("docs")]);
+    let expected = per_os(&linux, &macos);
+    // On the macOS runner of CI, FSEvents once also reported a change of
+    // `docs`, before its creation.
+    let with_change = [changed("docs"), created("docs")];
+    assert!(
+        same(&events, expected) || cfg!(target_os = "macos") && events == with_change,
+        "expected {expected:?}, got {events:?}"
+    );
 }
 
 #[tokio::test]

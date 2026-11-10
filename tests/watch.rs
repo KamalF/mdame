@@ -299,13 +299,19 @@ async fn reading_the_tree_sends_nothing() {
 
 #[tokio::test]
 async fn burst_gives_resync() {
-    let mut watched = Watched::new(&[A]);
-    for i in 0..300 {
-        fs::write(watched.path(&format!("{i}.md")), "").unwrap();
+    // The threshold applies to each batch, and the debouncer sends a batch
+    // every 50 ms. If the writes are slow, as on a busy Mac, they spread
+    // over batches of 100 events or fewer. So the test tries 3 bursts.
+    for _ in 0..3 {
+        let mut watched = Watched::new(&[A]);
+        for i in 0..300 {
+            fs::write(watched.path(&format!("{i}.md")), "").unwrap();
+        }
+        if watched.next().await.contains(&Event::Resync) {
+            return;
+        }
     }
-    // A batch can be split over two ticks, so one part holds over 100.
-    let events = watched.next().await;
-    assert!(events.contains(&Event::Resync), "got {events:?}");
+    panic!("no resync in 3 bursts");
 }
 
 #[tokio::test]

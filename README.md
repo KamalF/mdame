@@ -196,8 +196,8 @@ The palette button at the right of the status bar opens View options. There,
 pick the theme: System, Light, Dark, the four flavours of Catppuccin, Minimal
 Light and Minimal Dark, or one of yours. System follows the light or dark mode
 of your OS. In each built-in theme, text, links and code colours have a
-contrast of 4.5:1 at least: where the original colour is fainter, mdame
-darkens or lightens it. A theme of yours is a CSS file in
+contrast of 4.5:1 at least on the backgrounds of the theme: where the
+original colour is fainter, mdame darkens or lightens it. A theme of yours is a CSS file in
 `~/.config/mdame/themes/`. [web/themes/README.md](web/themes/README.md) lists
 its variables, with a template.
 

@@ -343,6 +343,7 @@ export function toggleRevisions() {
     saved: () => current.saved,
     lastSeen: () => lastSeen(current.path),
     look,
+    notice: () => current.view.dom.querySelector(".mdame-disk-notice") !== null,
   };
   current.split.append(revisions.show(current.view, current.path, actions));
   report();
@@ -486,10 +487,10 @@ function reload(current: Open, disk: Source) {
 }
 
 function setNotice(current: Open, panel: Panel | null) {
-  if (panel) revisions.showInline();
   current.view.dispatch({
     effects: notice.reconfigure(panel ? showPanel.of(() => panel) : []),
   });
+  if (panel) revisions.showInline();
 }
 
 /** `disk` is null when the file is gone: Recreate takes the place of Reload

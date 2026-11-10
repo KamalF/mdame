@@ -848,7 +848,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The panes share the editor's look: `basicSetup`, the palette, markdown and the line wrapping. The palette gives the left pane `--danger`, as the inline diff does for removed text.
    - The panes come with the first revision on screen. A choice of another revision builds them again, at the same scroll position.
    - The gutters of the panes stop after the last line, while the editor's gutter runs to the bottom. `MergeView` forces each editor to the height of its text.
-   - From the review: the notice of a change on disk lived in the hidden editor, so a refused save seemed to do nothing. The notice now brings the editor back in place of the panes. The stored choice stays.
+   - From the review: the notice of a change on disk lived in the hidden editor, so a refused save seemed to do nothing. The notice now brings the editor back in place of the panes, and the panes do not come while it shows. The stored choice stays.
 3. The mono toggle (done). View options gets a Font heading, with Default and Mono. Mono shows the content in `--font-mono`, at `--content-width-mono`. `localStorage` keeps the choice. `font.test.ts` tests the stored choice, as `width.test.ts` does for the width.
    - With the width: Mono changes only Default, to `--content-width-mono`, 72ch. Wide and Full keep 80ch and the whole pane: they set `--content-width` on `<html>`, which wins over the class of Mono.
    - Mono is the class `mdame-mono` on `<html>`. The rule `:root.mdame-mono` in `base.css` wins over the `:root` of a theme, so a theme's `--font-content` gives way too.

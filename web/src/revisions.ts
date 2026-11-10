@@ -65,6 +65,8 @@ export interface Actions {
   lastSeen: () => string | undefined;
   /** The look of the editor, for the panes of the side-by-side layout. */
   look: Extension;
+  /** Whether the editor shows its notice of a change on disk. */
+  notice: () => boolean;
 }
 
 interface Shown {
@@ -201,13 +203,10 @@ export function textChanged(changes: ChangeSet) {
   shown?.side?.b.dispatch({ changes });
 }
 
-/** Shows the editor in place of the panes, for its notice of a change on
- * disk and the buttons of the notice. The stored choice stays. */
+/** Shows the editor in place of the panes, for its new notice of a
+ * change on disk. */
 export function showInline() {
-  if (!shown?.side) return;
-  sideBySide = false;
-  shown.layoutButton.setAttribute("aria-pressed", "false");
-  layout(shown);
+  if (shown?.side) layout(shown);
 }
 
 /** Shows the revision on screen and the text side by side, in place of
@@ -217,6 +216,12 @@ function layout(current: Shown) {
   const top = old?.dom.scrollTop ?? 0;
   old?.destroy();
   current.side = null;
+  // The notice of a change on disk needs the editor, for its buttons. The
+  // stored choice stays.
+  if (sideBySide && current.actions.notice()) {
+    sideBySide = false;
+    current.layoutButton.setAttribute("aria-pressed", "false");
+  }
   const on = sideBySide && current.compared !== null;
   current.aside.parentElement?.classList.toggle("side-by-side", on);
   if (!on) {

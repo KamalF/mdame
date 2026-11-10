@@ -111,12 +111,13 @@
 }
 
 /* The row that the arrow keys move from: stronger than a hovered row. The
-   current file keeps its own background, and gets a ring. */
-.mdame-tree-row:focus:not([aria-current="page"]) {
+   current file keeps its own background, and gets a ring. Not after a
+   click, as the browser's focus ring. */
+.mdame-tree-row:focus-visible:not([aria-current="page"]) {
   background: color-mix(in srgb, var(--fg) 14%, transparent);
 }
 
-.mdame-tree-row[aria-current="page"]:focus {
+.mdame-tree-row[aria-current="page"]:focus-visible {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 

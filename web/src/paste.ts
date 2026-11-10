@@ -27,10 +27,10 @@ export function droppedName(name: string, type: string): string {
 }
 
 /** The markdown of an image of the same folder. A space, `(` or `)` would
- * end the link, a `%` would start an escape, and `#` or `?` would end the
- * path of the URL. */
+ * end the link, a `%` would start an escape, `#` or `?` would end the path
+ * of the URL, and a `:` would make `https:a.png` a remote image. */
 export function imageLink(name: string): string {
-  const target = name.replace(/[\s()<>%#?]/g, (c) =>
+  const target = name.replace(/[\s()<>%#?:]/g, (c) =>
     c === "(" ? "%28" : c === ")" ? "%29" : encodeURIComponent(c),
   );
   return `![](${target})`;

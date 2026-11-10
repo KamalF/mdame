@@ -37,8 +37,11 @@ const TEXT = [
   ["fg-muted", "bg"],
   ["fg-muted", "bg-raised"],
   ["fg-muted", "bg-sunken"],
+  // Inline code takes the colour of its text: in a quote, in a link.
+  ["fg-muted", "code-bg"],
   ["accent", "bg"],
   ["accent", "bg-sunken"],
+  ["accent", "code-bg"],
   ["accent-fg", "accent"],
   ["danger", "bg"],
   ["danger", "bg-sunken"],

@@ -1,5 +1,6 @@
 import { api, type State } from "./api.ts";
 import { statusMenu } from "./dialogs.ts";
+import { chooseFont, currentFont, FONTS } from "./font.ts";
 import { icon, iconButton } from "./icons.ts";
 import { chooseOutline, layoutOutline, outlineOn } from "./outline.ts";
 import { chooseSpellcheck, spellcheckOn } from "./spellcheck.ts";
@@ -78,8 +79,8 @@ function label(theme: string): string {
 }
 
 /** The View options button of the status bar: its menu holds the theme,
- * with the user `themes`, the content width, the outline and the
- * spellcheck. */
+ * with the user `themes`, the font and the width of the content, the
+ * outline and the spellcheck. */
 export function themeButton(themes: readonly string[]): HTMLElement {
   // As the menu's invoker, the button is outside its light dismiss: a click
   // on it closes the open menu rather than opening it again.
@@ -124,12 +125,15 @@ export function themeButton(themes: readonly string[]): HTMLElement {
 
   function render() {
     const current = chosen(load(KEY, null), known);
+    const font = currentFont();
     const width = currentWidth();
     menu.replaceChildren(
       heading("Theme"),
       ...[null, ...known].map((theme) =>
         item(theme === null ? "System" : label(theme), theme === current, () => choose(theme)),
       ),
+      heading("Font"),
+      ...FONTS.map((choice) => item(capitalize(choice), choice === font, () => chooseFont(choice))),
       heading("Width"),
       ...WIDTHS.map((choice) =>
         item(capitalize(choice), choice === width, () => {

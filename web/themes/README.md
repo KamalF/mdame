@@ -32,10 +32,9 @@ under it, so it must set every variable. Start from a copy of `light.css` or
 
 A theme sets no diff, change bar, hover or focus colours. The diff of revisions
 mixes `--success` and `--danger` into the background, and a hovered or focused
-row mixes in `--fg`. The change bars use `--success` for an added block, `--accent` for a
-changed one and `--danger` where text was removed. Shadows and backdrops stay
-translucent black.
-`--content-width-mono` is reserved for a mono mode that mdame does not have yet.
+row mixes in `--fg`. The change bars use `--success` for an added block,
+`--accent` for a changed one and `--danger` where text was removed. Shadows and
+backdrops stay translucent black.
 
 ## Template
 
@@ -69,6 +68,7 @@ lines that you do not change.
   --font-content: var(--font-ui); /* rendered files */
   --font-mono: "IBM Plex Mono", ui-monospace, monospace; /* code */
   --content-width: 60ch; /* the column of rendered files, with Width: Default */
+  --content-width-mono: 72ch; /* the same, with Font: Mono */
 
   /* Code, in the editor and in rendered files */
   --code-bg: #151b23; /* code blocks and inline code */

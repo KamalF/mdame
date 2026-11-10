@@ -3,8 +3,17 @@
   --font-content: var(--font-ui);
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --content-width: 60ch;
+  /* A character of Plex Mono is wider than the average one of Plex Sans. */
+  --content-width-mono: 72ch;
   /* Not set by themes: a tint of the text keeps hover apart from --selection. */
   --hover: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+/* Font: Mono, in View options. It wins over a theme's :root, and Wide and
+   Full win over it: they set --content-width on <html> itself. */
+:root.mdame-mono {
+  --font-content: var(--font-mono);
+  --content-width: var(--content-width-mono);
 }
 
 html,

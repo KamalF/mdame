@@ -848,7 +848,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The panes share the editor's look: `basicSetup`, the palette, markdown and the line wrapping. The palette gives the left pane `--danger`, as the inline diff does for removed text.
    - The panes come with the first revision on screen. A choice of another revision builds them again, at the same scroll position.
    - The gutters of the panes stop after the last line, while the editor's gutter runs to the bottom. `MergeView` forces each editor to the height of its text.
-3. The mono toggle. A toggle in the View options menu shows the content in `--font-mono`, at `--content-width-mono`. `localStorage` keeps the choice. The built-in themes set `--content-width-mono`. The commit settles how the toggle works with the content width. `mono.test.ts` tests the stored choice, as `width.test.ts` does for the width.
+3. The mono toggle (done). View options gets a Font heading, with Default and Mono. Mono shows the content in `--font-mono`, at `--content-width-mono`. `localStorage` keeps the choice. `font.test.ts` tests the stored choice, as `width.test.ts` does for the width.
+   - With the width: Mono changes only Default, to `--content-width-mono`, 72ch. Wide and Full keep 80ch and the whole pane: they set `--content-width` on `<html>`, which wins over the class of Mono.
+   - Mono is the class `mdame-mono` on `<html>`. The rule `:root.mdame-mono` in `base.css` wins over the `:root` of a theme, so a theme's `--font-content` gives way too.
+   - A heading of its own, not a toggle under Show: Show holds what shows or hides. Default and Mono read as the Width choices do.
+   - `base.css` sets `--content-width-mono` beside `--content-width`, since the built-in themes set neither.
 4. Wide blocks. A design session comes first. Tables, code blocks and diagrams grow past the text column, up to the pane, and the text keeps its width. The outline then needs its own place.
 5. The Catppuccin and Minimal themes, built in beside light and dark. Catppuccin comes in its four flavours: Latte, Frappé, Macchiato and Mocha. The table of Later items gives the source and the checks of each theme. `BUILT_INS` in `themes.rs` lists them. The commit settles whether Minimal comes in light and dark. `each_built_in_theme_is_listed_and_served`, and a contrast check of each pair of colours that the screens use, as in milestone 8.
 6. Paste or drop an image into the editor. A design session comes first: where the image goes, its name, and the limits of the new upload route.
@@ -870,7 +874,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 3, the mono toggle.
+1. Milestone 12, on the `m12-later` branch: commit 4, wide blocks, which starts with a design session.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

@@ -192,9 +192,10 @@ or dark mode of your OS. A theme of yours is a CSS file in
 `~/.config/mdame/themes/`. [web/themes/README.md](web/themes/README.md) lists
 its variables, with a template.
 
-View options also sets the width of the text: Default (the theme's width, 60
-characters in the built-in themes), Wide (80 characters) or Full (the whole
-pane).
+View options also sets the font of the text: Default, or Mono for a monospace
+font. It sets the width of the text too: Default (the theme's width, 60
+characters in the built-in themes, 72 with Mono), Wide (80 characters) or Full
+(the whole pane).
 
 At the right of the text, an outline lists the h2 and h3 headings of the file.
 View options hides it.

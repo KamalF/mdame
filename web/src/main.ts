@@ -7,6 +7,7 @@ import { ChangeList, changesItem } from "./changelist.ts";
 import { copyButton } from "./copy.ts";
 import { askNewFile, confirmDiscard } from "./dialogs.ts";
 import type { EditorState } from "./editor.ts";
+import { applyFont } from "./font.ts";
 import { icon, iconButton } from "./icons.ts";
 import { bindKeys, isPlainClick } from "./keys.ts";
 import * as live from "./live.ts";
@@ -479,6 +480,7 @@ async function refresh() {
 }
 
 theme.apply();
+applyFont();
 applyWidth();
 
 // The code or the token in the address has done its work: the cookie now

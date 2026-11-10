@@ -1,0 +1,1 @@
+import{Je,Ya,Ga,Za,Zs}from"./main-2tnwhkyc.js";import"./main-9gea4fbd.js";import"./main-60czqfwy.js";import"./main-4sdx4g35.js";export{Zs as javascript,Je as javascriptLanguage,Ga as jsxLanguage,Za as tsxLanguage,Ya as typescriptLanguage};

@@ -304,7 +304,9 @@ function markImages(article: HTMLElement) {
       (node) => node.nodeType !== Node.TEXT_NODE || node.textContent!.trim() !== "",
     );
     const [only] = nodes;
-    if (nodes.length === 1 && only instanceof Element && only.matches("img, a:has(> img:only-child)")) {
+    // `:only-child` skips text: a link may hold text beside its image.
+    const alone = only instanceof Element && only.textContent!.trim() === "";
+    if (nodes.length === 1 && alone && only.matches("img, a:has(> img:only-child)")) {
       p.classList.add("mdame-image");
     }
   }

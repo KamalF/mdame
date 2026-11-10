@@ -17,6 +17,7 @@ import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
 import { applyWidth } from "./width.ts";
+import { countWords, prose, wordLabel } from "./words.ts";
 
 // The editor and CodeMirror load on the first edit: they are more than
 // half of the page's code. Until then, nothing is open in the editor.
@@ -82,7 +83,16 @@ function showFileStatus(path: string, file: view.FileView) {
   const modified = document.createElement("span");
   modified.textContent = new Date(file.modified * 1000).toLocaleString();
   const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
-  fileStatus.replaceChildren(name, modified, copyPath);
+  fileStatus.replaceChildren(name, modified);
+  const article = content.querySelector<HTMLElement>(":scope > article");
+  const label = file.family === "markdown" && article ? wordLabel(countWords(prose(article))) : null;
+  if (label) {
+    const words = document.createElement("span");
+    words.textContent = label;
+    words.title = "Reading time at 200 words a minute";
+    fileStatus.append(words);
+  }
+  fileStatus.append(copyPath);
   if (file.editable) {
     fileStatus.append(
       iconButton("Edit", "pencil", () => startEditing(path), "Edit (e)"),

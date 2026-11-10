@@ -883,7 +883,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - In the editor, the preview prints. CodeMirror draws only the lines on screen, so with the preview hidden, the text prints in part: print from the view.
    - A Mermaid diagram prints in the theme it was drawn in, as on screen: from a dark theme, it prints dark. The browser prints before an async redraw could end. Tried and dropped: an inversion of the dark drawing on paper (`filter: invert(1) hue-rotate(180deg)`). Kamal did not like it: who minds can pick a light theme before printing. The README says so.
    - Found by the check, a print to PDF from Catppuccin Mocha: the wide blocks kept their shift, and were cut at the left edge of the page. The print rule must repeat the selector of the wide blocks, which is more specific than `.mdame-document > *`.
-8. Word count and reading time in the status bar, for the open file. `words counts the words of a text`, on a pure function. The commit settles which text counts: the source or the rendered text, with or without code.
+8. Word count and reading time in the status bar (done). The view of a markdown file shows "1,234 words · 6 min" after its time, at 200 words a minute, and at least a minute. `words.test.ts`: `words are counted without punctuation, numbers included`, `words are counted in a script with no spaces`, `the label gives the words and the reading time, at least a minute`.
+   - Decided with Kamal on 10 November 2026: the rendered text counts, without code blocks and diagrams. The source would count the URLs of links and the marks of markdown.
+   - `Intl.Segmenter` finds the words, so a text in Chinese or Thai, with no spaces, counts too. Punctuation does not count, and numbers do.
+   - Markdown only: other types render as code, or as a table of data. The editor shows no count: its status bar is rebuilt at each keystroke.
+   - The count runs at each render, and at each live update of the file.
 9. Version 0.2.0. `Cargo.toml` and `CHANGELOG.md` say 0.2.0. Before the tag, check that the release job of dist works with GitHub's immutable releases: see Open points. Then the manual checklist, the merge into `main`, and the release, as for 0.1.1. Then the Show HN.
 
 ## Public repository and crate
@@ -900,7 +904,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 8, the word count.
+1. Milestone 12, on the `m12-later` branch: commit 9, version 0.2.0, in a new session. Its manual checklist, the review of the milestone, and the check of immutable releases under Open points come first.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

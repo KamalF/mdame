@@ -112,7 +112,8 @@ lists the options.
   code blocks, diagrams and images grow past the text column, which keeps
   its width. Ctrl+P prints the file alone, in the Light theme, or saves it as
   a PDF. A diagram prints in the theme of the screen: for light diagrams on
-  paper, pick a light theme first.
+  paper, pick a light theme first. The status bar gives the words of the file
+  and its reading time.
 - It shows and edits the markdown files in hidden folders too, such as the
   plans of a coding agent in `.claude/plans/`. Other files there stay out,
   also when mdame opens a hidden folder, or a folder in one, such as a

@@ -908,7 +908,7 @@ These checks cover what no test covers: the keys, the layouts and the paper in C
 
 Sidebar tree:
 
-1. Open `a.md`, press `/`, then ↓: the row of `a.md` gets a ring. ↓ again: the next row gets a grey background. ↑ and ↓ move between the rows, and stop at the first and the last. On `docs`, → opens it, and → again moves to `docs/b.md`. ← moves back to `docs`, and ← again closes it. Enter on a file opens it. Click empty space in the sidebar, then press ↓: the row of the current file gets the focus. Alt+← goes back in the history. `?` shows the group Sidebar tree, with the arrows as icons.
+1. Open `a.md`, press `/`, then ↓: the row of `a.md` gets a ring. ↓ again: the next row gets a grey background. ↑ and ↓ move between the rows, and stop at the first and the last. On `docs`, → opens it, and → again moves to `docs/sub`, since folders come first. ← moves back to `docs`, and ← again closes it. Enter on a file opens it. Click empty space in the sidebar, then press ↓: the row of the current file gets the focus. Alt+← goes back in the history. `?` shows the group Sidebar tree, with the arrows as icons.
 
 Revisions:
 

@@ -4,7 +4,7 @@ Where the build stands against the milestones in `docs/SPEC.md`.
 
 ## How we work
 
-One commit at a time. Claude writes the code and its tests, and runs fmt, clippy and the tests. Kamal reads the code, asks questions and writes the commit message. One branch per milestone.
+One commit at a time. Claude writes the code and its tests, and runs fmt, clippy and the tests. Kamal reads the code and asks questions. For each commit of milestone 12, Kamal decides who writes the message: he does, or Claude does after a quiz on the commit. One branch per milestone.
 
 ## Milestones
 
@@ -23,7 +23,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Small Later items, then Show HN | — | About 10, without the review fixes |
 
-The plan of milestone 11 has 16 commits before its review. Milestone 12 has no plan yet: it has 10 items in the build order of `docs/SPEC.md`.
+Milestone 12 has no plan yet: it has 10 items in the build order of `docs/SPEC.md`.
 
 ## Milestone 1: skeleton
 
@@ -775,10 +775,12 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 
 Kamal, with no commit:
 
-- Branch protection on `main`, and GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies. Since commit 11, that job can read the repository's contents only, but it can write attestations. The jobs that can write the contents run no dependency's code. The two settings still limit what a compromised action or tool could do: push to `main`, or replace the assets of earlier releases. Before 0.2.0, check that the release job of dist works with immutable releases on.
-- Topics for the repository on GitHub.
-- Yank mdame 0.0.1 on crates.io: the early build that held the name. `cargo install` already picks 0.1.0.
-- Report to the `ignore` crate, in BurntSushi/ripgrep, that an ignore file that is a FIFO or a link to `/dev/zero` makes the walker read without end, and so does a `.git` file whose `commondir` is one. ripgrep has the same problem. Report to globset, in the same repository, that `new_regex_set` keeps the capture groups: with crafted patterns, matching a name asked for 11 GB, and 82 MB with `which_captures(WhichCaptures::None)`. Even then, a 15 KB file of `?XY` lines next to 20,000 names took 19.5 s per walk: the lazy DFA gives up, and the PikeVM matches each name against each pattern.
+- Done on 10 November 2026, after the release:
+  - A ruleset on `main`: no deletion, no force push, and no update except by the repository's admins. Kamal's own pushes pass, as an admin.
+  - GitHub's immutable releases. The release build runs `dist build`, so every build script and proc macro of the dependencies. Since commit 11, that job can read the repository's contents only, but it can write attestations. The jobs that can write the contents run no dependency's code. The ruleset and immutable releases still limit what a compromised action or tool could do: push to `main`, or replace the assets of earlier releases.
+  - The topics `markdown`, `markdown-viewer` and `markdown-editor`.
+  - The yank of mdame 0.0.1 on crates.io, the early build that held the name.
+- Deferred on 10 November 2026, the reports to ripgrep. ripgrep has no security policy, and its private reporting of vulnerabilities is off, so they would be public issues. Report to the `ignore` crate, in BurntSushi/ripgrep, that an ignore file that is a FIFO or a link to `/dev/zero` makes the walker read without end, and so does a `.git` file whose `commondir` is one. ripgrep has the same problem. Report to globset, in the same repository, that `new_regex_set` keeps the capture groups: with crafted patterns, matching a name asked for 11 GB, and 82 MB with `which_captures(WhichCaptures::None)`. Even then, a 15 KB file of `?XY` lines next to 20,000 names took 19.5 s per walk: the lazy DFA gives up, and the PikeVM matches each name against each pattern.
 
 ### Manual checklist
 
@@ -850,6 +852,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - For milestone 12, from the review of milestone 3: `aria-selected` on the row that the arrow keys choose, with the arrow keys in the sidebar tree.
 - From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
 - From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. Find out whether dist can write it.
+- Before the release of 0.2.0: check that the release job of dist works with GitHub's immutable releases, on since 10 November 2026. If dist adds the archives after it publishes the release, the upload fails.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.
@@ -857,10 +860,10 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - A folder renamed over an empty shown folder, from a hidden folder or from outside the workspace, sends nothing, and is not watched again until an overflow or a restart: notify-debouncer-full 0.7 drops the creation and the removal of one path in one batch. `main` watched it, through notify's recursive watch. Only a program that calls `rename` on a folder does it; `mv` moves the folder into the empty one. A fix: keep each folder's inode from the walk, and watch again a folder whose inode changed, at the next walk.
   - notify-debouncer-full keeps a root for each folder that mdame ever watched, even after notify dropped its watch: it has no call to drop one. In 0.7, each new watch scans the roots, so over a long session with many folders made and removed, watching gets slower, and so does the watching after an overflow. 0.8 searches them, so only their memory stays.
 - A write to an existing `.gitignore` or `.ignore` that hides folders changes the watched folders, but the tab gets only `changed`, which does not reload the tree. `main` has the same gap in the tree. One that shows folders sends `created` for their files.
-- dist's shell installer, from 0.33.0: in a flat layout such as `~/.local/bin`, it migrates any `<install dir>/env` that matches dist's template, so it takes over the env file of another tool that dist built, such as uv. Report it to axodotdev/cargo-dist: the migration should touch only an env file that this app wrote.
+- dist's shell installer, from 0.33.0: in a flat layout such as `~/.local/bin`, it migrates any `<install dir>/env` that matches dist's template, so it takes over the env file of another tool that dist built, such as uv. Report it to axodotdev/cargo-dist: the migration should touch only an env file that this app wrote. mdame is no longer affected: `4a20fb7` dropped the shell installer, so the report is all that is left.
 
 - Nits deferred by the review of milestone 10:
-  - The watcher's `is_dir()` and `exists()` follow symlinks out of the workspace: a link to a hung or automounted path can block the watcher. `symlink_metadata()` would not follow it.
+  - The watcher's `is_dir()` in `changed_by` and `exists()` in `watch_folders` follow symlinks out of the workspace: a link to a hung or automounted path can block the watcher. `symlink_metadata()` would not follow it. Since milestone 11, the disk check of `kind_from_disk` uses it.
 - From the review of milestone 9, for later:
   - On vfat, the short names `CLAUDE~1` and `MDAME~1`, and a trailing dot such as `.git.`, pass the name check. On HFS+, so do names with an ignorable code point, such as `.mdam\u{200C}e`: macOS editing, new in milestone 10, makes it reachable. Git guards the same aliases. Not checked.
   - A git worktree in a hidden folder that is not gitignored, such as Claude Code's `.claude/worktrees/`, shows its copy of the repository in the tree, the search and the list of changes. Decided on 6 November 2026: no option of mdame's own. The README says to list such a folder in `.ignore` or `.git/info/exclude`.
@@ -915,9 +918,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
 - Backup branches, to delete once they are no longer needed: `backup/before-typescript` and `backup/m4-viewing-before-typescript` (the JavaScript history, before the rewrite of 18 October 2026), `backup/m4-before-dist-fix`, `backup/m6-before-import-fixup`, and `backup/m6-before-history-rewrite` (milestone 6 before its review commits were regrouped, 25 October 2026).
 - From the review of milestone 5, for later:
-  - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs.
-  - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it.
-  - A crafted chain of 1000–2000 nested folders with an unreadable one at the bottom takes 10–77 s to open.
+  - notify 8.2 (inotify): a folder replaced by a symlink right after its creation is still watched, with its target: its events reach the tabs, and the watches use up the inotify limit. Report upstream to notify-rs. To check again: since `2f2a6e9` in milestone 10, Linux watches only the folders that mdame's own walk finds, and the walk does not follow links. A swap between the walk and the watch may still watch one target.
+  - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it. To check again since `2f2a6e9`: with a watch per folder, the setting may change nothing on Linux.
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
 - From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread; "Copy content" fetches before it writes to the clipboard, which Safari may refuse, and the failure tooltip then blames localhost.

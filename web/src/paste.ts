@@ -117,10 +117,12 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
 
   const follow = EditorView.updateListener.of((update) => {
     if (!update.docChanged) return;
-    // Text typed at the place during the upload goes after the links.
+    // Text typed at the place during the upload goes after the links. Text
+    // typed over the selection replaces it: the links go before that text.
     for (const place of pending) {
+      const touched = update.changes.touchesRange(place.from, place.to);
       place.from = update.changes.mapPos(place.from, -1);
-      place.to = update.changes.mapPos(place.to, -1);
+      place.to = touched ? place.from : update.changes.mapPos(place.to, -1);
     }
   });
 

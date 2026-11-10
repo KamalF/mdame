@@ -90,7 +90,8 @@ const LABELS: Record<string, string> = {
 };
 
 export function label(theme: string): string {
-  return LABELS[theme] ?? theme;
+  // A user theme may be named `constructor`.
+  return Object.hasOwn(LABELS, theme) ? LABELS[theme] : theme;
 }
 
 /** The View options button of the status bar: its menu holds the theme,

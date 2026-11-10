@@ -884,7 +884,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - Paper always takes the built-in Light theme, whatever the screen shows: light text of a dark theme would be faint on white paper, and browsers leave out backgrounds when they print. `index.html` loads `light.css` once more, last, for print, and a user or built-in theme other than Light and Dark loads for the screen only.
    - On screen the content scrolls inside its pane, which would print only the part in view: on paper, the page, the frame and the pane grow to the whole file.
    - The page gives the width: the column takes it, without the outline's margins, and the wide blocks lose their shift. A long code line wraps, and a block is not cut across two pages when it fits on one.
-   - In the editor, the preview prints. CodeMirror draws only the lines on screen, so with the preview hidden, the text prints in part: print from the view.
+   - In the editor, the preview prints. With the preview hidden, or in diff mode, the text prints: CodeMirror draws all its lines for a print, on `beforeprint`. The review found it; the first version said that the text printed in part.
    - A Mermaid diagram prints in the theme it was drawn in, as on screen: from a dark theme, it prints dark. The browser prints before an async redraw could end. Tried and dropped: an inversion of the dark drawing on paper (`filter: invert(1) hue-rotate(180deg)`). Kamal did not like it: who minds can pick a light theme before printing. The README says so.
    - Found by the check, a print to PDF from Catppuccin Mocha: the wide blocks kept their shift, and were cut at the left edge of the page. On paper, the room of the wide blocks is now 0, as with Full.
 8. Word count and reading time in the status bar (done). The view of a markdown file shows "1,234 words · 6 min" after its time, at 200 words a minute, and at least a minute. `words.test.ts`: `words are counted without punctuation, numbers included`, `words are counted in a script with no spaces`, `the label gives the words and the reading time, at least a minute`.
@@ -928,7 +928,7 @@ Editor:
 
 Print and word count:
 
-7. Pick Catppuccin Mocha, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview.
+7. Pick Catppuccin Mocha, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview. Hide the preview: the print shows the whole text.
 8. The status bar of `a.md` shows its words and its reading time, such as "312 words · 2 min". Add a paragraph on disk: the count grows. The status bar of the editor and that of `data.json` show no count.
 
 Release, after 0.2.0 is published:

@@ -26,8 +26,7 @@
     display: none !important;
   }
 
-  /* In the editor, the preview prints. CodeMirror draws only the lines on
-     screen, so the text would print in part. */
+  /* In the editor, the preview prints, as the view would. */
   .mdame-split:not(.preview-hidden, .diff-mode) .mdame-editor {
     display: none;
   }

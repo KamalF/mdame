@@ -1,6 +1,7 @@
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { api, type ApiError } from "./api.ts";
+import { MARKDOWN } from "./changelist.ts";
 
 /** The image types that mdame shows, with the extension of each. */
 const TYPES: Record<string, string> = {
@@ -26,9 +27,10 @@ export function droppedName(name: string, type: string): string {
 }
 
 /** The markdown of an image of the same folder. A space, `(` or `)` would
- * end the link, and a `%` would start an escape. */
+ * end the link, a `%` would start an escape, and `#` or `?` would end the
+ * path of the URL. */
 export function imageLink(name: string): string {
-  const target = name.replace(/[\s()<>%]/g, (c) =>
+  const target = name.replace(/[\s()<>%#?]/g, (c) =>
     c === "(" ? "%28" : c === ")" ? "%29" : encodeURIComponent(c),
   );
   return `![](${target})`;
@@ -49,22 +51,26 @@ async function upload(path: string, file: File): Promise<string> {
   return saved.path;
 }
 
+/** Where the links of an upload go. */
+interface Place {
+  from: number;
+  to: number;
+}
+
 /**
- * Saves the images of a paste or a drop beside the file at `path`, and
- * links them where they land, with the cursor in the alt text of the first.
- * `failed` shows why an image was not saved.
+ * Saves the images of a paste or a drop beside the markdown file at
+ * `path`, and links them where they land, with the cursor in the alt text
+ * of the first. `failed` shows why an image was not saved.
  */
 export function pasteImages(path: string, failed: (message: string) => void): Extension {
+  if (!MARKDOWN.test(path)) return [];
   const folder = path.slice(0, path.lastIndexOf("/") + 1);
+  /** The uploads in progress: the edits made meanwhile move their places. */
+  const pending = new Set<Place>();
 
-  async function link(
-    view: EditorView,
-    files: File[],
-    from: number,
-    to: number,
-    name: (file: File) => string,
-  ) {
+  async function link(view: EditorView, files: File[], place: Place, name: (file: File) => string) {
     const links: string[] = [];
+    pending.add(place);
     try {
       for (const file of files) {
         const saved = await upload(folder + name(file), file);
@@ -72,11 +78,12 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
       }
     } catch (error) {
       failed((error as ApiError).message);
+    } finally {
+      pending.delete(place);
     }
     if (links.length === 0) return;
-    // The text may have changed during the upload.
     const { state } = view;
-    let [start, stop] = [Math.min(from, state.doc.length), Math.min(to, state.doc.length)];
+    let { from: start, to: stop } = place;
     let text = links.join("\n");
     const skip =
       start === stop
@@ -107,7 +114,16 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
     return files;
   }
 
-  return EditorView.domEventHandlers({
+  const follow = EditorView.updateListener.of((update) => {
+    if (!update.docChanged) return;
+    // Text typed at the place during the upload goes after the links.
+    for (const place of pending) {
+      place.from = update.changes.mapPos(place.from, -1);
+      place.to = update.changes.mapPos(place.to, -1);
+    }
+  });
+
+  const handlers = EditorView.domEventHandlers({
     paste(event, view) {
       const data = event.clipboardData;
       // A copied part of a web page brings its images with its text: the
@@ -119,7 +135,7 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
       if (files === null) return true;
       const now = new Date();
       const { from, to } = view.state.selection.main;
-      link(view, files, from, to, (file) => pastedName(now, file.type));
+      link(view, files, { from, to }, (file) => pastedName(now, file.type));
       return true;
     },
     drop(event, view) {
@@ -130,8 +146,9 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
       event.preventDefault();
       if (files === null) return true;
       const at = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
-      link(view, files, at, at, (file) => droppedName(file.name, file.type));
+      link(view, files, { from: at, to: at }, (file) => droppedName(file.name, file.type));
       return true;
     },
   });
+  return [handlers, follow];
 }

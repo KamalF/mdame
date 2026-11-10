@@ -1,1 +1,0 @@
-import{et,Ga,Za,Ha,Hs}from"./main-g6tb6s5b.js";import"./main-e2136vwx.js";import"./main-j92m4e60.js";import"./main-sys48bkm.js";export{Hs as javascript,et as javascriptLanguage,Za as jsxLanguage,Ha as tsxLanguage,Ga as typescriptLanguage};

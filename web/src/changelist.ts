@@ -1,7 +1,7 @@
 import { statusMenu } from "./dialogs.ts";
 import { isWithin, type LiveEvent, movedPath } from "./live.ts";
 
-const MARKDOWN = /\.(md|markdown)$/i;
+export const MARKDOWN = /\.(md|markdown)$/i;
 
 /** The markdown files that changed on disk while the tab is open, newest
  * first. The tab keeps it in memory only. */

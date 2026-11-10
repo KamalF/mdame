@@ -302,9 +302,17 @@ fn new_file_folder<'a>(
     }
     let root = fd_path(dir)?;
     check(&root.join(path))?;
-    let (folder, name) = match path.rsplit_once('/') {
-        Some((folder, name)) => (dir.open_dir(folder)?, name),
-        None => (dir.try_clone()?, path),
+    let (folder, name) = path.rsplit_once('/').unwrap_or(("", path));
+    // `Path` drops a last `.`: the checks would see the folder's name.
+    if matches!(name, "" | "." | "..") {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "the path must end with a file name",
+        ));
+    }
+    let folder = match folder {
+        "" => dir.try_clone()?,
+        _ => dir.open_dir(folder)?,
     };
     check(&root.join(real_path(&root, &folder)?).join(name))?;
     Ok((folder, name))

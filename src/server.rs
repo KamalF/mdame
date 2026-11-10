@@ -641,9 +641,20 @@ struct SavedImage {
 async fn image(
     State(app): State<Arc<AppState>>,
     query: Result<Query<FileQuery>, QueryRejection>,
+    headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<impl IntoResponse, ApiError> {
     let Query(query) = query?;
+    // A form cannot send this type, as for the JSON of the other routes.
+    let image_type = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("image/"));
+    if !image_type {
+        return Err(ApiError::BadRequest(
+            "send the image with its type, such as image/png".to_owned(),
+        ));
+    }
     let bytes = body.map_err(|rejection| match rejection.status() {
         StatusCode::PAYLOAD_TOO_LARGE => ApiError::TooLarge(format!(
             "{}: an image may hold {} MB at most",

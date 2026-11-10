@@ -62,6 +62,18 @@ async fn only_an_image_type_is_saved() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{path}");
         assert!(!dir.path().join("ws").join(path).exists(), "{path}");
     }
+    // `Path` reads `pics.png/.` as the folder `pics.png`.
+    fs::create_dir_all(dir.path().join("ws/docs/pics.png")).unwrap();
+    for path in ["docs/pics.png/.", "docs/pics.png/"] {
+        let (status, _) = save(&app, path, PNG.to_vec()).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{path}");
+    }
+    assert_eq!(
+        fs::read_dir(dir.path().join("ws/docs/pics.png"))
+            .unwrap()
+            .count(),
+        0
+    );
 }
 
 #[tokio::test]
@@ -122,4 +134,22 @@ async fn an_image_over_the_limit_is_refused() {
         "docs/big.png: an image may hold 16 MB at most"
     );
     assert!(!dir.path().join("ws/docs/big.png").exists());
+}
+
+#[tokio::test]
+async fn an_image_needs_an_image_type() {
+    let dir = common::tempdir();
+    let app = workspace(dir.path());
+    // The types of a form, which another site could send.
+    for kind in [
+        "text/plain",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
+    ] {
+        let uri = "/api/image?path=docs/form.png";
+        let headers = [HOST, ("content-type", kind)];
+        let response = post_bytes(&app, uri, &headers, PNG.to_vec()).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{kind}");
+    }
+    assert!(!dir.path().join("ws/docs/form.png").exists());
 }

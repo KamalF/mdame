@@ -66,6 +66,10 @@ async fn create_refuses_a_type_that_the_editor_cannot_open() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{path}");
         assert!(!dir.path().join("ws").join(path).exists(), "{path}");
     }
+    // `Path` reads `folder.md/.` as the folder `folder.md`.
+    fs::create_dir_all(dir.path().join("ws/folder.md")).unwrap();
+    let (status, _) = create(workspace(dir.path()), "folder.md/.").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     // The name is the reason, not the type.
     let (_, body) = create(workspace(dir.path()), ".claude/b.json").await;
     let message = body["error"]["message"].as_str().unwrap();

@@ -47,6 +47,8 @@ const TEXT = [
   ["accent-fg", "accent"],
   ["danger", "bg"],
   ["danger", "bg-sunken"],
+  // Deleted lines in a diff block.
+  ["danger", "code-bg"],
   ["success", "bg-sunken"],
   ...["keyword", "string", "number", "comment", "title", "type", "attr", "meta"].map((k) => [
     `hl-${k}`,

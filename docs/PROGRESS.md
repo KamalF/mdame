@@ -833,9 +833,15 @@ Decided on 10 November 2026, before the milestone started. `docs/SPEC.md` holds 
 
 Rules, as test names, by commit. The names are a first guess, which each commit settles. Each commit also updates the README, the spec and the shortcut help where they describe what it changes. A change with open design questions starts with a design session, right before its code. Done when: each item passes its check of the manual checklist in Chrome and Firefox, and `brew install` gives a working 0.2.0 on Linux and macOS.
 
-1. Arrow keys in the sidebar tree. ↑↓ move the keyboard focus between the visible rows, and stop at the ends. → opens a closed folder, and moves into an open one, to its first row. ← closes an open folder, and moves from any other row to its parent folder. Enter opens a file, as a click does. If the filter is empty, ↓ in it focuses the row of the current file, or the first row if that row is not shown. With text in the filter, ↑↓ choose a result, as before. A pure function over the visible rows, in `sidebar.test.ts`: `↑ and ↓ move between the visible rows`, `→ opens a folder, then moves into it`, `← closes a folder, then moves to its parent`.
+1. Arrow keys in the sidebar tree (done). ↑↓ move the keyboard focus between the visible rows, and stop at the ends. → opens a closed folder, and moves into an open one, to its first row. ← closes an open folder, and moves from any other row to its parent folder. Enter opens a file, as a click does. If the filter is empty, ↓ in it focuses the row of the current file, or the first row if that row is not shown. With text in the filter, ↑↓ choose a result, as before. `arrowKey` is a pure function over the visible rows, in `sidebar.test.ts`: `up and down move between the visible rows, and stop at the ends`, `right opens a closed folder, then moves into it`, `left closes an open folder, then moves to its parent`.
    - Decided in a design session on 10 November 2026: the keys move the focus between the rows as they are, links for files and buttons for folders. Tab still stops at each row and at its buttons. A full ARIA tree, with one Tab stop and `aria-selected`, would take the copy-path and new-file buttons out of the Tab order.
    - The filter's arrow-key choice stays without `aria-selected`: see Open points.
+   - The visible rows are the rows in the page: a closed folder has no list of its own. The keys work on the filter's results too. They are files, so → does nothing, and ← finds no folder.
+   - The keys do nothing with Ctrl, Alt or Meta held: Alt+← is the browser's Back. Enter needs no code: a link opens on Enter, and a button clicks.
+   - From Kamal's test in Firefox: a click on empty space in the sidebar left the focus on the page, so the arrows scrolled it. The sidebar now takes the focus, with `tabindex="-1"`, and an arrow key then enters the tree, as ↓ in the filter does. The arrows also work from a row's copy-path and new-file buttons.
+   - The focused row gets a grey background, stronger than a hovered row. The row of the current file keeps its own background. The background replaces the browser's focus ring: the `content-visibility` of each line, from milestone 10, clipped the ring down to four blue corners.
+   - The shortcut help gets a fourth group, Sidebar tree. Its arrow keys are now Lucide icons, the filter's ↑↓ too. The bundled IBM Plex Mono has only ↑ and ↓, so ← and → came from a smaller fallback font. Kamal chose the icons from a mock of the two.
+   - The new icons rename most chunks of `web/dist`. The build stays reproducible: two runs give the same names.
 2. Side-by-side diff in diff mode. A toggle beside the inline diff shows the revision and the text side by side, through `MergeView` of `@codemirror/merge`. `localStorage` keeps the choice. The commit settles how the editor swaps its view for the two panes of `MergeView`. `the diff layout is remembered`, in `revisions.test.ts`.
 3. The mono toggle. A toggle in the View options menu shows the content in `--font-mono`, at `--content-width-mono`. `localStorage` keeps the choice. The built-in themes set `--content-width-mono`. The commit settles how the toggle works with the content width. `mono.test.ts` tests the stored choice, as `width.test.ts` does for the width.
 4. Wide blocks. A design session comes first. Tables, code blocks and diagrams grow past the text column, up to the pane, and the text keeps its width. The outline then needs its own place.
@@ -859,7 +865,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 1, the arrow keys in the sidebar tree.
+1. Milestone 12, on the `m12-later` branch: commit 2, the side-by-side diff.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

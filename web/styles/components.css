@@ -110,6 +110,18 @@
   background: var(--hover);
 }
 
+/* The row that the arrow keys move from: stronger than a hovered row. The
+   current file keeps its own background. */
+.mdame-tree-row:focus:not([aria-current="page"]) {
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+}
+
+/* The content-visibility of the line clips the focus ring down to its
+   corners. The background shows the focus instead. */
+.mdame-tree-row:focus {
+  outline: none;
+}
+
 /* A ring, not a background: the current file already has the background. */
 .mdame-tree-row.is-highlighted {
   box-shadow: inset 0 0 0 1px var(--accent);
@@ -648,6 +660,14 @@
   background: var(--bg-sunken);
   font: 12px var(--font-mono);
   text-align: center;
+}
+
+/* The weight of the letters in the other keys. */
+.mdame-help kbd .mdame-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+  vertical-align: -1px;
 }
 
 .mdame-help a {

@@ -1,0 +1,1 @@
+import{Je,Va,Wa,Ya,Ws}from"./main-sf5rjw4p.js";import"./main-77vjjy7d.js";import"./main-v5nmavx6.js";import"./main-ym7k31ys.js";export{Ws as javascript,Je as javascriptLanguage,Wa as jsxLanguage,Ya as tsxLanguage,Va as typescriptLanguage};

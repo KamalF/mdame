@@ -30,9 +30,9 @@ A file named `light.css` or `dark.css` replaces that built-in theme, with nothin
 under it, so it must set every variable. Start from a copy of `light.css` or
 `dark.css` in this folder.
 
-A theme sets no diff, change bar or hover colours. The diff of revisions mixes
-`--success` and `--danger` into the background, and a hovered row mixes in
-`--fg`. The change bars use `--success` for an added block, `--accent` for a
+A theme sets no diff, change bar, hover or focus colours. The diff of revisions
+mixes `--success` and `--danger` into the background, and a hovered or focused
+row mixes in `--fg`. The change bars use `--success` for an added block, `--accent` for a
 changed one and `--danger` where text was removed. Shadows and backdrops stay
 translucent black.
 `--content-width-mono` is reserved for a mono mode that mdame does not have yet.

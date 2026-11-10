@@ -3,6 +3,7 @@ import fc from "fast-check";
 import { workspacePath } from "./arbitrary.ts";
 import {
   ancestors,
+  arrowKey,
   clampWidth,
   files,
   FILTER_LIMIT,
@@ -11,6 +12,7 @@ import {
   sortTree,
   viewUrl,
   type TreeNode,
+  type VisibleRow,
 } from "./sidebar.ts";
 
 const file = (path: string, modified: number): TreeNode => ({
@@ -104,6 +106,39 @@ test("filter shows at most 100 results, and counts the others", () => {
   const { matches, more } = filterFiles(list, "note");
   expect(matches.length).toBe(FILTER_LIMIT);
   expect(more).toBe(150);
+});
+
+const rows: VisibleRow[] = [
+  { path: "docs", open: true },
+  { path: "docs/api", open: false },
+  { path: "docs/a.md" },
+  { path: "notes", open: true },
+  { path: "notes-old.md" },
+];
+
+test("up and down move between the visible rows, and stop at the ends", () => {
+  expect(arrowKey(rows, 0, "ArrowDown")).toBe(1);
+  expect(arrowKey(rows, 2, "ArrowUp")).toBe(1);
+  expect(arrowKey(rows, 4, "ArrowDown")).toBe(null);
+  expect(arrowKey(rows, 0, "ArrowUp")).toBe(null);
+  expect(arrowKey(rows, 0, "Enter")).toBe(null);
+});
+
+test("right opens a closed folder, then moves into it", () => {
+  expect(arrowKey(rows, 1, "ArrowRight")).toBe("toggle");
+  expect(arrowKey(rows, 0, "ArrowRight")).toBe(1);
+  // An open folder with no row inside: the next row is a sibling.
+  expect(arrowKey(rows, 3, "ArrowRight")).toBe(null);
+  expect(arrowKey(rows, 2, "ArrowRight")).toBe(null);
+});
+
+test("left closes an open folder, then moves to its parent", () => {
+  expect(arrowKey(rows, 0, "ArrowLeft")).toBe("toggle");
+  expect(arrowKey(rows, 1, "ArrowLeft")).toBe(0);
+  expect(arrowKey(rows, 2, "ArrowLeft")).toBe(0);
+  expect(arrowKey(rows, 4, "ArrowLeft")).toBe(null);
+  // Filter results: the folder of a file is not a row.
+  expect(arrowKey([{ path: "docs/a.md" }, { path: "b.md" }], 0, "ArrowLeft")).toBe(null);
 });
 
 test("view URLs encode each part and keep the slashes", () => {

@@ -2,7 +2,7 @@ import uFuzzy from "@leeoniya/ufuzzy";
 import { send } from "./api.ts";
 import { copyButton } from "./copy.ts";
 import { fileIcon, icon, iconButton } from "./icons.ts";
-import { isPlainClick } from "./keys.ts";
+import { isPlainClick, shouldHandle } from "./keys.ts";
 import { load, store } from "./storage.ts";
 
 /** A node of `/api/tree`. `modified` is in Unix seconds; for a folder, its newest file. */
@@ -125,6 +125,38 @@ export function filterFiles(list: TreeNode[], query: string): { matches: Match[]
     return { file: list[index], parts: parts.filter((part) => part.text) };
   });
   return { matches, more };
+}
+
+/** A row of the tree on screen. `open` is set for a folder only. */
+export interface VisibleRow {
+  path: string;
+  open?: boolean;
+}
+
+/**
+ * What an arrow key does on row `index` of `rows`, top to bottom: the index
+ * of the row to focus, "toggle" to open or close that folder, or null.
+ * As in the WAI-ARIA tree pattern, ↑↓ do not wrap.
+ */
+export function arrowKey(rows: VisibleRow[], index: number, key: string): number | "toggle" | null {
+  const row = rows[index];
+  switch (key) {
+    case "ArrowDown":
+      return index + 1 < rows.length ? index + 1 : null;
+    case "ArrowUp":
+      return index > 0 ? index - 1 : null;
+    case "ArrowRight":
+      if (row.open === false) return "toggle";
+      return row.open && rows[index + 1]?.path.startsWith(`${row.path}/`) ? index + 1 : null;
+    case "ArrowLeft": {
+      if (row.open) return "toggle";
+      // Filter results show no folders, so their files find no parent.
+      const parent = ancestors(row.path).at(-1);
+      const found = rows.findIndex((other) => other.path === parent);
+      return found === -1 ? null : found;
+    }
+  }
+  return null;
 }
 
 /** `docs/a b.md` gives `docs/a%20b.md`: each part is encoded, not the slashes. */
@@ -273,6 +305,8 @@ export async function mount(
       moveHighlight((highlight + 1) % results.length);
     } else if (event.key === "ArrowUp" && results.length > 0) {
       moveHighlight(highlight <= 0 ? results.length - 1 : highlight - 1);
+    } else if (event.key === "ArrowDown" && !query) {
+      if (!enterTree()) return;
     } else if (event.key === "Enter" && results.length > 0) {
       onOpen((results[highlight] ?? results[0]).file.path);
     } else if (event.key === "Escape") {
@@ -286,6 +320,41 @@ export async function mount(
       return;
     }
     event.preventDefault();
+  });
+
+  /** Focuses the row of the current file, or else the first row. */
+  function enterTree() {
+    const row =
+      list.querySelector<HTMLElement>('[aria-current="page"]') ??
+      list.querySelector<HTMLElement>(".mdame-tree-row");
+    row?.focus();
+    return row !== null;
+  }
+
+  // A click on empty space focuses the sidebar, and an arrow key then
+  // enters the tree.
+  el.tabIndex = -1;
+  el.addEventListener("keydown", (event) => {
+    if (event.target !== el || !event.key.startsWith("Arrow") || !shouldHandle(event)) return;
+    if (enterTree()) event.preventDefault();
+  });
+
+  list.addEventListener("keydown", (event) => {
+    // Also from the row's copy-path and new-file buttons.
+    const line = (event.target as HTMLElement).closest<HTMLElement>(".mdame-tree-line");
+    // Alt+← is the browser's Back.
+    if (!line || !shouldHandle(event)) return;
+    const lines = [...list.querySelectorAll<HTMLElement>(".mdame-tree-line")];
+    const rows = lines.map((each) => {
+      const expanded = each.firstElementChild!.getAttribute("aria-expanded");
+      return { path: each.dataset.path!, open: expanded === null ? undefined : expanded === "true" };
+    });
+    const next = arrowKey(rows, lines.indexOf(line), event.key);
+    if (next === null) return;
+    event.preventDefault();
+    const row = (index: number) => lines[index].firstElementChild as HTMLElement;
+    if (next === "toggle") row(lines.indexOf(line)).click();
+    else row(next).focus();
   });
 
   function render() {

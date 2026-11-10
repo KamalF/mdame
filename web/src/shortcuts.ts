@@ -1,4 +1,5 @@
 import { modal } from "./dialogs.ts";
+import { icon } from "./icons.ts";
 
 const REPOSITORY = "https://github.com/KamalF/mdame";
 
@@ -33,6 +34,16 @@ export const HELP: { group: string; shortcuts: Shortcut[] }[] = [
     ],
   },
   {
+    group: "Sidebar tree",
+    shortcuts: [
+      { keys: ["ArrowDown"], action: "Go to the tree, from the empty filter" },
+      { keys: ["ArrowUp", "ArrowDown"], action: "Move between the rows" },
+      { keys: ["ArrowRight"], action: "Open a folder, or go into it" },
+      { keys: ["ArrowLeft"], action: "Close a folder, or go to its parent" },
+      { keys: ["Enter"], action: "Open the file" },
+    ],
+  },
+  {
     group: "Filter and search",
     shortcuts: [
       { keys: ["ArrowUp", "ArrowDown"], action: "Choose a result" },
@@ -42,7 +53,7 @@ export const HELP: { group: string; shortcuts: Shortcut[] }[] = [
   },
 ];
 
-const NAMES: Record<string, string> = { ArrowUp: "↑", ArrowDown: "↓", Escape: "Esc" };
+const NAMES: Record<string, string> = { Escape: "Esc" };
 
 /** How `key` shows in the help: ⌘ and ⇧ on macOS, Ctrl and Shift
  * elsewhere. */
@@ -68,11 +79,7 @@ export function openHelp(version: string) {
     const list = document.createElement("dl");
     for (const { keys, action } of shortcuts) {
       const term = document.createElement("dt");
-      for (const key of keys) {
-        const kbd = document.createElement("kbd");
-        kbd.textContent = keyLabel(key, mac);
-        term.append(kbd);
-      }
+      for (const key of keys) term.append(keyElement(key, mac));
       const description = document.createElement("dd");
       description.textContent = action;
       list.append(term, description);
@@ -99,6 +106,23 @@ export function openHelp(version: string) {
   dialog.classList.add("mdame-help");
   close.focus();
   dialog.addEventListener("close", () => dialog.remove());
+}
+
+function keyElement(key: string, mac: boolean): HTMLElement {
+  const kbd = document.createElement("kbd");
+  // Icons, not ← and →: the bundled IBM Plex Mono has only ↑ and ↓, so the
+  // other two came from a smaller fallback font.
+  const arrow = /^Arrow(\w+)$/.exec(key)?.[1];
+  if (arrow) {
+    const svg = icon(`arrow-${arrow.toLowerCase()}`);
+    svg.removeAttribute("aria-hidden");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `${arrow} arrow`);
+    kbd.append(svg);
+  } else {
+    kbd.textContent = keyLabel(key, mac);
+  }
+  return kbd;
 }
 
 function link(text: string, href: string): HTMLAnchorElement {

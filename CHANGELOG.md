@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 - 2026-11-10
+
+### Added
+
+- The arrow keys move in the sidebar tree: ↑ and ↓ between the rows, → and
+  ← to open and close a folder. In the empty filter, ↓ goes to the tree.
+- Diff mode shows the revision and the text side by side. The button is in
+  the header of the revisions panel.
+- View options has a Font choice: Mono shows the content in IBM Plex Mono.
+- Wide tables, code blocks, Mermaid diagrams and images grow past the text
+  column, and the text keeps its width.
+- The Catppuccin themes, Latte, Frappé, Macchiato and Mocha, and the Minimal
+  themes, light and dark, are built in.
+- Paste or drop an image into the editor of a markdown file: mdame saves it
+  beside the file, and links it at the cursor.
+- Ctrl+P prints the file alone, in the Light theme.
+- The status bar shows the words of a markdown file, and its reading time.
+
+### Fixed
+
+- The focused row of the sidebar tree is easy to see: its focus ring showed
+  only its four corners.
+
 ## 0.1.1 - 2026-11-10
 
 ### Fixed

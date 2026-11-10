@@ -21,10 +21,10 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
-| 12 | Later items for 0.2.0, then Show HN | Planned 10 November 2026 | 9 in the plan, without the review fixes |
+| 12 | Later items for 0.2.0, then Show HN | Reviewed 10 November 2026; the manual checklist and the release are next | 39, with the review fixes |
 | 13 | Handoff and keys | Scope decided 10 November 2026 | 6 items |
 
-The plan of milestone 12 has 9 commits before its review. Wide blocks and pasted images may each take more than one. Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`.
+Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`.
 
 ## Milestone 1: skeleton
 
@@ -893,8 +893,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - `Intl.Segmenter` finds the words, so a text in Chinese or Thai, with no spaces, counts too. Punctuation does not count, and numbers do.
    - Markdown only: other types render as code, or as a table of data. The editor shows no count: its status bar is rebuilt at each keystroke. A file too large to show gets no count: its article holds only the notice. The review found it.
    - The count runs at each render, and at each live update of the file.
-9. Version 0.2.0. `Cargo.toml` and `CHANGELOG.md` say 0.2.0. Then the manual checklist, the merge into `main`, and the release, as for 0.1.1. Then the Show HN.
+9. Version 0.2.0 (done). `Cargo.toml` says 0.2.0, and the section of 0.2.0 in `CHANGELOG.md` has the date of 10 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.2.0 an early release. `dist plan --tag=v0.2.0` takes the title and the notes of the release from that section.
+   - Then checks 1 to 8 of the manual checklist, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, and the Show HN.
    - Checked on 10 November 2026: the release job of dist works with GitHub's immutable releases. Immutable releases freeze the assets of a release once it is published. The `host` job creates the release with one `gh release create … artifacts/*`, and gh creates a draft, uploads the archives, and then publishes it. The jobs after it push the formula to the tap and download the archives, so none changes the release.
+
+Review, on 10 November 2026: one pass of `/simplify`, then 9 rounds of a code reviewer and a security reviewer, until a round found no blocker and no should-fix. The rounds found 19 should-fix findings, all fixed: the items above give them, under "From the review". Some reviewers checked the layout in a headless Chromium. Left for later: the contrast of the mixed backgrounds, and the nits, under Open points.
 
 ### Manual checklist
 
@@ -951,8 +954,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: the review of the milestone, then commit 9, version 0.2.0, then checks 1 to 8 of the manual checklist.
-2. Release 0.2.0, then the Show HN.
+1. Milestone 12, on the `m12-later` branch: checks 1 to 8 of the manual checklist, in Chrome and Firefox, then the merge into `main`.
+2. Release 0.2.0, then checks 9 and 10, then the Show HN.
 3. Milestone 13.
 
 ## Open points
@@ -963,6 +966,16 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - A folder delete: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.
 - From the review of milestone 3: screen readers do not hear the filter's arrow-key choice. `aria-selected` needs the listbox pattern, and a listbox may hold only options: the copy-path button beside each result breaks it. Left open on 10 November 2026, in the design session of commit 1 of milestone 12.
 - From the review of milestone 12: the backgrounds that mdame mixes from the colours of a theme are not in `contrast.test.ts`, and some dark themes give text under 4.5:1 on them. Search matches, `--fg` on 35% of `--warning`: Frappé 3.60:1, Macchiato 3.94, Mocha 4.10, Minimal Dark 4.49. Added text in the diff, `--fg` on 12% then 30% of `--success`: Frappé 3.46, Macchiato 3.84, Mocha 4.08, Latte 4.15, Minimal Dark 4.23. Removed text, with `--danger`: Latte 3.61, Frappé 4.38. Muted text on the focused row of the tree: Minimal Light 3.57, Minimal Dark 4.01, Latte 4.20, Light 4.37. Light and Dark pass the others. To decide: lower tints, other colours in those themes, or leave them.
+- Nits deferred by the review of milestone 12:
+  - The word count joins the text of each element with a space, so inline code, a link or a footnote mark inside a word counts as a word of its own.
+  - A failed paste or drop keeps its error in the status bar of the editor until the next save, even after a good paste. It also replaces the error of a failed save.
+  - Two pastes in a row, before the first upload ends, put the second link before the first, on the same line.
+  - Text typed right after a selection during an image upload keeps the selection: the link goes before it, instead of replacing it.
+  - From the pass of `/simplify`: `font.ts` repeats the shape of `width.ts`; `LABELS` in `theme.ts` repeats the names of `BUILT_INS`; `droppedName` repeats the extensions of `TYPES`; `EDGE` in `wide.ts` repeats the padding of the article; the font rule of the side-by-side panes could move into `palette`.
+- From the review of milestone 12, for later:
+  - One layout pass for an article, in the order outline, wide blocks, bars, from one observer. Today three `ResizeObserver`s and calls between the modules give the order, and one resize may lay out the wide blocks twice.
+  - Side by side builds a new `MergeView` at each choice of a revision. It could replace the text of the left pane instead, as for the open point of milestone 7 on `choose()`.
+  - The word count runs before the page paints: `Intl.Segmenter` takes about 88 ms for 1 MB of text, at each open and each live update.
 - From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
 - From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. Find out whether dist can write it.
 - From milestone 10, the watcher:

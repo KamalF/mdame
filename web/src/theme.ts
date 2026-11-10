@@ -74,8 +74,21 @@ function capitalize(word: string): string {
   return word[0].toUpperCase() + word.slice(1);
 }
 
-function label(theme: string): string {
-  return isBuiltIn(theme) ? capitalize(theme) : theme;
+/** The menu names of the built-in themes, whose files are in `web/themes`.
+ * A user theme shows its file name. */
+const LABELS: Record<string, string> = {
+  light: "Light",
+  dark: "Dark",
+  "catppuccin-latte": "Catppuccin Latte",
+  "catppuccin-frappe": "Catppuccin Frappé",
+  "catppuccin-macchiato": "Catppuccin Macchiato",
+  "catppuccin-mocha": "Catppuccin Mocha",
+  "minimal-light": "Minimal Light",
+  "minimal-dark": "Minimal Dark",
+};
+
+export function label(theme: string): string {
+  return LABELS[theme] ?? theme;
 }
 
 /** The View options button of the status bar: its menu holds the theme,

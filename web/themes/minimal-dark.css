@@ -1,0 +1,21 @@
+/* Minimal dark, from the default colours of kepano/obsidian-minimal (MIT):
+   its HSL formulas with a grey base, base-l 15%. Each comment names the
+   Minimal variable. Minimal colours no code, so the code colours are those
+   of the built-in dark theme. */
+:root {
+  color-scheme: dark;
+  --bg: #262626; /* bg1 */
+  --bg-raised: #212121; /* bg2 */
+  --bg-sunken: #212121; /* bg2 */
+  --fg: #d1d1d1; /* tx1 */
+  --fg-muted: #999999; /* tx2 */
+  --border: #363636; /* ui1 */
+  --selection: #3375994d; /* hl1 */
+  --accent: #889eaa; /* ax1 */
+  --accent-fg: #212121; /* bg2 */
+  --danger: #da6978; /* color-red, lightened from #d04255 */
+  --warning: #e5b567; /* color-yellow */
+  --success: #a8c373; /* color-green */
+  --code-bg: #323232; /* bg3, on bg1 */
+  --hl-comment: #949ba3; /* lightened from #9198a1 of the built-in dark theme */
+}

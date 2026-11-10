@@ -1,0 +1,26 @@
+/* Catppuccin Macchiato, from the palette and the style guide of
+   catppuccin/catppuccin (MIT). Each comment names the Catppuccin colour. */
+:root {
+  color-scheme: dark;
+  --bg: #24273a; /* base */
+  --bg-raised: #1e2030; /* mantle */
+  --bg-sunken: #1e2030; /* mantle */
+  --fg: #cad3f5; /* text */
+  --fg-muted: #a5adcb; /* subtext0 */
+  --border: #494d64; /* surface1 */
+  --selection: #939ab740; /* overlay2 at 25% */
+  --accent: #8aadf4; /* blue */
+  --accent-fg: #24273a; /* base */
+  --danger: #ed8796; /* red */
+  --warning: #eed49f; /* yellow */
+  --success: #a6da95; /* green */
+  --code-bg: #1e2030; /* mantle */
+  --hl-keyword: #c6a0f6; /* mauve */
+  --hl-string: #a6da95; /* green */
+  --hl-number: #f5a97f; /* peach */
+  --hl-comment: #939ab7; /* overlay2 */
+  --hl-title: #8aadf4; /* blue: functions */
+  --hl-type: #eed49f; /* yellow */
+  --hl-attr: #8aadf4; /* blue: properties */
+  --hl-meta: #f4dbd6; /* rosewater: macros */
+}

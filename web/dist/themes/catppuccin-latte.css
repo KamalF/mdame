@@ -1,0 +1,26 @@
+/* Catppuccin Latte, from the palette and the style guide of
+   catppuccin/catppuccin (MIT). Each comment names the Catppuccin colour. */
+:root {
+  color-scheme: light;
+  --bg: #eff1f5; /* base */
+  --bg-raised: #e6e9ef; /* mantle */
+  --bg-sunken: #e6e9ef; /* mantle */
+  --fg: #4c4f69; /* text */
+  --fg-muted: #5c5f77; /* subtext1: subtext0 is 4.37:1 on base */
+  --border: #bcc0cc; /* surface1 */
+  --selection: #7c7f9340; /* overlay2 at 25% */
+  --accent: #0d5af4; /* blue, darkened from #1e66f5 */
+  --accent-fg: #eff1f5; /* base */
+  --danger: #d00f38; /* red, darkened from #d20f39 */
+  --warning: #c27b19; /* yellow, darkened from #df8e1d */
+  --success: #307820; /* green, darkened from #40a02b */
+  --code-bg: #e6e9ef; /* mantle */
+  --hl-keyword: #8737ef; /* mauve, darkened from #8839ef */
+  --hl-string: #307820; /* green, darkened from #40a02b */
+  --hl-number: #b74301; /* peach, darkened from #fe640b */
+  --hl-comment: #65677a; /* overlay2, darkened from #7c7f93 */
+  --hl-title: #0d5af4; /* blue: functions, darkened from #1e66f5 */
+  --hl-type: #925d13; /* yellow, darkened from #df8e1d */
+  --hl-attr: #0d5af4; /* blue: properties, darkened from #1e66f5 */
+  --hl-meta: #b3462e; /* rosewater: macros, darkened from #dc8a78 */
+}

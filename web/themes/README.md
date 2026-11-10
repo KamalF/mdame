@@ -28,7 +28,8 @@ browser draws scrollbars and form controls to match.
 
 A file named `light.css` or `dark.css` replaces that built-in theme, with nothing
 under it, so it must set every variable. Start from a copy of `light.css` or
-`dark.css` in this folder.
+`dark.css` in this folder. A file with the name of another built-in theme, such
+as `catppuccin-mocha.css`, replaces that theme over `light` or `dark`.
 
 A theme sets no diff, change bar, hover or focus colours. The diff of revisions
 mixes `--success` and `--danger` into the background, and a hovered or focused

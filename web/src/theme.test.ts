@@ -1,5 +1,15 @@
 import { expect, test } from "bun:test";
-import { BUILT_INS, chosen, media } from "./theme.ts";
+import { readdirSync } from "node:fs";
+import { BUILT_INS, chosen, label, media } from "./theme.ts";
+
+test("each built-in theme has a name in the menu, and a user theme shows its file name", () => {
+  for (const file of readdirSync(`${import.meta.dir}/../themes`).filter((f) => f.endsWith(".css"))) {
+    const theme = file.slice(0, -".css".length);
+    expect(label(theme)).not.toBe(theme);
+  }
+  expect(label("catppuccin-frappe")).toBe("Catppuccin Frappé");
+  expect(label("gruvbox-dark")).toBe("gruvbox-dark");
+});
 
 test("system follows prefers-color-scheme", () => {
   expect(media("dark", null)).toBe("(prefers-color-scheme: dark)");

@@ -1,0 +1,20 @@
+/* Minimal light, from the default colours of kepano/obsidian-minimal (MIT):
+   its HSL formulas with a grey base, base-l 96%. Each comment names the
+   Minimal variable. Minimal colours no code, so the code colours are those
+   of the built-in light theme. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff; /* bg1 */
+  --bg-raised: #ffffff; /* bg1 */
+  --bg-sunken: #f5f5f5; /* bg2 */
+  --fg: #0f0f0f; /* tx1 */
+  --fg-muted: #707070; /* tx2, darkened from #757575 */
+  --border: #e6e6e6; /* ui1 */
+  --selection: #a3cbe04d; /* hl1 */
+  --accent: #5b7380; /* ax1, darkened from #6a8695 */
+  --accent-fg: #ffffff; /* sp1 */
+  --danger: #cd384c; /* color-red, darkened from #d04255 */
+  --warning: #c78822; /* color-yellow, darkened from #e5b567 */
+  --success: #607733; /* color-green, darkened from #a8c373 */
+  --code-bg: #eeeeee; /* bg3, on bg1 */
+}

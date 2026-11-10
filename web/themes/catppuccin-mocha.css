@@ -1,0 +1,26 @@
+/* Catppuccin Mocha, from the palette and the style guide of
+   catppuccin/catppuccin (MIT). Each comment names the Catppuccin colour. */
+:root {
+  color-scheme: dark;
+  --bg: #1e1e2e; /* base */
+  --bg-raised: #181825; /* mantle */
+  --bg-sunken: #181825; /* mantle */
+  --fg: #cdd6f4; /* text */
+  --fg-muted: #a6adc8; /* subtext0 */
+  --border: #45475a; /* surface1 */
+  --selection: #9399b240; /* overlay2 at 25% */
+  --accent: #89b4fa; /* blue */
+  --accent-fg: #1e1e2e; /* base */
+  --danger: #f38ba8; /* red */
+  --warning: #f9e2af; /* yellow */
+  --success: #a6e3a1; /* green */
+  --code-bg: #181825; /* mantle */
+  --hl-keyword: #cba6f7; /* mauve */
+  --hl-string: #a6e3a1; /* green */
+  --hl-number: #fab387; /* peach */
+  --hl-comment: #9399b2; /* overlay2 */
+  --hl-title: #89b4fa; /* blue: functions */
+  --hl-type: #f9e2af; /* yellow */
+  --hl-attr: #89b4fa; /* blue: properties */
+  --hl-meta: #f5e0dc; /* rosewater: macros */
+}

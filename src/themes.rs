@@ -2,7 +2,17 @@ use std::fs;
 use std::io::{self, ErrorKind};
 use std::path::Path;
 
-pub const BUILT_INS: [&str; 2] = ["light", "dark"];
+/// In the order of the theme menu. `web/themes` holds each one's CSS.
+pub const BUILT_INS: [&str; 8] = [
+    "light",
+    "dark",
+    "catppuccin-latte",
+    "catppuccin-frappe",
+    "catppuccin-macchiato",
+    "catppuccin-mocha",
+    "minimal-light",
+    "minimal-dark",
+];
 
 /// The name in `<name>.css`, if it names a file of the themes folder: a `/`,
 /// which the address can carry as `%2F`, or a leading dot names another one.

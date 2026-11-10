@@ -1,0 +1,26 @@
+/* Catppuccin Frappé, from the palette and the style guide of
+   catppuccin/catppuccin (MIT). Each comment names the Catppuccin colour. */
+:root {
+  color-scheme: dark;
+  --bg: #303446; /* base */
+  --bg-raised: #292c3c; /* mantle */
+  --bg-sunken: #292c3c; /* mantle */
+  --fg: #c6d0f5; /* text */
+  --fg-muted: #a5adce; /* subtext0 */
+  --border: #51576d; /* surface1 */
+  --selection: #949cbb40; /* overlay2 at 25% */
+  --accent: #8caaee; /* blue */
+  --accent-fg: #303446; /* base */
+  --danger: #e78284; /* red */
+  --warning: #e5c890; /* yellow */
+  --success: #a6d189; /* green */
+  --code-bg: #292c3c; /* mantle */
+  --hl-keyword: #ca9ee6; /* mauve */
+  --hl-string: #a6d189; /* green */
+  --hl-number: #ef9f76; /* peach */
+  --hl-comment: #949cbb; /* overlay2 */
+  --hl-title: #8caaee; /* blue: functions */
+  --hl-type: #e5c890; /* yellow */
+  --hl-attr: #8caaee; /* blue: properties */
+  --hl-meta: #f2d5cf; /* rosewater: macros */
+}

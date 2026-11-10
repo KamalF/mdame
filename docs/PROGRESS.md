@@ -861,7 +861,13 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - `markImages` in `view.ts` marks a paragraph that holds only an image, maybe in a link, with `mdame-image`. CSS cannot tell a paragraph with only an image from one with text around it.
    - The change bar of a grown block sits 18 px left of the block, as for a block in the column. `placeBars` places the bars again after each measure, since a block can move while the article keeps its size.
    - Checked in Chrome: an image in a paragraph with text stays in the column, a table narrower than the column does not move, and Full gives no room.
-5. The Catppuccin and Minimal themes, built in beside light and dark. Catppuccin comes in its four flavours: Latte, Frappé, Macchiato and Mocha. The table of Later items gives the source and the checks of each theme. `BUILT_INS` in `themes.rs` lists them. The commit settles whether Minimal comes in light and dark. `each_built_in_theme_is_listed_and_served`, and a contrast check of each pair of colours that the screens use, as in milestone 8.
+5. The Catppuccin and Minimal themes (done). Catppuccin Latte, Frappé, Macchiato and Mocha, and Minimal Light and Minimal Dark, built in beside Light and Dark. `BUILT_INS` in `themes.rs` lists them, in the order of the menu, and the `web` task copies every file of `web/themes`. `each_built_in_theme_is_listed_and_served` in `tests/themes.rs`, and `contrast.test.ts`, which checks each pair of colours that the screens use, in every built-in theme.
+   - Decided in a design session on 10 November 2026: every built-in theme passes the pairs. The three dark Catppuccin flavours passed as they are, as Light and Dark do. Latte failed 15 pairs, Minimal Light 8 and Minimal Dark 3. Each failing colour keeps its hue and saturation, and its lightness moves until each of its pairs passes. Its comment gives the original. The other choices were the palettes as they are, the failing roles taken from Light or Dark, or no Latte and no Minimal Light.
+   - Minimal comes in light and dark, as Minimal itself does.
+   - The pairs: body and muted text on each background, links, the text of a main button, errors and the added count on their backgrounds, and each code colour on `--code-bg`, at 4.5:1. The change bars and the borders of alerts, at 3:1. Light and Dark passed them all.
+   - The roles of Catppuccin come from its style guide: base, mantle for the panes and code blocks, overlay2 at 25% for the selection, blue for links, and its syntax colours. Minimal's come from its variables: bg1, bg2, tx1, tx2, ax1, hl1.
+   - `NOTICE` carries the MIT notices of Catppuccin and Minimal. The menu names come from `LABELS` in `theme.ts`; a test checks that each file of `web/themes` has one.
+   - Kamal's own Gruvbox themes stay out of the repository, in `~/.config/mdame/themes/`. They passed the same checks after the same kind of change.
 6. Paste or drop an image into the editor. A design session comes first: where the image goes, its name, and the limits of the new upload route.
 7. The print stylesheet. Ctrl+P prints the content alone, without the sidebar, the status bar and the outline. No test: the manual checklist covers it.
 8. Word count and reading time in the status bar, for the open file. `words counts the words of a text`, on a pure function. The commit settles which text counts: the source or the rendered text, with or without code.
@@ -881,7 +887,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 5, the Catppuccin and Minimal themes.
+1. Milestone 12, on the `m12-later` branch: commit 6, pasted images, which starts with a design session.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

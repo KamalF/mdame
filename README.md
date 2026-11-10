@@ -189,8 +189,11 @@ a generator such as [mdBook](https://rust-lang.github.io/mdBook/) or
 ## Themes
 
 The palette button at the right of the status bar opens View options. There,
-pick the theme: System, Light, Dark, or one of yours. System follows the light
-or dark mode of your OS. A theme of yours is a CSS file in
+pick the theme: System, Light, Dark, the four flavours of Catppuccin, Minimal
+Light and Minimal Dark, or one of yours. System follows the light or dark mode
+of your OS. In each built-in theme, text, links and code colours have a
+contrast of 4.5:1 at least: where the original colour is fainter, mdame
+darkens or lightens it. A theme of yours is a CSS file in
 `~/.config/mdame/themes/`. [web/themes/README.md](web/themes/README.md) lists
 its variables, with a template.
 
@@ -256,7 +259,9 @@ a fork of Jose Fernandez's [mdserve](https://github.com/jfernandez/mdserve).
 Both are MIT licensed. The icons come from [Lucide](https://lucide.dev) (ISC),
 and some of them derive from [Feather](https://github.com/feathericons/feather)
 (MIT). The built-in themes take their colours from GitHub's
-[Primer](https://primer.style) (`@primer/primitives`, MIT). `NOTICE` carries
+[Primer](https://primer.style) (`@primer/primitives`, MIT),
+[Catppuccin](https://catppuccin.com) (MIT) and
+[Minimal](https://github.com/kepano/obsidian-minimal) (MIT). `NOTICE` carries
 their notices, and `LICENSE` the copyright lines of mdlive. The fonts are IBM
 Plex Sans and IBM Plex Mono,
 under the SIL Open Font License 1.1. The page bundles them and other npm

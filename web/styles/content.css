@@ -187,11 +187,35 @@
   text-align: center;
 }
 
-/* Wide blocks: as wide as their content, up to the room beside the text
-   that wide.ts measures, and centred on the text as far as the room on
-   each side allows. A block narrower than the column does not move. In
-   translate, 100% is the block's own width. */
+/* The room beside the text, which wide.ts sets on the article. Only the
+   wide blocks inherit it: a change of an inherited property would restyle
+   each element of the article, at each frame of a resize. */
+@property --column {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --room-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --room-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Wide blocks: as wide as their content, up to the room beside the text,
+   and centred on the text as far as the room on each side allows. A block
+   narrower than the column does not move. In translate, 100% is the
+   block's own width. */
 .mdame-document > :is(table, .mdame-code, .mdame-diagram, .mdame-image) {
+  --column: inherit;
+  --room-left: inherit;
+  --room-right: inherit;
   width: max-content;
   max-width: calc(100% + var(--room-left, 0px) + var(--room-right, 0px));
   translate: max(

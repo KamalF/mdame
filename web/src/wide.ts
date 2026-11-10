@@ -34,10 +34,19 @@ export function layoutWide(article: HTMLElement) {
   const left = pane.getBoundingClientRect().left + pane.clientLeft;
   const outline = pane.querySelector(":scope > .mdame-outline:not([hidden])") !== null;
   const space = room({ left, right: left + pane.clientWidth }, box, text, outline);
-  article.style.setProperty("--column", `${text.right - text.left}px`);
-  article.style.setProperty("--room-left", `${space.left}px`);
-  article.style.setProperty("--room-right", `${space.right}px`);
-  placeBars(article);
+  const sizes = {
+    "--column": `${text.right - text.left}px`,
+    "--room-left": `${space.left}px`,
+    "--room-right": `${space.right}px`,
+  };
+  let moved = false;
+  for (const [name, value] of Object.entries(sizes)) {
+    if (article.style.getPropertyValue(name) === value) continue;
+    article.style.setProperty(name, value);
+    moved = true;
+  }
+  // A wide block moved, and its bar with it.
+  if (moved) placeBars(article);
 }
 
 let watched: HTMLElement | undefined;

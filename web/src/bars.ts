@@ -88,6 +88,7 @@ export function placeBars(article: HTMLElement) {
 
 function place(article: HTMLElement) {
   const { top, left } = article.getBoundingClientRect();
+  const padding = parseFloat(getComputedStyle(article).paddingLeft);
   // All the reads, then all the writes: a read after a write lays the page
   // out again.
   const rects = drawn.map(({ target }) =>
@@ -98,9 +99,8 @@ function place(article: HTMLElement) {
     const rect = rects[index];
     bar.hidden = rect === null;
     if (!rect) return;
-    // 18 px left of a wide block that grew past the column, as the bar of
-    // a block in the column is. Deeper blocks share the column's bar place.
-    bar.style.left = `${Math.min(14, rect.left - left - 18)}px`;
+    // A wide block that grew past the column takes its bar along.
+    bar.style.marginLeft = `${Math.min(0, rect.left - left - padding)}px`;
     if (kind === "removed") {
       // In the gap above the block, or below the last one.
       bar.style.top = `${(below ? rect.bottom + 8 : rect.top - 8) - top}px`;

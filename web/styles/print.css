@@ -35,15 +35,11 @@
   /* The page gives the width. The margins that the outline sets, and the
      room of the wide blocks, follow the screen. */
   .mdame-document {
+    --room-left: 0px !important;
+    --room-right: 0px !important;
     max-width: none;
     margin: 0 !important;
     padding: 0;
-  }
-
-  /* The selector of the wide blocks in content.css, to win over it. */
-  .mdame-document > :is(table, .mdame-code, .mdame-diagram, .mdame-image) {
-    max-width: 100%;
-    translate: none;
   }
 
   /* Paper cannot scroll: a long line wraps, and a wide table shows whole. */

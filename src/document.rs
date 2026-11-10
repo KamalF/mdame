@@ -23,6 +23,9 @@ pub const RAW_LIMIT: u64 = 64 * 1024 * 1024;
 
 pub const EDIT_LIMIT: u64 = 8 * 1024 * 1024;
 
+/// A pasted or dropped image: a screenshot is a few MB.
+pub const IMAGE_LIMIT: u64 = 16 * 1024 * 1024;
+
 #[derive(Debug, Serialize)]
 pub struct View {
     pub html: String,
@@ -294,6 +297,75 @@ pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
     editable_name(&root.join(real_path(&root, &folder)?).join(name))?;
     let file = folder.open_with(name, OpenOptions::new().write(true).create_new(true))?;
     saved(version(b""), &file)
+}
+
+/// Saves the bytes of a pasted or dropped image at `path`, or at
+/// `name-2.png`, `name-3.png`… when the name is taken: it never writes over
+/// a file. Gives the path that it took. A type that is not an image, or a
+/// hidden folder, gives `Unsupported`.
+pub fn save_image(dir: &Dir, path: &str, bytes: &[u8]) -> io::Result<String> {
+    if Path::new(path).is_absolute() {
+        return Err(outside());
+    }
+    let root = fd_path(dir)?;
+    image_name(&root.join(path))?;
+    let (folder_path, name) = path.rsplit_once('/').unwrap_or(("", path));
+    let folder = if folder_path.is_empty() {
+        dir.try_clone()?
+    } else {
+        dir.open_dir(folder_path)?
+    };
+    image_name(&root.join(real_path(&root, &folder)?).join(name))?;
+    // `image_name` found an image extension.
+    let (stem, extension) = name.rsplit_once('.').unwrap_or((name, ""));
+    for number in 1..=IMAGE_NUMBERS {
+        let free = match number {
+            1 => name.to_owned(),
+            _ => format!("{stem}-{number}.{extension}"),
+        };
+        let mut file =
+            match folder.open_with(&free, OpenOptions::new().write(true).create_new(true)) {
+                Err(error) if error.kind() == ErrorKind::AlreadyExists => continue,
+                opened => opened?,
+            };
+        if let Err(error) = file.write_all(bytes) {
+            // Half an image would show as broken.
+            let _ = folder.remove_file(&free);
+            return Err(error);
+        }
+        return Ok(match folder_path {
+            "" => free,
+            _ => format!("{folder_path}/{free}"),
+        });
+    }
+    Err(io::Error::new(
+        ErrorKind::AlreadyExists,
+        format!("{IMAGE_NUMBERS} files have this name"),
+    ))
+}
+
+/// How many numbered names `save_image` tries.
+const IMAGE_NUMBERS: usize = 100;
+
+/// An image goes where the tree shows it: never in a hidden folder.
+fn image_name(path: &Path) -> io::Result<()> {
+    let family = path
+        .file_name()
+        .and_then(OsStr::to_str)
+        .and_then(Family::of);
+    if family != Some(Family::Image) {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "not a type of image that mdame shows",
+        ));
+    }
+    if is_hidden(path) {
+        return Err(io::Error::new(
+            ErrorKind::Unsupported,
+            "mdame saves no image in a hidden folder",
+        ));
+    }
+    Ok(())
 }
 
 fn saved(version: String, file: &File) -> io::Result<Saved> {

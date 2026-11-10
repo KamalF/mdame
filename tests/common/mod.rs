@@ -30,22 +30,33 @@ pub async fn send_body(
     headers: &[(&str, &str)],
     body: &str,
 ) -> Response {
-    let request = request(method, uri, headers, body);
+    let request = request(method, uri, headers, Body::from(body.to_owned()));
     router(Arc::new(state)).oneshot(request).await.unwrap()
+}
+
+/// A POST with a body of raw bytes, such as an image.
+pub async fn post_bytes(
+    app: &Router,
+    uri: &str,
+    headers: &[(&str, &str)],
+    body: Vec<u8>,
+) -> Response {
+    let request = request(Method::POST, uri, headers, Body::from(body));
+    app.clone().oneshot(request).await.unwrap()
 }
 
 /// Sends to a router that keeps its state from one request to the next.
 pub async fn send_to(app: &Router, uri: &str, headers: &[(&str, &str)]) -> Response {
-    let request = request(Method::GET, uri, headers, "");
+    let request = request(Method::GET, uri, headers, Body::empty());
     app.clone().oneshot(request).await.unwrap()
 }
 
-fn request(method: Method, uri: &str, headers: &[(&str, &str)], body: &str) -> Request<Body> {
+fn request(method: Method, uri: &str, headers: &[(&str, &str)], body: Body) -> Request<Body> {
     let mut request = Request::builder().method(method).uri(uri);
     for (name, value) in headers {
         request = request.header(*name, *value);
     }
-    request.body(Body::from(body.to_owned())).unwrap()
+    request.body(body).unwrap()
 }
 
 pub async fn status_and_json(response: Response) -> (StatusCode, Value) {

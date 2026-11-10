@@ -1,7 +1,7 @@
 use crate::app::{
     Access, AppState, OpenCode, PRINTED_CODE_LIFE, hex, new_token, print_urls, write_token,
 };
-use crate::document::{self, EDIT_LIMIT, SaveError, View};
+use crate::document::{self, EDIT_LIMIT, IMAGE_LIMIT, SaveError, View};
 use crate::error::{ApiError, io_message};
 use crate::history::{self, Revision};
 use crate::search;
@@ -11,9 +11,10 @@ use crate::watch::Event;
 use crate::ws;
 use axum::{
     Json, Router,
+    body::Bytes,
     extract::{
         DefaultBodyLimit, Path, Query, Request, State,
-        rejection::{JsonRejection, QueryRejection},
+        rejection::{BytesRejection, JsonRejection, QueryRejection},
     },
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
@@ -641,6 +642,43 @@ async fn create(
     ))
 }
 
+#[derive(Serialize)]
+struct SavedImage {
+    /// The path that the image took: a taken name gets a number.
+    path: String,
+}
+
+async fn image(
+    State(app): State<Arc<AppState>>,
+    query: Result<Query<FileQuery>, QueryRejection>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<impl IntoResponse, ApiError> {
+    let Query(query) = query?;
+    let bytes = body.map_err(|rejection| match rejection.status() {
+        StatusCode::PAYLOAD_TOO_LARGE => ApiError::TooLarge(format!(
+            "{}: an image may hold {} MB at most",
+            query.path,
+            IMAGE_LIMIT / 1024 / 1024
+        )),
+        _ => ApiError::BadRequest(rejection.body_text()),
+    })?;
+    let path = query.path.clone();
+    let saved = tokio::task::spawn_blocking(move || {
+        document::save_image(&app.workspace.dir, &path, &bytes)
+    })
+    .await?;
+    let path = saved.map_err(|error| match error.kind() {
+        io::ErrorKind::Unsupported => {
+            ApiError::BadRequest(format!("{}: {}", query.path, io_message(&error)))
+        }
+        io::ErrorKind::AlreadyExists => {
+            ApiError::Conflict(format!("{}: {}", query.path, io_message(&error)))
+        }
+        _ => file_error(&query.path, error),
+    })?;
+    Ok((StatusCode::CREATED, Json(SavedImage { path })))
+}
+
 fn file_error(path: &str, error: io::Error) -> ApiError {
     let message = format!("{path}: {}", io_message(&error));
     match error.kind() {
@@ -697,6 +735,10 @@ pub fn router(app_state: Arc<AppState>) -> Router {
                 .put(save)
                 .post(create)
                 .layer(DefaultBodyLimit::max(4 * EDIT_LIMIT as usize)),
+        )
+        .route(
+            "/api/image",
+            post(image).layer(DefaultBodyLimit::max(IMAGE_LIMIT as usize)),
         )
         .route("/api/source", get(source))
         .route("/api/history", get(revisions))

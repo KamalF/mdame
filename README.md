@@ -119,7 +119,8 @@ lists the options.
   since you last saw the file. The status bar lists the other markdown files
   that changed, and a click opens one.
 - `s` searches the contents of the files.
-- It edits files in the browser, with CodeMirror.
+- It edits files in the browser, with CodeMirror. Paste or drop an image into
+  the editor: mdame saves it beside the file, and links it at the cursor.
 - It keeps revisions of each file that it saves (the last 20 by default), and
   restores them. Its diff mode shows them inline or side by side. It also
   shows the version that you last saw, and restores it. The revisions live in

@@ -1,0 +1,138 @@
+import type { Extension } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { type ApiError, errorFrom, request } from "./api.ts";
+
+/** The image types that mdame shows, with the extension of each. */
+const TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+};
+
+/** A pasted image has no name of its own: it gets the local date and time. */
+export function pastedName(date: Date, type: string): string {
+  const two = (n: number) => String(n).padStart(2, "0");
+  const day = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`;
+  const time = `${two(date.getHours())}${two(date.getMinutes())}${two(date.getSeconds())}`;
+  return `pasted-${day}-${time}.${TYPES[type]}`;
+}
+
+/** A dropped file keeps its name, with the extension of its type if the
+ * name has none that mdame knows. */
+export function droppedName(name: string, type: string): string {
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(name) ? name : `${name}.${TYPES[type]}`;
+}
+
+/** The markdown of an image of the same folder. A space, `(` or `)` would
+ * end the link, and a `%` would start an escape. */
+export function imageLink(name: string): string {
+  const target = name.replace(/[\s()<>%]/g, (c) =>
+    c === "(" ? "%28" : c === ")" ? "%29" : encodeURIComponent(c),
+  );
+  return `![](${target})`;
+}
+
+/** How far past the cursor a new image goes: with the cursor still in the
+ * empty alt text of an image, past that image, or the second of two pastes
+ * would land in the alt text of the first. `before` and `after` are the
+ * text around the cursor. */
+export function skipEmptyAlt(before: string, after: string): number {
+  if (!before.endsWith("![")) return 0;
+  return after.match(/^\]\([^\s()]*\)/)?.[0].length ?? 0;
+}
+
+/** Saves `file` at `path`, and gives the path that it took. */
+async function upload(path: string, file: File): Promise<string> {
+  const response = await request(`/api/image?path=${encodeURIComponent(path)}`, {
+    method: "POST",
+    headers: { "content-type": file.type },
+    body: file,
+  });
+  if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => null));
+  return ((await response.json()) as { path: string }).path;
+}
+
+/**
+ * Saves the images of a paste or a drop beside the file at `path`, and
+ * links them where they land, with the cursor in the alt text of the first.
+ * `failed` shows why an image was not saved.
+ */
+export function pasteImages(path: string, failed: (message: string) => void): Extension {
+  const folder = path.slice(0, path.lastIndexOf("/") + 1);
+
+  async function link(view: EditorView, files: File[], from: number, to: number, names: string[]) {
+    const links: string[] = [];
+    try {
+      for (const [index, file] of files.entries()) {
+        const saved = await upload(folder + names[index], file);
+        links.push(imageLink(saved.slice(folder.length)));
+      }
+    } catch (error) {
+      failed((error as ApiError).message);
+    }
+    if (links.length === 0) return;
+    // The text may have changed during the upload.
+    const { state } = view;
+    let [start, stop] = [Math.min(from, state.doc.length), Math.min(to, state.doc.length)];
+    let text = links.join("\n");
+    const skip =
+      start === stop
+        ? skipEmptyAlt(state.sliceDoc(Math.max(0, start - 2), start), state.sliceDoc(start, start + 1000))
+        : 0;
+    if (skip > 0) {
+      start = stop = start + skip;
+      text = "\n" + text;
+    }
+    view.dispatch({
+      changes: { from: start, to: stop, insert: text },
+      // Between the brackets of the first `![]`.
+      selection: { anchor: start + text.indexOf("![") + 2 },
+      scrollIntoView: true,
+      userEvent: "input.paste",
+    });
+    view.focus();
+  }
+
+  /** The images of `list` that mdame can save, or null when an image of
+   * another type is among them. */
+  function images(list: FileList | undefined): File[] | null {
+    const files = [...(list ?? [])].filter((file) => file.type.startsWith("image/"));
+    if (files.some((file) => !(file.type in TYPES))) {
+      failed("mdame saves PNG, JPEG, GIF, WebP and SVG images");
+      return null;
+    }
+    return files;
+  }
+
+  return EditorView.domEventHandlers({
+    paste(event, view) {
+      const data = event.clipboardData;
+      // A copied part of a web page brings its images with its text: the
+      // text wins, as before.
+      if (!data || data.types.includes("text/plain")) return false;
+      const files = images(data.files);
+      if (files === null || files.length > 0) event.preventDefault();
+      if (files === null) return true;
+      if (files.length === 0) return false;
+      const now = new Date();
+      const { from, to } = view.state.selection.main;
+      link(view, files, from, to, files.map((file) => pastedName(now, file.type)));
+      return true;
+    },
+    drop(event, view) {
+      const files = images(event.dataTransfer?.files);
+      // CodeMirror would insert the bytes of the file as text.
+      if (files === null) {
+        event.preventDefault();
+        return true;
+      }
+      if (files.length === 0) return false;
+      event.preventDefault();
+      const at = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
+      link(view, files, at, at, files.map((file) => droppedName(file.name, file.type)));
+      return true;
+    },
+  });
+}

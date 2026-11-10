@@ -868,7 +868,14 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The roles of Catppuccin come from its style guide: base, mantle for the panes and code blocks, overlay2 at 25% for the selection, blue for links, and its syntax colours. Minimal's come from its variables: bg1, bg2, tx1, tx2, ax1, hl1.
    - `NOTICE` carries the MIT notices of Catppuccin and Minimal. The menu names come from `LABELS` in `theme.ts`; a test checks that each file of `web/themes` has one.
    - Kamal's own Gruvbox themes stay out of the repository, in `~/.config/mdame/themes/`. They passed the same checks after the same kind of change.
-6. Paste or drop an image into the editor. A design session comes first: where the image goes, its name, and the limits of the new upload route.
+6. Paste or drop an image into the editor (done). The image goes in the folder of the file, and `![](<name>)` goes where it lands. `POST /api/image?path=` takes the bytes of the image. `tests/image.rs`: `an_image_is_saved_where_it_is_asked`, `a_taken_name_gets_the_next_number`, `only_an_image_type_is_saved`, `an_image_never_goes_in_a_hidden_folder`, `an_image_outside_the_workspace_is_refused`, `an_image_in_a_missing_folder_is_not_found`, `an_image_over_the_limit_is_refused`. `paste.test.ts` tests the names and the link.
+   - Decided in a design session on 10 November 2026: the folder of the file, as VS Code does; a pasted image is named `pasted-<date>-<time>`; the cursor goes between the brackets of the alt text.
+   - The server picks the free name: it opens `name.png`, then `name-2.png`, and so on, with `create_new`, so two pastes at once never write over each other. It gives up after 100 names.
+   - The limit is 16 MB. A screenshot is a few MB, and the 8 MB of the editor's text did not fit a photo.
+   - The rules of `image_name` mirror those of `editable_name`: the whole real path counts, so a link with a plain name into `.claude` is refused too. A hidden folder gets no image at all, since its tree shows only markdown.
+   - A paste with text keeps CodeMirror's paste: copying part of a web page brings its images with the text. A drop of an image of another type, such as BMP or HEIC, shows an error: CodeMirror would insert the bytes of the file as text.
+   - The error of a failed image shows in the status bar of the editor, as a failed save does.
+   - Found by the browser check: a second paste right after the first landed in the empty alt text of the first, as `![![](b.png)](a.png)`, since the cursor waits there. With the cursor in an empty alt text and nothing selected, a new image now goes on the next line. `skipEmptyAlt` in `paste.test.ts`.
 7. The print stylesheet. Ctrl+P prints the content alone, without the sidebar, the status bar and the outline. No test: the manual checklist covers it.
 8. Word count and reading time in the status bar, for the open file. `words counts the words of a text`, on a pure function. The commit settles which text counts: the source or the rendered text, with or without code.
 9. Version 0.2.0. `Cargo.toml` and `CHANGELOG.md` say 0.2.0. Before the tag, check that the release job of dist works with GitHub's immutable releases: see Open points. Then the manual checklist, the merge into `main`, and the release, as for 0.1.1. Then the Show HN.
@@ -887,7 +894,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 6, pasted images, which starts with a design session.
+1. Milestone 12, on the `m12-later` branch: commit 7, the print stylesheet.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

@@ -9,6 +9,7 @@ import { basicSetup, EditorView } from "codemirror";
 import { type ApiError, isHeld, send } from "./api.ts";
 import { lineBreakOf, reactToDisk, reloadChanges } from "./disk.ts";
 import { formatKeys } from "./format.ts";
+import { pasteImages } from "./paste.ts";
 import * as preview from "./preview.ts";
 import * as revisions from "./revisions.ts";
 import { type Anchor, anchorTable, lineToTop, topToLine } from "./scrollsync.ts";
@@ -182,6 +183,11 @@ export async function mount(
       notice.of([]),
       revisions.diffMode.of([]),
       spellcheck(),
+      pasteImages(path, (message) => {
+        if (open?.path !== path) return;
+        open.error = message;
+        report();
+      }),
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         report();

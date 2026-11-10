@@ -13,6 +13,8 @@ function variables(file: string): Record<string, string> {
 }
 
 function channels(hex: string): number[] {
+  // Another format, such as hsl(), would give NaN, and NaN passes every check.
+  if (!/^#([\da-f]{6}|[\da-f]{8})$/i.test(hex)) throw new Error(`not #rrggbb or #rrggbbaa: ${hex}`);
   return [1, 3, 5, 7].map((i) => parseInt(hex.slice(i, i + 2) || "ff", 16) / 255);
 }
 

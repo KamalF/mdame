@@ -912,7 +912,7 @@ Sidebar tree:
 
 Revisions:
 
-2. Edit `a.md` and save it twice, with a change each time. Press `h`, then the Side by side button in the header of the revisions panel: the revision shows on the left and the text on the right, with the colours of the inline diff, and neither pane takes typing. Choose the other revision: the panes show it, at the same scroll position. Change `a.md` on disk: the right pane shows the change. Reload the page and press `h`: the panes come back. Press the button again, type a word, switch to side by side and back, and press Ctrl+Z: the word goes.
+2. Edit `a.md` and save it twice, with a change each time. Press `h`, then the Side by side button in the header of the revisions panel: the revision shows on the left and the text on the right, with the colours of the inline diff, and neither pane takes typing. Choose the other revision: the panes show it, at the same scroll position. Change `a.md` on disk: the right pane shows the change. Reload the page and press `h`: the panes come back. Press the button again, type a word, switch to side by side and back, click in the text, and press Ctrl+Z: the word goes.
 
 View options:
 

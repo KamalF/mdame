@@ -233,6 +233,11 @@
   min-width: 100%;
 }
 
+/* A diagram in a list or a quote keeps the width of its box. */
+.mdame-document > .mdame-diagram {
+  width: var(--diagram-width, 100%);
+}
+
 .mdame-document .mdame-diagram-error {
   margin: -0.5em 0 1em;
   color: var(--danger);

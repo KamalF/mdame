@@ -84,6 +84,7 @@ interface Shown {
   detail: { el: HTMLElement; size: number } | null;
   /** The revision and the text, side by side, in place of the editor. */
   side: MergeView | null;
+  layoutButton: HTMLButtonElement;
 }
 
 let shown: Shown | null = null;
@@ -143,6 +144,7 @@ export function show(view: EditorView, path: string, actions: Actions): HTMLElem
     restore,
     detail: null,
     side: null,
+    layoutButton,
   };
   // The revision on screen, not the one that is loading.
   restore.addEventListener("click", () => {
@@ -197,6 +199,15 @@ export function textChanged(changes: ChangeSet) {
   // A read-only copy of the editor's text, so the editor's changes apply to
   // it: a reload from disk, or a restore.
   shown?.side?.b.dispatch({ changes });
+}
+
+/** Shows the editor in place of the panes, for its notice of a change on
+ * disk and the buttons of the notice. The stored choice stays. */
+export function showInline() {
+  if (!shown?.side) return;
+  sideBySide = false;
+  shown.layoutButton.setAttribute("aria-pressed", "false");
+  layout(shown);
 }
 
 /** Shows the revision on screen and the text side by side, in place of

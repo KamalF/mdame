@@ -486,6 +486,7 @@ function reload(current: Open, disk: Source) {
 }
 
 function setNotice(current: Open, panel: Panel | null) {
+  if (panel) revisions.showInline();
   current.view.dispatch({
     effects: notice.reconfigure(panel ? showPanel.of(() => panel) : []),
   });

@@ -2,7 +2,7 @@ import { isolateHistory } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
-import { Compartment, Prec, Text } from "@codemirror/state";
+import { Compartment, type Extension, Prec, Text } from "@codemirror/state";
 import { keymap, type Panel, showPanel } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
@@ -93,15 +93,25 @@ const palette = EditorView.theme({
   // Diff mode.
   "&.cm-merge-b .cm-changedLine, .cm-inlineChangedLine": { backgroundColor: tint("--success", 12) },
   "&.cm-merge-b .cm-changedText": { background: tint("--success", 30) },
-  ".cm-deletedChunk": { backgroundColor: tint("--danger", 12) },
-  "&.cm-merge-b .cm-deletedText, .cm-deletedChunk .cm-deletedText": {
+  "&.cm-merge-a .cm-changedLine, .cm-deletedChunk": { backgroundColor: tint("--danger", 12) },
+  "&.cm-merge-a .cm-changedText, &.cm-merge-b .cm-deletedText, .cm-deletedChunk .cm-deletedText": {
     background: tint("--danger", 30),
   },
   "&.cm-merge-b .cm-changedLineGutter, .cm-inlineChangedLineGutter": {
     background: "var(--success)",
   },
-  ".cm-deletedLineGutter": { background: "var(--danger)" },
+  "&.cm-merge-a .cm-changedLineGutter, .cm-deletedLineGutter": { background: "var(--danger)" },
 });
+
+/** The editor's look, which the panes of the side-by-side layout share. */
+const look: Extension = [
+  basicSetup,
+  palette,
+  // GitHub-flavoured, as the view renders it.
+  markdown({ base: markdownLanguage, codeLanguages: languages }),
+  syntaxHighlighting(classHighlighter),
+  EditorView.lineWrapping,
+];
 
 let open: Open | null = null;
 const notice = new Compartment();
@@ -168,19 +178,14 @@ export async function mount(
     extensions: [
       // High precedence: basicSetup binds Mod-i to "select the enclosing syntax".
       Prec.high(keymap.of(formatKeys)),
-      basicSetup,
-      palette,
+      look,
       notice.of([]),
       revisions.diffMode.of([]),
       spellcheck(),
-      // GitHub-flavoured, as the view renders it.
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
-      syntaxHighlighting(classHighlighter),
-      EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         report();
-        revisions.textChanged();
+        revisions.textChanged(update.changes);
         // While mdame is away, the last preview stays: a reconnection
         // renders it again.
         if (!isHeld()) preview.update(path, () => update.state.doc.toString());
@@ -331,6 +336,7 @@ export function toggleRevisions() {
     restore: (id: string, content: string) => restore(current, id, content),
     saved: () => current.saved,
     lastSeen: () => lastSeen(current.path),
+    look,
   };
   current.split.append(revisions.show(current.view, current.path, actions));
   report();

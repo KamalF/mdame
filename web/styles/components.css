@@ -313,6 +313,10 @@
   font-weight: 600;
 }
 
+.mdame-revisions-header div {
+  display: flex;
+}
+
 .mdame-revisions .mdame-status-error:empty {
   display: none;
 }

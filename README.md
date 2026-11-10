@@ -119,9 +119,9 @@ lists the options.
 - `s` searches the contents of the files.
 - It edits files in the browser, with CodeMirror.
 - It keeps revisions of each file that it saves (the last 20 by default), and
-  restores them. Its diff mode also shows the version that you last saw, and
-  restores it. The revisions live in a `.mdame` folder at the root, which holds
-  its own `.gitignore`.
+  restores them. Its diff mode shows them inline or side by side. It also
+  shows the version that you last saw, and restores it. The revisions live in
+  a `.mdame` folder at the root, which holds its own `.gitignore`.
 
 Files that `.gitignore` hides stay out of the tree and the search. Changes in
 the folders that it hides stay out of the list of changes. To hide more, such

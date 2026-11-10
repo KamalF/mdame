@@ -1,8 +1,9 @@
-import { type Chunk, getChunks, getOriginalDoc, unifiedMergeView } from "@codemirror/merge";
-import { Compartment, Text } from "@codemirror/state";
+import { type Chunk, getChunks, getOriginalDoc, MergeView, unifiedMergeView } from "@codemirror/merge";
+import { type ChangeSet, Compartment, EditorState, type Extension, Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { api, type ApiError } from "./api.ts";
 import { iconButton } from "./icons.ts";
+import { load, store } from "./storage.ts";
 
 /** What `/api/history` gives for each revision. */
 export interface Revision {
@@ -62,6 +63,8 @@ export interface Actions {
   /** The version that the change bars compare with, if the view showed
    * the file. */
   lastSeen: () => string | undefined;
+  /** The look of the editor, for the panes of the side-by-side layout. */
+  look: Extension;
 }
 
 interface Shown {
@@ -79,9 +82,15 @@ interface Shown {
   restore: HTMLButtonElement;
   /** The size and counts of the chosen revision, which edits change. */
   detail: { el: HTMLElement; size: number } | null;
+  /** The revision and the text, side by side, in place of the editor. */
+  side: MergeView | null;
 }
 
 let shown: Shown | null = null;
+
+const SIDE_BY_SIDE = "mdame:side-by-side";
+/** Kept here as well: the browser may refuse to store it. */
+let sideBySide = false;
 
 /** Returns the list of the revisions of `path`, for the place of the
  * preview, and compares the text of `view` with the newest. */
@@ -93,7 +102,19 @@ export function show(view: EditorView, path: string, actions: Actions): HTMLElem
   header.className = "mdame-revisions-header";
   const title = document.createElement("h2");
   title.textContent = "Revisions";
-  header.append(title, iconButton("Close revisions", "cross", actions.close, "Close (Esc)"));
+  // Another tab may have changed it.
+  sideBySide = load(SIDE_BY_SIDE, sideBySide) === true;
+  const layoutButton = iconButton("Side by side", "columns", () => {
+    sideBySide = !sideBySide;
+    store(SIDE_BY_SIDE, sideBySide);
+    layoutButton.setAttribute("aria-pressed", String(sideBySide));
+    layout(current);
+  });
+  layoutButton.setAttribute("aria-pressed", String(sideBySide));
+  const close = iconButton("Close revisions", "cross", actions.close, "Close (Esc)");
+  const buttons = document.createElement("div");
+  buttons.append(layoutButton, close);
+  header.append(title, buttons);
   const error = document.createElement("p");
   error.className = "mdame-status-error";
   error.setAttribute("role", "alert");
@@ -121,6 +142,7 @@ export function show(view: EditorView, path: string, actions: Actions): HTMLElem
     compared: null,
     restore,
     detail: null,
+    side: null,
   };
   // The revision on screen, not the one that is loading.
   restore.addEventListener("click", () => {
@@ -134,6 +156,8 @@ export function show(view: EditorView, path: string, actions: Actions): HTMLElem
 export function hide() {
   if (!shown) return;
   shown.view.dispatch({ effects: diffMode.reconfigure([]) });
+  shown.compared = null;
+  layout(shown);
   shown.aside.remove();
   shown = null;
 }
@@ -166,9 +190,39 @@ export async function refresh() {
   } else render(current);
 }
 
-/** Shows the counts of the chosen revision again, after an edit. */
-export function textChanged() {
+/** Shows the counts of the chosen revision again after `changes` to the
+ * text, and the text on its side. */
+export function textChanged(changes: ChangeSet) {
   if (shown?.detail) shown.detail.el.replaceChildren(...detailOf(shown, shown.detail.size));
+  // A read-only copy of the editor's text, so the editor's changes apply to
+  // it: a reload from disk, or a restore.
+  shown?.side?.b.dispatch({ changes });
+}
+
+/** Shows the revision on screen and the text side by side, in place of
+ * the editor, or takes them away. */
+function layout(current: Shown) {
+  const old = current.side;
+  const top = old?.dom.scrollTop ?? 0;
+  old?.destroy();
+  old?.dom.remove();
+  current.side = null;
+  const on = sideBySide && current.compared !== null;
+  current.aside.parentElement?.classList.toggle("side-by-side", on);
+  if (!on) {
+    // It was hidden: CodeMirror measures it again.
+    current.view.requestMeasure();
+    return;
+  }
+  const extensions = [current.actions.look, EditorState.readOnly.of(true)];
+  const side = new MergeView({
+    a: { doc: current.compared!.content, extensions },
+    b: { doc: current.view.state.doc, extensions },
+  });
+  side.dom.classList.add("mdame-side");
+  current.aside.before(side.dom);
+  side.dom.scrollTop = top;
+  current.side = side;
 }
 
 async function choose(current: Shown, id: string) {
@@ -200,6 +254,7 @@ async function choose(current: Shown, id: string) {
   });
   current.compared = { id, content };
   current.error.textContent = "";
+  layout(current);
   render(current);
 }
 

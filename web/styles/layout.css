@@ -70,6 +70,18 @@
   height: 100%;
 }
 
+/* Side by side: two read-only panes in place of the editor, which keeps
+   the inline diff for the counts and the restore. */
+.mdame-split.side-by-side .mdame-editor {
+  display: none;
+}
+
+.mdame-side {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
 .mdame-divider {
   width: 4px;
   flex: none;
@@ -90,7 +102,7 @@
   overflow-y: auto;
 }
 
-.mdame-editor .cm-scroller {
+:is(.mdame-editor, .mdame-side) .cm-scroller {
   font-family: var(--font-mono);
 }
 

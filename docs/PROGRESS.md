@@ -842,7 +842,12 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The focused row gets a grey background, stronger than a hovered row. The row of the current file keeps its own background. The background replaces the browser's focus ring: the `content-visibility` of each line, from milestone 10, clipped the ring down to four blue corners.
    - The shortcut help gets a fourth group, Sidebar tree. Its arrow keys are now Lucide icons, the filter's ↑↓ too. The bundled IBM Plex Mono has only ↑ and ↓, so ← and → came from a smaller fallback font. Kamal chose the icons from a mock of the two.
    - The new icons rename most chunks of `web/dist`. The build stays reproducible: two runs give the same names.
-2. Side-by-side diff in diff mode. A toggle beside the inline diff shows the revision and the text side by side, through `MergeView` of `@codemirror/merge`. `localStorage` keeps the choice. The commit settles how the editor swaps its view for the two panes of `MergeView`. `the diff layout is remembered`, in `revisions.test.ts`.
+2. Side-by-side diff in diff mode (done). A toggle in the header of the revisions panel shows the revision and the text side by side, through `MergeView` of `@codemirror/merge`. `localStorage` keeps the choice. No unit test: the code is all DOM and CodeMirror views, so the browser check covers it.
+   - Decided in a design session on 10 November 2026: both panes are read-only. `MergeView` builds its own two editors and cannot take mdame's. An editable right pane would move the text into it and back at each switch: the undo history would be lost, and the save, the unsaved dot and the reload from disk would have to follow the move.
+   - mdame's editor stays behind the panes, hidden, with its inline diff. So the counts and the restore read it as before, and each change to its text, from the disk or a restore, goes to the right pane as the same changes.
+   - The panes share the editor's look: `basicSetup`, the palette, markdown and the line wrapping. The palette gives the left pane `--danger`, as the inline diff does for removed text.
+   - The panes come with the first revision on screen. A choice of another revision builds them again, at the same scroll position.
+   - The gutters of the panes stop after the last line, while the editor's gutter runs to the bottom. `MergeView` forces each editor to the height of its text.
 3. The mono toggle. A toggle in the View options menu shows the content in `--font-mono`, at `--content-width-mono`. `localStorage` keeps the choice. The built-in themes set `--content-width-mono`. The commit settles how the toggle works with the content width. `mono.test.ts` tests the stored choice, as `width.test.ts` does for the width.
 4. Wide blocks. A design session comes first. Tables, code blocks and diagrams grow past the text column, up to the pane, and the text keeps its width. The outline then needs its own place.
 5. The Catppuccin and Minimal themes, built in beside light and dark. Catppuccin comes in its four flavours: Latte, Frappé, Macchiato and Mocha. The table of Later items gives the source and the checks of each theme. `BUILT_INS` in `themes.rs` lists them. The commit settles whether Minimal comes in light and dark. `each_built_in_theme_is_listed_and_served`, and a contrast check of each pair of colours that the screens use, as in milestone 8.
@@ -865,7 +870,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 2, the side-by-side diff.
+1. Milestone 12, on the `m12-later` branch: commit 3, the mono toggle.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

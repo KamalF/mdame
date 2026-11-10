@@ -85,7 +85,9 @@ function showFileStatus(path: string, file: view.FileView) {
   const copyPath = copyButton({ label: "Copy path", iconName: "link", text: () => path });
   fileStatus.replaceChildren(name, modified);
   const article = content.querySelector<HTMLElement>(":scope > article");
-  const label = file.family === "markdown" && article ? wordLabel(countWords(prose(article))) : null;
+  // A file too large to show holds only the notice.
+  const counted = file.family === "markdown" && !file.too_large && article;
+  const label = counted ? wordLabel(countWords(prose(article))) : null;
   if (label) {
     const words = document.createElement("span");
     words.textContent = label;

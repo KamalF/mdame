@@ -4,7 +4,7 @@ Where the build stands against the milestones in `docs/SPEC.md`.
 
 ## How we work
 
-One commit at a time. Claude writes the code and its tests, and runs fmt, clippy and the tests. Kamal reads the code and asks questions. For each commit of milestone 12, Kamal decides who writes the message: he does, or Claude does after a quiz on the commit. One branch per milestone.
+One commit at a time. Claude writes the code and its tests, and runs fmt, clippy and the tests. Kamal reads the code and asks questions. For each commit of milestone 12, Kamal says when it is ready who writes the message: he does, or Claude does after a quiz on the commit. A change with open design questions starts with a design session, right before its code. One branch per milestone.
 
 ## Milestones
 
@@ -21,9 +21,10 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
-| 12 | Small Later items, then Show HN | — | About 10, without the review fixes |
+| 12 | Later items for 0.2.0, then Show HN | Scope decided 10 November 2026 | 8 items, without the review fixes |
+| 13 | Handoff and keys | Scope decided 10 November 2026 | 6 items |
 
-Milestone 12 has no plan yet: it has 10 items in the build order of `docs/SPEC.md`.
+Milestone 12 has no plan yet: its 8 items are in the build order of `docs/SPEC.md`, in the order of their commits.
 
 ## Milestone 1: skeleton
 
@@ -840,12 +841,13 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12: its plan. For each commit, Kamal decides who writes the message.
-2. After 0.2.0: the Show HN.
+1. Milestone 12, on the `m12-later` branch: its plan. Wide blocks and pasted images each start with a design session.
+2. Release 0.2.0, then the Show HN.
+3. Milestone 13.
 
 ## Open points
 
-- Live updates on macOS: two known issues are left after commits 2 and 3 of milestone 11. A tab does not follow a renamed file, and a folder delete sends nothing, so the folder stays in the tree.
+- Live updates on macOS, for milestone 13: two known issues are left after commits 2 and 3 of milestone 11. A tab does not follow a renamed file, and a folder delete sends nothing, so the folder stays in the tree.
   - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. Since commit 2, the disk gives the kinds, so a rename gives `removed` and `created`.
   - For some seconds after the creation of a file, FSEvents keeps reporting it, so a write gives `created`. It costs a reload of the tree. Measured on an Intel Mac with macOS 15.7.9, on 8 and 9 November 2026.
   - A folder delete: the debouncer drops its events before mdame sees them. Its fix: on macOS, use notify's FSEvents watcher without the debouncer, batch its events in mdame, and check the disk for each path.

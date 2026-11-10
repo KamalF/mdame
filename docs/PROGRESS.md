@@ -767,7 +767,8 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 15. `CHANGELOG.md`, with a section for 0.1.0 and one for 0.1.1 (done). dist takes the release notes of a version from it. Without it, the notes held only the install instructions.
     - `dist plan --tag=v0.1.0` takes its title and notes from the section `## 0.1.0 - 2026-11-08`. dist also adds `CHANGELOG.md` to each archive.
     - The section of 0.1.1 gets its date in commit 16. Its lines are for users: what changed for them, not how.
-16. Version 0.1.1, then the release. Kamal pushes the tag, and the job "Check release" runs on Linux and macOS. Then the manual checklist of milestone 11.
+16. Version 0.1.1 (done). `Cargo.toml` says 0.1.1, and the section of 0.1.1 in `CHANGELOG.md` has the date of 10 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.1.1 an early release.
+    - Then checks 1 to 8 of the manual checklist, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.1.1`, and runs `cargo publish`. Then checks 9 to 12.
 
 Kamal, with no commit, before the release:
 
@@ -775,6 +776,45 @@ Kamal, with no commit, before the release:
 - Topics for the repository on GitHub.
 - Yank mdame 0.0.1 on crates.io: the early build that held the name. `cargo install` already picks 0.1.0.
 - Report to the `ignore` crate, in BurntSushi/ripgrep, that an ignore file that is a FIFO or a link to `/dev/zero` makes the walker read without end, and so does a `.git` file whose `commondir` is one. ripgrep has the same problem. Report to globset, in the same repository, that `new_regex_set` keeps the capture groups: with crafted patterns, matching a name asked for 11 GB, and 82 MB with `which_captures(WhichCaptures::None)`. Even then, a 15 KB file of `?XY` lines next to 20,000 names took 19.5 s per walk: the lazy DFA gives up, and the PikeVM matches each name against each pattern.
+
+### Manual checklist
+
+Run on 10 November 2026, before the merge: checks 1 to 8 pass. Kamal ran checks 1 to 5 in Firefox. Claude ran checks 1 to 7 in the headless Chrome of agent-browser, on the release build. For check 8, mdame ran on the Mac from a debug build, Kamal made the changes through the runbook, and Claude watched the page in Chrome. Notes:
+
+- 4: Chrome refused the image, and Firefox's DevTools showed 403 for a request that carried the cookie and `Sec-Fetch-Site: same-site`.
+- 7: the page says "This folder has no file that mdame shows". Only the terminal gives the cause.
+- 8: the delete ran before the create, since `n.md` was there when mdame started. Each change reached the page in a few seconds.
+
+These checks cover what no test covers: the requests that Chrome and Firefox send through the guard against other sites, the page with a cut search line or a bad ignore file, live updates on a Mac, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in Chrome and Firefox, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds:
+
+- `a.md`, which shows the image `pic.png`;
+- `long.md`, with a line of 5,000 characters that holds the word `needle` near its middle;
+- `bad/x.md`, and `bad/.gitignore`, a link to `/dev/zero`;
+- `site/other.html`, a page that shows the image `http://127.0.0.1:4996/raw/pic.png`.
+
+Page:
+
+1. The tab shows the icon of mdame.
+2. Open `a.md`: `pic.png` shows. Change `a.md` on disk: the page updates. Search `needle`, open the result, then edit `a.md` in the editor and save it: each step works.
+3. Type the address `http://127.0.0.1:4996/raw/pic.png`: the image shows.
+4. Run `python3 -m http.server 8000 --bind 127.0.0.1 -d site` in the test folder, and open `http://127.0.0.1:8000/other.html`: the image does not show, and DevTools shows 403 for it. A page on another port of the same host is same-site, so the browser sends the cookie: only the guard refuses the image.
+
+Search and ignore files:
+
+5. Search `needle`: the result shows about 200 characters of the long line, with `…` at each end, and `needle` highlighted.
+6. The tree leaves out `bad/`, and the terminal of mdame shows a warning that names `bad/.gitignore`.
+7. Run `ln -s /dev/zero .ignore` in the test folder, and reload the page: the tree is empty, and the terminal of mdame shows a warning that names `.ignore`. Remove the link, and restart mdame: the tree comes back.
+
+Live updates on macOS, through `ssh -L 4997:127.0.0.1:4997 sachamac`, with mdame run on the Mac with `--no-open -p 4997`, and its address opened on Linux. The changes come from a terminal on the Mac:
+
+8. Create `n.md`: it shows in the tree. Open it, then change it: the page updates. Replace it with `printf '# T\n' > t.tmp && mv t.tmp n.md`: the page updates. Delete it: the page shows "Not found". Rename `a.md` to `c.md`: the tree shows `c.md`, and no `a.md`.
+
+Release, after 0.1.1 is published:
+
+9. CI runs for the push of `main`, and not for the tag. The job "Check release" passes on its Linux and macOS runners.
+10. The GitHub release of 0.1.1 shows the notes of its section in `CHANGELOG.md`. Each archive holds `NOTICE`, `CHANGELOG.md` and `THIRD-PARTY-LICENSES-RUST.txt`, and `gh attestation verify <archive> --repo KamalF/mdame` passes.
+11. `brew upgrade mdame` on Linux, `mise use -g github:KamalF/mdame` and `cargo install --locked mdame` each give a mdame whose `--version` is 0.1.1.
+12. `gh api repos/KamalF/mdame/license --jq .license.spdx_id` prints `MIT`.
 
 ## Public repository and crate
 
@@ -790,7 +830,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 11, on the `m11-fixes` branch: the review, then commit 16, version 0.1.1.
+1. Milestone 11, on the `m11-fixes` branch: checks 1 to 8 of its manual checklist, the merge, and the release of 0.1.1. Then checks 9 to 12.
 2. Milestone 12: its plan.
 3. After 0.2.0: the Show HN.
 

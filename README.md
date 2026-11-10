@@ -19,7 +19,7 @@ coding agent.
 changed block, and the status bar lists another file that changed. Then diff
 mode shows the text that you last saw.](docs/demo.gif)
 
-0.1.0 is the first release. I have used it on Linux only. On macOS, live
+0.1.1 is an early release. I have used it on Linux only. On macOS, live
 updates have [two known issues](#known-issues). The tests pass on macOS too,
 except one that needs a Linux feature, and one of the known issues. mdame does
 not run on Windows.

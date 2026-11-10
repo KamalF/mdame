@@ -888,7 +888,49 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - `Intl.Segmenter` finds the words, so a text in Chinese or Thai, with no spaces, counts too. Punctuation does not count, and numbers do.
    - Markdown only: other types render as code, or as a table of data. The editor shows no count: its status bar is rebuilt at each keystroke.
    - The count runs at each render, and at each live update of the file.
-9. Version 0.2.0. `Cargo.toml` and `CHANGELOG.md` say 0.2.0. Before the tag, check that the release job of dist works with GitHub's immutable releases: see Open points. Then the manual checklist, the merge into `main`, and the release, as for 0.1.1. Then the Show HN.
+9. Version 0.2.0. `Cargo.toml` and `CHANGELOG.md` say 0.2.0. Then the manual checklist, the merge into `main`, and the release, as for 0.1.1. Then the Show HN.
+   - Checked on 10 November 2026: the release job of dist works with GitHub's immutable releases. Immutable releases freeze the assets of a release once it is published. The `host` job creates the release with one `gh release create … artifacts/*`, and gh creates a draft, uploads the archives, and then publishes it. The jobs after it push the formula to the tap and download the archives, so none changes the release.
+
+### Manual checklist
+
+These checks cover what no test covers: the keys, the layouts and the paper in Chrome and Firefox, the paste and the drop of a real browser, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in a window about 1280 px wide, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds:
+
+- `a.md`, with three `##` headings, a few paragraphs, a table of 10 columns, a code line of 200 characters, a Mermaid flowchart of 8 nodes in a row, the image `wide.png` alone in a paragraph, and the image `small.png` inside a sentence;
+- `wide.png`, 1,200 px wide, and `small.png`, 32 px wide;
+- `docs/b.md` and `docs/sub/c.md`;
+- `.notes/n.md`, and `data.json`;
+- `photo.jpg` and `pic.bmp`, to drop from the file manager.
+
+Sidebar tree:
+
+1. Open `a.md`, press `/`, then ↓: the row of `a.md` gets a grey background. ↑ and ↓ move between the rows, and stop at the first and the last. On `docs`, → opens it, and → again moves to `docs/b.md`. ← moves back to `docs`, and ← again closes it. Enter on a file opens it. Click empty space in the sidebar, then press ↓: the row of the current file gets the focus. Alt+← goes back in the history. `?` shows the group Sidebar tree, with the arrows as icons.
+
+Revisions:
+
+2. Edit `a.md` and save it twice, with a change each time. Press `h`, then the Side by side button in the header of the revisions panel: the revision shows on the left and the text on the right, with the colours of the inline diff, and neither pane takes typing. Choose the other revision: the panes show it, at the same scroll position. Change `a.md` on disk: the right pane shows the change. Reload the page and press `h`: the panes come back. Press the button again, type a word, switch to side by side and back, and press Ctrl+Z: the word goes.
+
+View options:
+
+3. Choose Font: Mono. The text of `a.md` shows in IBM Plex Mono, in a wider column. Choose Width: Wide, then Full: the column grows each time. Reload: Mono stays. Open the editor: the preview shows Mono too. Choose Font: Default and Width: Default.
+4. The theme list holds Light, Dark, Catppuccin Latte, Frappé, Macchiato and Mocha, then Minimal Light and Minimal Dark. In each, on `a.md` after a change on disk: the text, the links, the code and the change bars read well, and so does the diff of the editor.
+
+Wide blocks:
+
+5. With the sidebar open and the outline beside the column: the table, the code block, the diagram and `wide.png` grow past the column, mostly to the left, and stop before the outline. The text keeps its width, and `small.png` stays in its sentence. Hide the outline in View options: the blocks centre on the text. Narrow the window: the blocks shrink back, and the table scrolls inside. With Width: Full, no block grows. Add a column to the table on disk: its change bar sits at the left of the grown table.
+
+Editor:
+
+6. In the editor of `a.md`, take a screenshot to the clipboard and paste it: `pasted-<date>-<time>.png` shows beside `a.md` in the tree, and `![](pasted-….png)` lands at the cursor, with the cursor between the brackets. Paste again at once: the second link goes on the next line. Drop `photo.jpg` twice: `![](photo.jpg)` and `![](photo-2.jpg)`. The preview shows the three images. Drop `pic.bmp`: the status bar says "mdame saves PNG, JPEG, GIF, WebP and SVG images", and the text stays as it was. Copy part of a web page with an image in it, and paste it: the text comes, and no image file. In the editor of `.notes/n.md`, paste the screenshot: the status bar says that mdame saves no image in a hidden folder.
+
+Print and word count:
+
+7. Pick Catppuccin Mocha, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview.
+8. The status bar of `a.md` shows its words and its reading time, such as "312 words · 2 min". Add a paragraph on disk: the count grows. The status bar of the editor and that of `data.json` show no count.
+
+Release, after 0.2.0 is published:
+
+9. CI runs for the push of `main`, and the job "Check release" passes on its Linux and macOS runners. The release job passes, and GitHub shows the release of 0.2.0 as immutable, with the notes of its section in `CHANGELOG.md`.
+10. `brew upgrade mdame` on Linux and on the Mac, `mise use -g github:KamalF/mdame@0.2.0`, and `cargo install --locked mdame` each give a mdame whose `--version` is 0.2.0, and that opens a folder.
 
 ## Public repository and crate
 
@@ -904,7 +946,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 9, version 0.2.0, in a new session. Its manual checklist, the review of the milestone, and the check of immutable releases under Open points come first.
+1. Milestone 12, on the `m12-later` branch: the review of the milestone, then commit 9, version 0.2.0, then checks 1 to 8 of the manual checklist.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 
@@ -917,7 +959,6 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 - From the review of milestone 3: screen readers do not hear the filter's arrow-key choice. `aria-selected` needs the listbox pattern, and a listbox may hold only options: the copy-path button beside each result breaks it. Left open on 10 November 2026, in the design session of commit 1 of milestone 12.
 - From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
 - From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. Find out whether dist can write it.
-- Before the release of 0.2.0: check that the release job of dist works with GitHub's immutable releases, on since 10 November 2026. If dist adds the archives after it publishes the release, the upload fails.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.

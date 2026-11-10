@@ -283,20 +283,31 @@ pub fn restore(
 /// A type that the editor cannot open, or that the tree hides, gives
 /// `Unsupported`.
 pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
+    let (folder, name) = new_file_folder(dir, path, editable_name)?;
+    let file = folder.open_with(name, OpenOptions::new().write(true).create_new(true))?;
+    saved(version(b""), &file)
+}
+
+/// Opens the folder of a new file at `path`, and gives it with the name of
+/// the file. `check` takes the path asked and the real path of the folder.
+/// The file is then created through this handle: a folder swapped after
+/// the check cannot move it.
+fn new_file_folder<'a>(
+    dir: &Dir,
+    path: &'a str,
+    check: fn(&Path) -> io::Result<()>,
+) -> io::Result<(Dir, &'a str)> {
     if Path::new(path).is_absolute() {
         return Err(outside());
     }
     let root = fd_path(dir)?;
-    editable_name(&root.join(path))?;
-    // Created through a handle on its folder: a folder swapped after the
-    // check cannot move the new file.
+    check(&root.join(path))?;
     let (folder, name) = match path.rsplit_once('/') {
         Some((folder, name)) => (dir.open_dir(folder)?, name),
         None => (dir.try_clone()?, path),
     };
-    editable_name(&root.join(real_path(&root, &folder)?).join(name))?;
-    let file = folder.open_with(name, OpenOptions::new().write(true).create_new(true))?;
-    saved(version(b""), &file)
+    check(&root.join(real_path(&root, &folder)?).join(name))?;
+    Ok((folder, name))
 }
 
 /// Saves the bytes of a pasted or dropped image at `path`, or at
@@ -304,18 +315,9 @@ pub fn create(dir: &Dir, path: &str) -> io::Result<Saved> {
 /// a file. Gives the path that it took. A type that is not an image, or a
 /// hidden folder, gives `Unsupported`.
 pub fn save_image(dir: &Dir, path: &str, bytes: &[u8]) -> io::Result<String> {
-    if Path::new(path).is_absolute() {
-        return Err(outside());
-    }
-    let root = fd_path(dir)?;
-    image_name(&root.join(path))?;
-    let (folder_path, name) = path.rsplit_once('/').unwrap_or(("", path));
-    let folder = if folder_path.is_empty() {
-        dir.try_clone()?
-    } else {
-        dir.open_dir(folder_path)?
-    };
-    image_name(&root.join(real_path(&root, &folder)?).join(name))?;
+    let (folder, name) = new_file_folder(dir, path, image_name)?;
+    // "docs/" for "docs/a.png".
+    let prefix = &path[..path.len() - name.len()];
     // `image_name` found an image extension.
     let (stem, extension) = name.rsplit_once('.').unwrap_or((name, ""));
     for number in 1..=IMAGE_NUMBERS {
@@ -333,10 +335,7 @@ pub fn save_image(dir: &Dir, path: &str, bytes: &[u8]) -> io::Result<String> {
             let _ = folder.remove_file(&free);
             return Err(error);
         }
-        return Ok(match folder_path {
-            "" => free,
-            _ => format!("{folder_path}/{free}"),
-        });
+        return Ok(format!("{prefix}{free}"));
     }
     Err(io::Error::new(
         ErrorKind::AlreadyExists,

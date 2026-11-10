@@ -623,17 +623,7 @@ async fn create(
         io::ErrorKind::AlreadyExists => {
             ApiError::Conflict(format!("{}: the file exists", request.path))
         }
-        io::ErrorKind::Unsupported => {
-            ApiError::BadRequest(format!("{}: {}", request.path, io_message(&error)))
-        }
-        // The OS does not say which part of the path is missing.
-        io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => {
-            match request.path.rsplit_once('/') {
-                Some((folder, _)) => ApiError::NotFound(format!("{folder}: no such folder")),
-                None => file_error(&request.path, error),
-            }
-        }
-        _ => file_error(&request.path, error),
+        _ => new_file_error(&request.path, error),
     })?;
     Ok((
         StatusCode::CREATED,
@@ -667,16 +657,26 @@ async fn image(
         document::save_image(&app.workspace.dir, &path, &bytes)
     })
     .await?;
-    let path = saved.map_err(|error| match error.kind() {
-        io::ErrorKind::Unsupported => {
-            ApiError::BadRequest(format!("{}: {}", query.path, io_message(&error)))
-        }
-        io::ErrorKind::AlreadyExists => {
-            ApiError::Conflict(format!("{}: {}", query.path, io_message(&error)))
-        }
-        _ => file_error(&query.path, error),
-    })?;
+    let path = saved.map_err(|error| new_file_error(&query.path, error))?;
     Ok((StatusCode::CREATED, Json(SavedImage { path })))
+}
+
+/// The error of a new file at `path`.
+fn new_file_error(path: &str, error: io::Error) -> ApiError {
+    match error.kind() {
+        io::ErrorKind::AlreadyExists => {
+            ApiError::Conflict(format!("{path}: {}", io_message(&error)))
+        }
+        io::ErrorKind::Unsupported => {
+            ApiError::BadRequest(format!("{path}: {}", io_message(&error)))
+        }
+        // The OS does not say which part of the path is missing.
+        io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => match path.rsplit_once('/') {
+            Some((folder, _)) => ApiError::NotFound(format!("{folder}: no such folder")),
+            None => file_error(path, error),
+        },
+        _ => file_error(path, error),
+    }
 }
 
 fn file_error(path: &str, error: io::Error) -> ApiError {

@@ -56,8 +56,9 @@ async fn a_taken_name_gets_the_next_number() {
 #[tokio::test]
 async fn only_an_image_type_is_saved() {
     let dir = common::tempdir();
+    let app = workspace(dir.path());
     for path in ["docs/note.md", "docs/page.html", "docs/shot", "docs/run.sh"] {
-        let (status, _) = save(&workspace(dir.path()), path, PNG.to_vec()).await;
+        let (status, _) = save(&app, path, PNG.to_vec()).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{path}");
         assert!(!dir.path().join("ws").join(path).exists(), "{path}");
     }
@@ -93,8 +94,9 @@ async fn an_image_never_goes_in_a_hidden_folder() {
 #[tokio::test]
 async fn an_image_outside_the_workspace_is_refused() {
     let dir = common::tempdir();
+    let app = workspace(dir.path());
     for path in ["../shot.png", "/tmp/shot.png"] {
-        let (status, _) = save(&workspace(dir.path()), path, PNG.to_vec()).await;
+        let (status, _) = save(&app, path, PNG.to_vec()).await;
         assert_eq!(status, StatusCode::FORBIDDEN, "{path}");
     }
     assert!(!dir.path().join("shot.png").exists());
@@ -103,8 +105,9 @@ async fn an_image_outside_the_workspace_is_refused() {
 #[tokio::test]
 async fn an_image_in_a_missing_folder_is_not_found() {
     let dir = common::tempdir();
-    let (status, _) = save(&workspace(dir.path()), "nowhere/shot.png", PNG.to_vec()).await;
+    let (status, error) = save(&workspace(dir.path()), "nowhere/shot.png", PNG.to_vec()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(error["error"]["message"], "nowhere: no such folder");
 }
 
 #[tokio::test]

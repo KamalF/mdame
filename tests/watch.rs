@@ -30,7 +30,13 @@ impl Watched {
     /// For a `dir` prepared before the workspace opens.
     fn in_dir(dir: tempfile::TempDir, files: &[(&str, &[u8])]) -> Watched {
         let state = common::workspace(dir.path(), files);
-        let events = state.events.subscribe();
+        let mut events = state.events.subscribe();
+        // On macOS, FSEvents can report the creation of these files after
+        // the watch starts. On the runner of CI, these events came with
+        // the events of the test.
+        if cfg!(target_os = "macos") {
+            drop_until_quiet(&mut events);
+        }
         Watched { dir, state, events }
     }
 
@@ -55,6 +61,23 @@ impl Watched {
             same(&events, expected),
             "expected {expected:?}, got {events:?}"
         );
+    }
+}
+
+/// Drops the events of the next `FIRST_EVENT`, then those that follow until
+/// none came for `QUIET`.
+fn drop_until_quiet(events: &mut Receiver<Event>) {
+    let mut wait = FIRST_EVENT;
+    loop {
+        std::thread::sleep(wait);
+        let mut dropped = false;
+        while events.try_recv().is_ok() {
+            dropped = true;
+        }
+        if !dropped {
+            return;
+        }
+        wait = QUIET;
     }
 }
 

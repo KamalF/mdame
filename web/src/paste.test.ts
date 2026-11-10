@@ -28,5 +28,9 @@ test("the link escapes what would end it or start an escape", () => {
   expect(imageLink("100%.png")).toBe("![](100%25.png)");
   expect(imageLink("Issue #42?.png")).toBe("![](Issue%20%2342%3F.png)");
   expect(imageLink("https:host.png")).toBe("![](https%3Ahost.png)");
+  expect(imageLink("https&colon;&sol;&sol;host&sol;x.png")).toBe(
+    "![](https%26colon%3B%26sol%3B%26sol%3Bhost%26sol%3Bx.png)",
+  );
+  expect(imageLink("a\\b!*'.png")).toBe("![](a%5Cb%21%2A%27.png)");
   expect(imageLink("été.png")).toBe("![](été.png)");
 });

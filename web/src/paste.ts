@@ -26,12 +26,13 @@ export function droppedName(name: string, type: string): string {
   return /\.(png|jpe?g|gif|webp|svg)$/i.test(name) ? name : `${name}.${TYPES[type]}`;
 }
 
-/** The markdown of an image of the same folder. A space, `(` or `)` would
- * end the link, a `%` would start an escape, `#` or `?` would end the path
- * of the URL, and a `:` would make `https:a.png` a remote image. */
+/** The markdown of an image of the same folder. Markdown and URLs give a
+ * meaning to most signs, such as `(`, `#`, `:`, `&` or `\`: each sign and
+ * each space is escaped. Letters and digits of any script stay. */
 export function imageLink(name: string): string {
-  const target = name.replace(/[\s()<>%#?:]/g, (c) =>
-    c === "(" ? "%28" : c === ")" ? "%29" : encodeURIComponent(c),
+  const target = name.replace(/[^\p{L}\p{M}\p{N}._~-]/gu, (c) =>
+    // encodeURIComponent leaves `!'()*` as they are.
+    encodeURIComponent(c).replace(/[!'()*]/g, (sign) => `%${sign.charCodeAt(0).toString(16).toUpperCase()}`),
   );
   return `![](${target})`;
 }

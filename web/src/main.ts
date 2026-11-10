@@ -17,7 +17,7 @@ import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
 import { applyWidth } from "./width.ts";
-import { countWords, prose, wordLabel } from "./words.ts";
+import { countWords, PER_MINUTE, prose, wordLabel } from "./words.ts";
 
 // The editor and CodeMirror load on the first edit: they are more than
 // half of the page's code. Until then, nothing is open in the editor.
@@ -89,7 +89,7 @@ function showFileStatus(path: string, file: view.FileView) {
   if (label) {
     const words = document.createElement("span");
     words.textContent = label;
-    words.title = "Reading time at 200 words a minute";
+    words.title = `Reading time at ${PER_MINUTE} words a minute`;
     fileStatus.append(words);
   }
   fileStatus.append(copyPath);

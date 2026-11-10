@@ -205,7 +205,6 @@ function layout(current: Shown) {
   const old = current.side;
   const top = old?.dom.scrollTop ?? 0;
   old?.destroy();
-  old?.dom.remove();
   current.side = null;
   const on = sideBySide && current.compared !== null;
   current.aside.parentElement?.classList.toggle("side-by-side", on);

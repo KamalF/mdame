@@ -76,7 +76,11 @@ export async function send(
   signal?: AbortSignal,
 ): Promise<Response> {
   const options: RequestInit = { method, headers, signal };
-  if (body !== undefined) {
+  // A file, such as an image, goes as it is.
+  if (body instanceof Blob) {
+    options.headers = { ...headers, "content-type": body.type };
+    options.body = body;
+  } else if (body !== undefined) {
     options.headers = { ...headers, "content-type": "application/json" };
     options.body = JSON.stringify(body);
   }

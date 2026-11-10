@@ -343,7 +343,7 @@ export async function mount(
     // Also from the row's copy-path and new-file buttons.
     const line = (event.target as HTMLElement).closest<HTMLElement>(".mdame-tree-line");
     // Alt+← is the browser's Back.
-    if (!line || !shouldHandle(event)) return;
+    if (!line || !event.key.startsWith("Arrow") || !shouldHandle(event)) return;
     const lines = [...list.querySelectorAll<HTMLElement>(".mdame-tree-line")];
     const rows = lines.map((each) => {
       const expanded = each.firstElementChild!.getAttribute("aria-expanded");
@@ -352,9 +352,8 @@ export async function mount(
     const next = arrowKey(rows, lines.indexOf(line), event.key);
     if (next === null) return;
     event.preventDefault();
-    const row = (index: number) => lines[index].firstElementChild as HTMLElement;
-    if (next === "toggle") row(lines.indexOf(line)).click();
-    else row(next).focus();
+    if (next === "toggle") (line.firstElementChild as HTMLElement).click();
+    else (lines[next].firstElementChild as HTMLElement).focus();
   });
 
   function render() {

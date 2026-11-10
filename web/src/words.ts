@@ -1,5 +1,5 @@
 /** Words read in a minute, for the reading time. */
-const PER_MINUTE = 200;
+export const PER_MINUTE = 200;
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "word" });
 
@@ -23,9 +23,14 @@ const SKIP = "pre, .mdame-diagram, .mdame-bars, button";
 
 /** The text that a reader reads in the rendered `article`. */
 export function prose(article: HTMLElement): string {
-  const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT, {
+  // Elements too, so that a skipped one is left out with all that it holds.
+  const walker = document.createTreeWalker(article, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode: (node) =>
-      node.parentElement?.closest(SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+      node.nodeType === Node.TEXT_NODE
+        ? NodeFilter.FILTER_ACCEPT
+        : (node as Element).matches(SKIP)
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_SKIP,
   });
   const parts: string[] = [];
   // Blocks hold no space between them: "Title" and "Text" would make one word.

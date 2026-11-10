@@ -1,6 +1,6 @@
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { type ApiError, errorFrom, request } from "./api.ts";
+import { api, type ApiError } from "./api.ts";
 
 /** The image types that mdame shows, with the extension of each. */
 const TYPES: Record<string, string> = {
@@ -45,13 +45,8 @@ export function skipEmptyAlt(before: string, after: string): number {
 
 /** Saves `file` at `path`, and gives the path that it took. */
 async function upload(path: string, file: File): Promise<string> {
-  const response = await request(`/api/image?path=${encodeURIComponent(path)}`, {
-    method: "POST",
-    headers: { "content-type": file.type },
-    body: file,
-  });
-  if (!response.ok) throw errorFrom(response.status, await response.json().catch(() => null));
-  return ((await response.json()) as { path: string }).path;
+  const saved = await api<{ path: string }>("POST", `/api/image?path=${encodeURIComponent(path)}`, file);
+  return saved.path;
 }
 
 /**
@@ -62,11 +57,17 @@ async function upload(path: string, file: File): Promise<string> {
 export function pasteImages(path: string, failed: (message: string) => void): Extension {
   const folder = path.slice(0, path.lastIndexOf("/") + 1);
 
-  async function link(view: EditorView, files: File[], from: number, to: number, names: string[]) {
+  async function link(
+    view: EditorView,
+    files: File[],
+    from: number,
+    to: number,
+    name: (file: File) => string,
+  ) {
     const links: string[] = [];
     try {
-      for (const [index, file] of files.entries()) {
-        const saved = await upload(folder + names[index], file);
+      for (const file of files) {
+        const saved = await upload(folder + name(file), file);
         links.push(imageLink(saved.slice(folder.length)));
       }
     } catch (error) {
@@ -113,25 +114,23 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
       // text wins, as before.
       if (!data || data.types.includes("text/plain")) return false;
       const files = images(data.files);
-      if (files === null || files.length > 0) event.preventDefault();
+      if (files?.length === 0) return false;
+      event.preventDefault();
       if (files === null) return true;
-      if (files.length === 0) return false;
       const now = new Date();
       const { from, to } = view.state.selection.main;
-      link(view, files, from, to, files.map((file) => pastedName(now, file.type)));
+      link(view, files, from, to, (file) => pastedName(now, file.type));
       return true;
     },
     drop(event, view) {
       const files = images(event.dataTransfer?.files);
-      // CodeMirror would insert the bytes of the file as text.
-      if (files === null) {
-        event.preventDefault();
-        return true;
-      }
-      if (files.length === 0) return false;
+      if (files?.length === 0) return false;
+      // Even for an image of another type: CodeMirror would insert the
+      // bytes of the file as text.
       event.preventDefault();
+      if (files === null) return true;
       const at = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
-      link(view, files, at, at, files.map((file) => droppedName(file.name, file.type)));
+      link(view, files, at, at, (file) => droppedName(file.name, file.type));
       return true;
     },
   });

@@ -41,6 +41,14 @@ async fn file_change_reaches_the_tab_with_a_relative_path() {
     let dir = common::tempdir();
     let (_state, url) = serve(common::workspace(dir.path(), &[("docs/a.md", b"# A\n")])).await;
     let mut client = connect(&url).await;
+    // On macOS, FSEvents can report the creation of the workspace's files
+    // after the watch starts, as in `tests/watch.rs`.
+    if cfg!(target_os = "macos") {
+        let mut wait = Duration::from_secs(2);
+        while let Ok(Some(_)) = timeout(wait, client.next()).await {
+            wait = Duration::from_millis(500);
+        }
+    }
 
     fs::write(dir.path().join("ws/docs/a.md"), "# Changed\n").unwrap();
     let text = next_text(&mut client).await;

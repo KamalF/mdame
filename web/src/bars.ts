@@ -95,12 +95,19 @@ function place(article: HTMLElement) {
     // A block in a closed `<details>` has no box.
     target.getClientRects().length === 0 ? null : target.getBoundingClientRect(),
   );
+  // From the block at the top of the article: a row of a table that
+  // scrolls moves with the scroll, and its table does not.
+  const shifts = drawn.map(({ target }) => {
+    let block = target;
+    while (block.parentElement && block.parentElement !== article) block = block.parentElement;
+    return Math.min(0, block.getBoundingClientRect().left - left - padding);
+  });
   drawn.forEach(({ bar, kind, below }, index) => {
     const rect = rects[index];
     bar.hidden = rect === null;
     if (!rect) return;
     // A wide block that grew past the column takes its bar along.
-    bar.style.marginLeft = `${Math.min(0, rect.left - left - padding)}px`;
+    bar.style.marginLeft = `${shifts[index]}px`;
     if (kind === "removed") {
       // In the gap above the block, or below the last one.
       bar.style.top = `${(below ? rect.bottom + 8 : rect.top - 8) - top}px`;

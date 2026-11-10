@@ -68,6 +68,11 @@ export async function renderDiagrams(root: HTMLElement) {
     copies.set(source, copy);
     try {
       figure.innerHTML = await draw(source, copy);
+      // Mermaid gives the drawing a width of 100%, and its own width as
+      // max-width: the figure takes that width, so a wide diagram can grow
+      // past the column.
+      const svg = figure.querySelector("svg");
+      if (svg) figure.style.width = svg.style.maxWidth;
       // The change bars find the diagram by its lines.
       if (pre.hasAttribute("data-sourcepos")) {
         figure.setAttribute("data-sourcepos", pre.getAttribute("data-sourcepos")!);

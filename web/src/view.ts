@@ -9,6 +9,7 @@ import { renderDiagrams } from "./diagrams.ts";
 import { scrolledTo, showOutline } from "./outline.ts";
 import { blockAt } from "./search.ts";
 import { encodePath } from "./sidebar.ts";
+import { watchWide } from "./wide.ts";
 
 /** What `/api/file` answers. */
 export interface FileView {
@@ -101,6 +102,7 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   if (file.source !== null) seen.baseline(path, file.source);
   const article = articleFor(file.html);
   el.replaceChildren(article);
+  watchWide(article);
   el.scrollTop = 0;
   // Before the scroll: with Full, the outline narrows the column, and the
   // text wraps again. The dots come with the bars.
@@ -288,7 +290,22 @@ function articleFor(html: string): HTMLElement {
   // A morph would otherwise put back the URL of the old image.
   for (const img of article.querySelectorAll("img")) useVersion(img);
   addCopyButtons(article);
+  markImages(article);
   return article;
+}
+
+/** Marks each paragraph that holds an image alone, maybe in a link: it
+ * may grow past the column, as the other wide blocks do. */
+function markImages(article: HTMLElement) {
+  for (const p of article.querySelectorAll(":scope > p:has(img)")) {
+    const nodes = [...p.childNodes].filter(
+      (node) => node.nodeType !== Node.TEXT_NODE || node.textContent!.trim() !== "",
+    );
+    const [only] = nodes;
+    if (nodes.length === 1 && only instanceof Element && only.matches("img, a:has(> img:only-child)")) {
+      p.classList.add("mdame-image");
+    }
+  }
 }
 
 function addCopyButtons(root: HTMLElement) {

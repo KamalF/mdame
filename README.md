@@ -108,7 +108,9 @@ opens the current folder. By default, it listens on 127.0.0.1. `mdame --help`
 lists the options.
 
 - It renders GitHub-flavoured markdown, with alerts, footnotes and Mermaid
-  diagrams, and updates the page when a file changes on disk.
+  diagrams, and updates the page when a file changes on disk. Wide tables,
+  code blocks, diagrams and images grow past the text column, which keeps
+  its width.
 - It shows and edits the markdown files in hidden folders too, such as the
   plans of a coding agent in `.claude/plans/`. Other files there stay out,
   also when mdame opens a hidden folder, or a folder in one, such as a

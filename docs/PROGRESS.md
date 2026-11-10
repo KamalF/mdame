@@ -853,7 +853,14 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - Mono is the class `mdame-mono` on `<html>`. The rule `:root.mdame-mono` in `base.css` wins over the `:root` of a theme, so a theme's `--font-content` gives way too.
    - A heading of its own, not a toggle under Show: Show holds what shows or hides. Default and Mono read as the Width choices do.
    - `base.css` sets `--content-width-mono` beside `--content-width`, since the built-in themes set neither.
-4. Wide blocks. A design session comes first. Tables, code blocks and diagrams grow past the text column, up to the pane, and the text keeps its width. The outline then needs its own place.
+4. Wide blocks (done). Tables, code blocks, Mermaid diagrams and standalone images grow past the text column, and the text keeps its width. `wide.test.ts` tests the room beside the text: without the outline, beside it, and in a narrow pane.
+   - Decided in a design session on 10 November 2026: images grow too, besides the three kinds of the plan. A wide block is centred on the text, and shifts left when it reaches the outline. The outline keeps its place, and blocks stop at it. The spec has the rules.
+   - The blocks get no style of their own: `wide.ts` sets three variables on the article, and one CSS rule sizes and moves every wide block. The morph keys each block on its HTML, so a style on a block would make every wide block look changed. A `ResizeObserver` on the article and its pane measures again; the outline measures too, after it moves the column.
+   - With the outline beside the column, the room on the right is only the article's padding, 32 px. So in practice a wide block grows to the left. At 1280 px with the sidebar open, the room on the left is 189 px: a table gets 761 px instead of 540.
+   - Mermaid draws its SVG at a width of 100%, with its own width as `max-width`, which gives the figure no width of its own to grow to. `renderDiagrams` gives the figure that width.
+   - `markImages` in `view.ts` marks a paragraph that holds only an image, maybe in a link, with `mdame-image`. CSS cannot tell a paragraph with only an image from one with text around it.
+   - The change bar of a grown block sits 18 px left of the block, as for a block in the column. `placeBars` places the bars again after each measure, since a block can move while the article keeps its size.
+   - Checked in Chrome: an image in a paragraph with text stays in the column, a table narrower than the column does not move, and Full gives no room.
 5. The Catppuccin and Minimal themes, built in beside light and dark. Catppuccin comes in its four flavours: Latte, Frappé, Macchiato and Mocha. The table of Later items gives the source and the checks of each theme. `BUILT_INS` in `themes.rs` lists them. The commit settles whether Minimal comes in light and dark. `each_built_in_theme_is_listed_and_served`, and a contrast check of each pair of colours that the screens use, as in milestone 8.
 6. Paste or drop an image into the editor. A design session comes first: where the image goes, its name, and the limits of the new upload route.
 7. The print stylesheet. Ctrl+P prints the content alone, without the sidebar, the status bar and the outline. No test: the manual checklist covers it.
@@ -874,7 +881,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: commit 4, wide blocks, which starts with a design session.
+1. Milestone 12, on the `m12-later` branch: commit 5, the Catppuccin and Minimal themes.
 2. Release 0.2.0, then the Show HN.
 3. Milestone 13.
 

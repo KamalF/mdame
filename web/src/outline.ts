@@ -1,5 +1,6 @@
 import { blockOf, type Block, type Mark } from "./changes.ts";
 import { load, store } from "./storage.ts";
+import { layoutWide } from "./wide.ts";
 import { currentWidth } from "./width.ts";
 
 const KEY = "mdame:outline";
@@ -109,7 +110,10 @@ function render() {
   if (!shown || !pane || !outlineOn() || shown.entries.length === 0) {
     // Only here: in Full width, margins off would wrap the whole text
     // again before `layoutOutline` sets them back.
-    if (shown) setMargins(shown.article);
+    if (shown) {
+      setMargins(shown.article);
+      layoutWide(shown.article);
+    }
     return;
   }
   const list = document.createElement("ul");
@@ -173,12 +177,15 @@ export function layoutOutline() {
   wrapper.hidden = spot === null;
   if (!spot) {
     setMargins(article);
+    layoutWide(article);
     return;
   }
   setMargins(article, spot.left, full ? ROOM : undefined);
   const nav = wrapper.firstElementChild as HTMLElement;
   nav.style.left = `${spot.left + spot.width + GAP}px`;
   nav.style.maxHeight = `${pane.clientHeight}px`;
+  // The column moved, and the outline holds the room at its right.
+  layoutWide(article);
   spy();
 }
 

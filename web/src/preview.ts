@@ -1,6 +1,7 @@
 import { api, type ApiError } from "./api.ts";
 import { serial } from "./serial.ts";
 import { message, morphInto, prepare } from "./view.ts";
+import { watchWide } from "./wide.ts";
 
 /** Typing pauses shorter than this share one render. */
 const DELAY = 150;
@@ -46,7 +47,10 @@ export function show(el: HTMLElement, path: string, content: string) {
     if (target !== el) return;
     const shown = el.querySelector<HTMLElement>(":scope > article");
     if (shown) morphInto(shown, article);
-    else el.replaceChildren(article);
+    else {
+      el.replaceChildren(article);
+      watchWide(article);
+    }
     rendered();
   });
 }

@@ -730,6 +730,7 @@ After milestone 13, toasts and the launchd service wait.
 | Milestone 13 ends with the release of 0.3.0 | 11 November 2026 |
 | Renovate keeps the dependencies up to date, through the GitHub App. The browser packages and Bun come in one PR a month, rebuilt by hand. dist and cargo-about stay manual | 11 November 2026 |
 | A release 0.2.1 of fixes comes before 0.3.0. An experiment with notify-debouncer-full 0.8 decides whether it takes the known issues of live updates on macOS | 11 November 2026 |
+| 0.2.1 takes notify-debouncer-full 0.8.0-rc.3 and the fix of step 2b of the experiment, without waiting for 0.8.0. `about.toml` accepts BSL-1.0. On macOS, the watcher tests accept a repeated `removed` | 11 November 2026 |
 
 ### Review log, 14 October 2026
 

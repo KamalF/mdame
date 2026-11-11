@@ -1,6 +1,6 @@
 [package]
 name = "mdame"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 # The highest rust-version of the dependencies: notify-debouncer-full needs 1.91.
 rust-version = "1.91"

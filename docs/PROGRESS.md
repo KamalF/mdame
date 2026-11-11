@@ -1062,7 +1062,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - When the text comes from a promise, the button writes a `ClipboardItem` that holds the promise, during the click's turn. Chrome, Firefox from 127 and Safari from 13.1 take one. Without `ClipboardItem`, the button keeps `writeText`.
    - On a secure page, a failure now says "Copy failed". Only a page that is not secure, such as one on a LAN address, names localhost.
    - Checked by hand, in the manual checklist: Copy content in Chrome, Firefox and Safari.
-12. `CHANGELOG.md` and version 0.2.1.
+12. `CHANGELOG.md` and version 0.2.1 (done). `Cargo.toml` says 0.2.1, and the section of 0.2.1 in `CHANGELOG.md` has the date of 11 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.2.1 an early release.
    - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
 
 ## Next

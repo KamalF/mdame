@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.2.1 - 2026-11-11
+
+### Fixed
+
+- On macOS, a folder deleted outside mdame now leaves the tree at once.
+- On a large folder, live updates start at once: 0.8 s for 15,000 folders,
+  instead of 12 s.
+- A change to a `.gitignore` or `.ignore` updates the tree: the folders and
+  files that it hides leave it without a reload of the page.
+- On Linux, when another program renames the file open in the editor, the
+  editor follows it, with your unsaved edits and the undo history.
+- Ctrl+S with no edit no longer rewrites the file. In a file with mixed line
+  breaks, it changed the line breaks.
+- The editor no longer misses a change on disk that comes while it opens the
+  file. The next save said that the file changed on disk.
+- After mdame came back, one failed check could make the page refuse each
+  action with "Try again once mdame is back". The page now checks again.
+- A reload shows your theme at once, without a flash of the system's theme.
+- Copy content works in Safari.
+- A crafted table of 256 KB no longer takes 72 s to render: comrak 0.59
+  renders it in 2 s.
+- The watcher no longer follows symlinks to check folders: a link to a hung
+  network mount could stop live updates.
+
+### Changed
+
+- Cargo builds mdame with Rust 1.91 or later.
+
 ## 0.2.0 - 2026-11-11
 
 ### Added

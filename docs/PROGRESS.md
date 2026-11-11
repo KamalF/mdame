@@ -21,7 +21,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
-| 12 | Later items for 0.2.0, then Show HN | Reviewed 10 November 2026; the manual checklist and the release are next | 39, with the review fixes |
+| 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; the release and the Show HN are next | 45, with the review and checklist fixes |
 | 13 | Handoff and keys | Scope decided 10 November 2026 | 6 items |
 
 Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`.
@@ -905,7 +905,7 @@ Review, on 10 November 2026: one pass of `/simplify`, then 9 rounds of a code re
 
 ### Manual checklist
 
-These checks cover what no test covers: the keys, the layouts and the paper in Chrome and Firefox, the paste and the drop of a real browser, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in a window about 1280 px wide, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds:
+Run by hand on 10 and 11 November 2026: checks 1 to 8 passed. Item 7 gives the fixes that check 7 found. These checks cover what no test covers: the keys, the layouts and the paper in Chrome and Firefox, the paste and the drop of a real browser, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, in a window about 1280 px wide, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds:
 
 - `a.md`, with three `##` headings, a few paragraphs, a table of 10 columns, a code line of 200 characters, a Mermaid flowchart of 8 nodes in a row, the image `wide.png` alone in a paragraph, and the image `small.png` inside a sentence;
 - `wide.png`, 1,200 px wide, and `small.png`, 32 px wide;
@@ -958,9 +958,8 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Milestone 12, on the `m12-later` branch: checks 1 to 8 of the manual checklist, in Chrome and Firefox, then the merge into `main`.
-2. Release 0.2.0, then checks 9 and 10, then the Show HN.
-3. Milestone 13.
+1. Release 0.2.0. The section of 0.2.0 in `CHANGELOG.md` takes the date of the release. Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, then the Show HN.
+2. Milestone 13.
 
 ## Open points
 

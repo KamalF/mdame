@@ -372,12 +372,17 @@ export function isDirty(): boolean {
   return open !== null && (open.gone || !open.view.state.doc.eq(open.saved));
 }
 
-/** If a save is asked for during another save, it runs next. A dropped
- * save would lose the text typed meanwhile, and Overwrite would move the
- * base without a save. */
+/** Ctrl+S and the Save button. With no edit, nothing is written: a save
+ * writes one line break on each line, so it would rewrite a file with
+ * mixed line breaks. */
 export function save() {
-  const current = open;
-  if (!current) return;
+  if (open && isDirty()) write(open);
+}
+
+/** If a write is asked for during another one, it runs next. A dropped
+ * write would lose the text typed meanwhile, and Overwrite would move the
+ * base without a write. */
+function write(current: Open) {
   current.queue("save", async () => {
     const doc = current.view.state.doc;
     try {
@@ -520,7 +525,7 @@ function noticePanel(current: Open, disk: Source | null): Panel {
     );
     overwrite.addEventListener("click", () => {
       current.base = disk.version;
-      save();
+      write(current);
       current.view.focus();
     });
     dom.append(reloadButton, overwrite);
@@ -553,7 +558,7 @@ function recreate(current: Open) {
     // Asked for once the file exists. If a save was queued before this
     // task, an earlier call would merge into it, and that save runs too
     // early.
-    if (open === current) save();
+    if (open === current) write(current);
   });
 }
 

@@ -1035,7 +1035,9 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 5. A write to a `.gitignore` or `.ignore` reloads the tree (done). A tab got `changed` for it, which reloads the tree only under the date sort, so the folders that it hid stayed in the tree. "react reloads the tree after a change to an ignore file", in `web/src/live.test.ts`.
    - The tab tells an ignore file by its name. The watcher already walked again after such a change: only the tab missed it.
    - It also covers the files that a change hides, not only the folders.
-6. Ctrl+S with no edit writes nothing. A save writes the more common line break of the file on each line, so an unedited save rewrote a file with mixed line breaks.
+6. Ctrl+S with no edit writes nothing (done). A save writes the more common line break of the file on each line, so an unedited save rewrote a file with mixed line breaks. The Save button does the same as Ctrl+S.
+   - Overwrite and Recreate still write: they call `write`, which `save` now calls only when the text has unsaved edits. Overwrite after an undo back to the saved text must still write it over the file on disk.
+   - No unit test: the editor needs a browser. The manual checklist covers it.
 7. A `changed` during the mount of the editor is not lost. The page checked the disk only for an editor already open, so a change between the read of the file and the end of the mount gave a 412 at the next save.
 8. The editor follows a rename of its file, as the view does. Today it shows "This file was deleted on disk." A design session comes first: the unsaved edits, the revisions panel, and macOS, where a rename gives `removed` and `created`.
 9. A failed state check after a reconnection is tried again. Today the page holds its requests until the socket closes again.
@@ -1115,7 +1117,6 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
   - A file rewritten during editing as non-UTF-8, or past 8 MB, gives a status error or a 413, and no notice.
   - A `changed` event during `editor.mount` is lost: a later save gets 412.
   - Two quick Backs with unsaved edits open two dialogs. `e`, a `#…` link in the preview, then Esc leave [view, edit, view] in the history.
-  - An unedited Ctrl+S rewrites a file with mixed line breaks.
   - If the state check of a reconnection fails once, the page holds its requests while its socket stays open.
   - Ctrl+S on non-Latin keyboard layouts (not checked).
   - The scroll sync reads one rect per `[data-sourcepos]` element at each scroll frame.

@@ -501,7 +501,7 @@ The front end is a small single-page app in TypeScript ES modules, bundled into 
 | --- | --- |
 | `e` | Edit current file |
 | `Esc` | Close editor, panel or dialog |
-| `Cmd/Ctrl+S` | Save |
+| `Cmd/Ctrl+S` | Save, if the text has unsaved edits |
 | `Cmd/Ctrl+B`, `Cmd/Ctrl+I` | Bold, italic in the editor |
 | `b` | Hide or show sidebar |
 | `/` | Focus the sidebar filter |

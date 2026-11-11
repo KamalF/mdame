@@ -327,7 +327,10 @@ function onEvent(event: live.LiveEvent) {
   }
   if (reaction.tree) refreshTree();
   view.refreshImages(content);
-  const edited = editedPath();
+  // An editor that is still mounting has no path yet, but its file may
+  // change after the mount read it.
+  const { path, editing } = route();
+  const edited = editedPath() ?? (editing ? path : null);
   if (edited !== null && live.concerns(event, edited)) checkDiskSoon();
   if (reaction.followTo) follow(reaction.followTo);
   else if (reaction.refresh && current) refreshContentSoon(current);

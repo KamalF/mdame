@@ -1038,7 +1038,10 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 6. Ctrl+S with no edit writes nothing (done). A save writes the more common line break of the file on each line, so an unedited save rewrote a file with mixed line breaks. The Save button does the same as Ctrl+S.
    - Overwrite and Recreate still write: they call `write`, which `save` now calls only when the text has unsaved edits. Overwrite after an undo back to the saved text must still write it over the file on disk.
    - No unit test: the editor needs a browser. The manual checklist covers it.
-7. A `changed` during the mount of the editor is not lost. The page checked the disk only for an editor already open, so a change between the read of the file and the end of the mount gave a 412 at the next save.
+7. A `changed` during the mount of the editor is not lost (done). The page checked the disk only for an editor already open, so a change between the read of the file and the end of the mount gave a 412 at the next save.
+   - The page asks for a disk check when the address names the editor, also while the editor mounts. A check asked for during a mount runs once the editor is open. If the file did not change, the check finds the same version and does nothing.
+   - The same holds for the check after a reconnection.
+   - No unit test: the race needs a browser, and a change at the right moment.
 8. The editor follows a rename of its file, as the view does. Today it shows "This file was deleted on disk." A design session comes first: the unsaved edits, the revisions panel, and macOS, where a rename gives `removed` and `created`.
 9. A failed state check after a reconnection is tried again. Today the page holds its requests until the socket closes again.
 10. The stored theme shows from the first paint. Today `main.js` applies it, after the page may have painted in the system's theme.
@@ -1115,7 +1118,6 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
   - The editor's status bar has no Copy path or Copy content. It is rebuilt at each keystroke, so Save loses the focus and an error is announced again. A failed disk check leaves its error until a save succeeds.
   - The view's notice for a 1–8 MB file says "Open it in the editor" for a hidden file that is not markdown, or for a file that is not UTF-8.
   - A file rewritten during editing as non-UTF-8, or past 8 MB, gives a status error or a 413, and no notice.
-  - A `changed` event during `editor.mount` is lost: a later save gets 412.
   - Two quick Backs with unsaved edits open two dialogs. `e`, a `#…` link in the preview, then Esc leave [view, edit, view] in the history.
   - If the state check of a reconnection fails once, the page holds its requests while its socket stays open.
   - Ctrl+S on non-Latin keyboard layouts (not checked).

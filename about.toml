@@ -11,6 +11,7 @@ accepted = [
     "BSD-3-Clause",
     "BSD-2-Clause",
     "CC0-1.0",
+    "BSL-1.0",
 ]
 # Every target of the release, so that each archive gets the same file.
 targets = [

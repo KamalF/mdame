@@ -2,8 +2,8 @@
 name = "mdame"
 version = "0.2.0"
 edition = "2024"
-# The highest rust-version of the dependencies: comrak needs 1.89.
-rust-version = "1.89"
+# The highest rust-version of the dependencies: notify-debouncer-full needs 1.91.
+rust-version = "1.91"
 license = "MIT"
 description = "A local markdown viewer and editor, served to your browser"
 repository = "https://github.com/KamalF/mdame"
@@ -22,7 +22,7 @@ comrak = { version = "0.59.0", default-features = false }
 csv = "1.4.0"
 getrandom = "0.4.3"
 ignore = "0.4.33"
-notify-debouncer-full = "0.7.0"
+notify-debouncer-full = "0.8.0-rc.3"
 open = "5.4.4"
 rust-embed = "8.13.0"
 rustix = { version = "1.1.5", features = ["fs"] }

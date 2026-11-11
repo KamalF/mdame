@@ -103,8 +103,7 @@ fn forward(
         let mut debouncer = debouncer.lock().unwrap_or_else(PoisonError::into_inner);
         Some(folders.update(&mut debouncer, batch))
     };
-    // Here, not in `start`: notify-debouncer-full 0.7 takes quadratic time
-    // to watch folders one by one, 12 s for 15,000.
+    // Here, not in `start`: watching 15,000 folders one by one takes 0.8 s.
     if update(&mut folders, &[]).is_none() {
         return;
     }

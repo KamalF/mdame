@@ -38,7 +38,7 @@ With mise, from the release archives:
 mise use -g github:KamalF/mdame
 ```
 
-With Cargo, from the source, with Rust 1.89 or later:
+With Cargo, from the source, with Rust 1.91 or later:
 
 ```sh
 cargo install --locked mdame
@@ -215,8 +215,6 @@ with Enhanced spell check, it sends the text that you edit to its vendor.
 
 ## Known issues
 
-- On Linux, on a large folder, live updates start some seconds after mdame
-  starts: 12 to 18 s for 15,000 folders, as measured on one machine.
 - On macOS, if a program renames the file on screen, the tab does not follow
   it. Open the new name from the tree.
 - On macOS, a folder deleted outside mdame stays in the tree until you reload

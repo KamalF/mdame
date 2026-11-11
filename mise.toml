@@ -35,7 +35,7 @@ run = [
 [tasks.dev]
 description = "Rebuild web/dist on each change and run the server"
 depends = ["web"]
-run = "{{vars.bundle}} --watch & cargo run --"
+run = "{{vars.bundle}} --watch & {{vars.boot}} --watch & cargo run --"
 
 [tasks.fmt]
 run = "cargo fmt"

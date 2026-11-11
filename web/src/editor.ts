@@ -311,8 +311,8 @@ export function rename(to: string) {
   if (!open) return;
   open.path = to;
   // Both render the preview again: it resolves relative links and images
-  // from the path.
-  if (revisions.isShown()) closeRevisions();
+  // from the path. Another program made the rename: the focus stays.
+  if (revisions.isShown()) closeRevisions(false);
   else if (!isHeld()) refreshPreview();
   report();
 }
@@ -371,14 +371,14 @@ export function toggleRevisions() {
   report();
 }
 
-export function closeRevisions() {
+export function closeRevisions(focus = true) {
   const current = open;
   if (!current || !revisions.isShown()) return;
   revisions.hide();
   current.split.classList.remove("diff-mode");
   if (!isHeld()) refreshPreview();
   report();
-  current.view.focus();
+  if (focus) current.view.focus();
 }
 
 export function revisionsShown(): boolean {

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { concerns, type LiveEvent, isWithin, movedPath, react, retryDelay } from "./live.ts";
+import { concerns, type LiveEvent, isWithin, movedPath, movedTo, react, retryDelay } from "./live.ts";
 
 test("retryDelay doubles from 500 ms and stops at 10 s", () => {
   expect([0, 1, 2, 3, 4, 5, 6].map(retryDelay)).toEqual([
@@ -38,6 +38,14 @@ test("react reloads the tree after a change to an ignore file", () => {
   }
   const lookalike: LiveEvent = { type: "changed", path: "docs/a.gitignore" };
   expect(react(lookalike, null, () => false)).toMatchObject({ tree: false });
+});
+
+test("movedTo follows a rename away from the file, not onto it", () => {
+  const renamed = (from: string, to: string): LiveEvent => ({ type: "renamed", from, to });
+  expect(movedTo(renamed("docs", "guide"), "docs/a.md")).toBe("guide/a.md");
+  expect(movedTo(renamed("a.md~", "a.md"), "a.md")).toBe(null);
+  expect(movedTo(renamed("b.md", "c.md"), "a.md")).toBe(null);
+  expect(movedTo({ type: "removed", path: "a.md" }, "a.md")).toBe(null);
 });
 
 test("react refreshes or follows the open file", () => {

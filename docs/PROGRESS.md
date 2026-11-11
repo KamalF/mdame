@@ -1042,7 +1042,14 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The page asks for a disk check when the address names the editor, also while the editor mounts. A check asked for during a mount runs once the editor is open. If the file did not change, the check finds the same version and does nothing.
    - The same holds for the check after a reconnection.
    - No unit test: the race needs a browser, and a change at the right moment.
-8. The editor follows a rename of its file, as the view does. Today it shows "This file was deleted on disk." A design session comes first: the unsaved edits, the revisions panel, and macOS, where a rename gives `removed` and `created`.
+8. The editor follows a rename of its file, as the view does (done). It showed "This file was deleted on disk." "movedTo follows a rename away from the file, not onto it", in `web/src/live.test.ts`.
+   - Decided by Kamal on 11 November 2026, in a design session: the editor renames in place. It keeps its text, its unsaved edits, its undo history and its cursor. The address, the status bar, the preview and the paste of images take the new name. The other choice reopened the editor on the new name: less code, but the undo history and the cursor were lost.
+   - Diff mode closes: the revisions stay under the old name in `.mdame/history`, so the panel would list those of the old name. The version last seen follows the rename, as it does for the view.
+   - As for the view, the page first asks whether the old name is still there: an editor that saves through a backup renames the file away, then writes it again. If it is, the editor stays on it and checks the disk.
+   - After a rename, closing the editor shows the view of the new name: going back would show the old name, which is gone.
+   - While the discard dialog of a Back is open, the address names the next page: it stays, and only the editor follows.
+   - On macOS, a rename still gives `removed` and `created`, so the editor shows the notice: the known issue of milestone 14.
+   - `live.movedTo` holds the rule of a move, for `react` and the editor. No unit test for the editor itself: it needs a browser. The manual checklist covers it.
 9. A failed state check after a reconnection is tried again (done). The page held its requests until the socket closed again, which could be never.
    - With the backoff of the socket: 500 ms, doubling up to 10 s. Once the socket closes, the next reconnection checks again, and the retries of the old socket stop.
    - No unit test: `main.ts` needs a browser.
@@ -1132,7 +1139,6 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
   - A text full of control characters escapes past the 32 MB body limit.
   - `history::snapshot` keeps a branch for paths with no extension, which the editor's routes refuse.
   - Tests: five permission tests fail as root; `tests/source.rs` and `tests/save.rs` repeat one table.
-- The editor does not follow a rename of its file, as the view does: it shows the deleted notice.
 - Development only: `/assets` sends an `ETag` but no `Cache-Control`, so after a rebuild Chrome may reuse its cached `main.js` for one page load without asking the server. This misled one browser check in milestone 6. Release builds are not affected, since their files change only with the binary.
 - Backup branches, to delete once they are no longer needed: `backup/before-typescript` and `backup/m4-viewing-before-typescript` (the JavaScript history, before the rewrite of 18 October 2026), `backup/m4-before-dist-fix`, `backup/m6-before-import-fixup`, and `backup/m6-before-history-rewrite` (milestone 6 before its review commits were regrouped, 25 October 2026).
 - From the review of milestone 5, for later:

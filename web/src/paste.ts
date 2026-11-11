@@ -60,16 +60,16 @@ interface Place {
 
 /**
  * Saves the images of a paste or a drop beside the markdown file at
- * `path`, and links them where they land, with the cursor in the alt text
- * of the first. `failed` shows why an image was not saved.
+ * `path()`, and links them where they land, with the cursor in the alt
+ * text of the first. `failed` shows why an image was not saved. `path` is
+ * a function: a rename of the file changes it.
  */
-export function pasteImages(path: string, failed: (message: string) => void): Extension {
-  if (!MARKDOWN.test(path)) return [];
-  const folder = path.slice(0, path.lastIndexOf("/") + 1);
+export function pasteImages(path: () => string, failed: (message: string) => void): Extension {
   /** The uploads in progress: the edits made meanwhile move their places. */
   const pending = new Set<Place>();
 
   async function link(view: EditorView, files: File[], place: Place, name: (file: File) => string) {
+    const folder = path().slice(0, path().lastIndexOf("/") + 1);
     const links: string[] = [];
     pending.add(place);
     try {
@@ -128,6 +128,7 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
 
   const handlers = EditorView.domEventHandlers({
     paste(event, view) {
+      if (!MARKDOWN.test(path())) return false;
       const data = event.clipboardData;
       // A copied part of a web page brings its images with its text: the
       // text wins, as before.
@@ -142,6 +143,7 @@ export function pasteImages(path: string, failed: (message: string) => void): Ex
       return true;
     },
     drop(event, view) {
+      if (!MARKDOWN.test(path())) return false;
       const files = images(event.dataTransfer?.files);
       if (files?.length === 0) return false;
       // Even for an image of another type: CodeMirror would insert the

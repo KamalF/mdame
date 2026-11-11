@@ -20,6 +20,13 @@ function isIgnoreFile(path: string): boolean {
   return name === ".gitignore" || name === ".ignore";
 }
 
+/** Where `event` moved `open`, or null. Not when it moved a file onto
+ * `open`: an editor that saves through a backup renames the backup back. */
+export function movedTo(event: LiveEvent, open: string): string | null {
+  if (event.type !== "renamed" || isWithin(open, event.to)) return null;
+  return movedPath(open, event.from, event.to);
+}
+
 /** What the page does for a live event. */
 export type Reaction =
   | { kind: "reload" }
@@ -38,10 +45,8 @@ export function react(
   const tree = event.type !== "changed" || dated(event.path) || isIgnoreFile(event.path);
   const update = { kind: "update", tree, refresh: false, followTo: null } as const;
   if (!open) return update;
-  if (event.type === "renamed" && !isWithin(open, event.to)) {
-    const followTo = movedPath(open, event.from, event.to);
-    if (followTo) return { ...update, followTo };
-  }
+  const followTo = movedTo(event, open);
+  if (followTo) return { ...update, followTo };
   // Asks again rather than show "Not found": a save, or a folder moved
   // in, can bring the file back.
   return { ...update, refresh: concerns(event, open) };

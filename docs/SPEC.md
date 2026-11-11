@@ -194,7 +194,7 @@ After a `changed` event or a 412, the editor fetches the file again and compares
 - If the file has the editor's version, nothing changes. After a 412, the status bar says "Save again": the file was replaced during the save, so the save did not happen.
 - If the file has a new version and the editor has no unsaved edits, the editor reloads it without a notice. Only the changed lines change, so the cursor and the scroll stay. Ctrl+Z undoes the reload.
 - If the file has a new version and the editor has unsaved edits, a notice says that the file changed on disk. Reload replaces the edits with the file on disk, and Ctrl+Z brings them back. Overwrite saves the editor's text over the file, and the snapshot keeps the text that was on disk.
-- If the file is gone, a notice says so. Recreate creates the file again and saves the editor's text into it.
+- If the file is gone, a notice says so. Recreate creates the file again and saves the editor's text into it. A file renamed on Linux is not gone: the editor follows it (see `renamed`). On macOS, FSEvents gives a rename as `removed` and `created`, so the notice shows.
 
 ## Libraries
 
@@ -362,7 +362,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 | `changed` | `path` | If it is the open file or a folder holding it: refetch and morph; in the editor, compare the file with the editor's text (see Saving). If it is a `.gitignore` or `.ignore`, refetch the tree |
 | `created` | `path` | Refetch the tree; if it is the open file or a folder holding it, refetch the file too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, refetch the file, which shows not-found unless it is already back |
-| `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again); if `to` is the open file or a folder holding it, refetch the file |
+| `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again). The editor follows its file in the same way, and keeps its text, its unsaved edits and its undo history; diff mode closes, since the revisions stay under the old name. If `to` is the open file or a folder holding it, refetch the file |
 | `resync` | none | Sent after a burst or when the client lagged behind the broadcast; refetch everything visible |
 
 Events go out as the watcher reports them, with no merging: a file deleted and written again arrives as `removed` then `created`, and an Emacs save as `renamed` to the backup then `created`. These can also be a folder swapped for another, so the browser tells them apart itself: on `removed` it asks for the open file again, and it follows a rename only when the open file is gone. The watcher does not follow symlinked folders: one that points out of the workspace would leak outside names in its events. notify still watches a folder that is replaced by a link right after its creation, so outside names can come through in that rare case. mdame accepts this: the names reach only your own page. Events carry no folder flag: notify reports a move out of the workspace with no file or folder kind, and the browser matches the open file by path prefix instead. Decided on 18 October 2026.

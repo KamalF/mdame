@@ -314,6 +314,29 @@ async function follow(moved: string) {
   refreshContent(moved);
 }
 
+/** Keeps the file of the editor after a rename, as `follow` does for the
+ * view. */
+async function followEditor(from: string, to: string) {
+  // An editor that saves by renaming the file to a backup writes it again
+  // at once, possibly in the next batch: the editor stays on the file.
+  const stayed = await exists(view.rawUrl(from));
+  if (editedPath() !== from) return;
+  if (!stayed) {
+    // While the discard dialog of a Back is open, the address already
+    // names the next page.
+    const { path, editing } = route();
+    if (editing && path === from) {
+      history.replaceState(null, "", editUrl(to) + location.hash);
+      sidebar.setCurrent(to);
+      // Closing would go back to the view of the old name.
+      editingFromView = false;
+    }
+    view.renameSeen(from, to);
+    editor?.rename(to);
+  }
+  editor?.checkDisk();
+}
+
 function onEvent(event: live.LiveEvent) {
   // Until the state check after a reconnection: it refetches everything.
   if (isHeld()) return;
@@ -327,11 +350,14 @@ function onEvent(event: live.LiveEvent) {
   }
   if (reaction.tree) refreshTree();
   view.refreshImages(content);
+  const edited = editedPath();
+  const editedTo = edited === null ? null : live.movedTo(event, edited);
   // An editor that is still mounting has no path yet, but its file may
   // change after the mount read it.
   const { path, editing } = route();
-  const edited = editedPath() ?? (editing ? path : null);
-  if (edited !== null && live.concerns(event, edited)) checkDiskSoon();
+  const checked = edited ?? (editing ? path : null);
+  if (edited !== null && editedTo !== null) followEditor(edited, editedTo);
+  else if (checked !== null && live.concerns(event, checked)) checkDiskSoon();
   if (reaction.followTo) follow(reaction.followTo);
   else if (reaction.refresh && current) refreshContentSoon(current);
 }

@@ -192,18 +192,21 @@ export async function mount(
       notice.of([]),
       revisions.diffMode.of([]),
       spellcheck(),
-      pasteImages(path, (message) => {
-        if (open?.path !== path) return;
-        open.error = message;
-        report();
-      }),
+      pasteImages(
+        () => open?.path ?? path,
+        (message) => {
+          if (open?.view !== view) return;
+          open.error = message;
+          report();
+        },
+      ),
       EditorView.updateListener.of((update) => {
-        if (!update.docChanged) return;
+        if (!update.docChanged || !open) return;
         report();
         revisions.textChanged(update.changes);
         // While mdame is away, the last preview stays: a reconnection
         // renders it again.
-        if (!isHeld()) preview.update(path, () => update.state.doc.toString());
+        if (!isHeld()) preview.update(open.path, () => update.state.doc.toString());
       }),
     ],
   });
@@ -303,6 +306,19 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
   follow(scroller, alignPreview);
   follow(pane, () => scrollEditorTo(topToLine(table(), pane.scrollTop)));
   return alignPreview;
+}
+
+/** The file moved to `to`: the editor follows it, with its text, its
+ * unsaved edits and its undo history. The revisions stay under the old
+ * name, so diff mode closes. */
+export function rename(to: string) {
+  if (!open) return;
+  open.path = to;
+  // Both render the preview again: it resolves relative links and images
+  // from the path.
+  if (revisions.isShown()) closeRevisions();
+  else if (!isHeld()) refreshPreview();
+  report();
 }
 
 /** Renders the preview again, after a reconnection: a render that failed

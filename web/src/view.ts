@@ -235,12 +235,16 @@ export function shownFile(): FileView | undefined {
   return shown?.file;
 }
 
+/** `from` moved to `to`: its version last seen follows it. */
+export function renameSeen(from: string, to: string) {
+  seen.rename(from, to);
+  if (onScreen?.path === from) onScreen = { ...onScreen, path: to };
+}
+
 /** The file on screen moved to `path`: a refresh then patches it in place. */
 export function renameShown(path: string) {
   if (!shown) return;
-  seen.rename(shown.path, path);
-  // Set with `shown`, so on the same file.
-  onScreen = { ...onScreen!, path };
+  renameSeen(shown.path, path);
   shown = { ...shown, path };
 }
 

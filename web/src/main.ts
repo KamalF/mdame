@@ -228,12 +228,14 @@ function toggleRevisions() {
 async function stopEditing() {
   const { path, editing } = route();
   if (!editing || !path || !(await mayLeaveEditor())) return;
+  // A rename during the dialog moved the editor.
+  const closed = editedPath() ?? path;
   editor?.unmount();
   if (editingFromView) {
     editingFromView = false;
     history.back();
   } else {
-    history.replaceState(null, "", sidebar.viewUrl(path));
+    history.replaceState(null, "", sidebar.viewUrl(closed));
     showRoute();
   }
 }
@@ -456,8 +458,12 @@ addEventListener("popstate", async () => {
   // The address has already changed: put the editor's back if the user
   // keeps editing. It takes the place of the entry that the user left.
   if (left !== null && !(await mayLeaveEditor())) {
-    history.pushState(null, "", editUrl(left));
-    editingFromView = fromView;
+    // A rename during the dialog moved the editor: the view of the old
+    // name is gone.
+    const kept = editedPath() ?? left;
+    history.pushState(null, "", editUrl(kept));
+    if (kept !== left) sidebar.setCurrent(kept);
+    editingFromView = fromView && kept === left;
     return;
   }
   showRoute();

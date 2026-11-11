@@ -889,6 +889,8 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - In the editor, the preview prints. With the preview hidden, or in diff mode, the text prints: CodeMirror draws all its lines for a print, on `beforeprint`. The review found it; the first version said that the text printed in part.
    - A Mermaid diagram prints in the theme it was drawn in, as on screen: from a dark theme, it prints dark. The browser prints before an async redraw could end. Tried and dropped: an inversion of the dark drawing on paper (`filter: invert(1) hue-rotate(180deg)`). Kamal did not like it: who minds can pick a light theme before printing. The README says so.
    - Found by the check, a print to PDF from Catppuccin Mocha: the wide blocks kept their shift, and were cut at the left edge of the page. On paper, the room of the wide blocks is now 0, as with Full.
+   - Found by the check on 11 November 2026, a print of the text with the preview hidden. In Firefox, the line numbers missed their lines. In Chrome, the last line was cut. CodeMirror sizes the line numbers on screen, on `beforeprint`, so paper now leaves them out. A print from the editor with the focus also showed the focus frame, the cursor and the band of the current line: they stay off paper too. A text longer than a page lost its end in Chrome: the flex boxes and the scroll box of CodeMirror kept the height that they had before the page breaks. On paper, they are plain blocks.
+   - Firefox printed a blank second page after the text of the editor, then stopped, with the LanguageTool extension on or off. The only element found below the text was the toolbar of LanguageTool.
 8. Word count and reading time in the status bar (done). The view of a markdown file shows "1,234 words · 6 min" after its time, at 200 words a minute, and at least a minute. `words.test.ts`: `words are counted without punctuation, numbers included`, `words are counted in a script with no spaces`, `the label gives the words and the reading time, at least a minute`.
    - Decided with Kamal on 10 November 2026: the rendered text counts, without code blocks and diagrams. The source would count the URLs of links and the marks of markdown.
    - `Intl.Segmenter` finds the words, so a text in Chinese or Thai, with no spaces, counts too. Punctuation does not count, and numbers do.
@@ -933,7 +935,7 @@ Editor:
 
 Print and word count:
 
-7. Pick Catppuccin Mocha, reload the page, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview. Hide the preview: the print shows the whole text.
+7. Pick Catppuccin Mocha, reload the page, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview. Hide the preview, click in the text, and print. The print shows the whole text, without line numbers, cursor or focus frame.
 8. The status bar of `a.md` shows its words and its reading time, such as "312 words · 2 min". Add a paragraph on disk: the count grows. The status bar of the editor and that of `data.json` show no count.
 
 Release, after 0.2.0 is published:

@@ -31,6 +31,34 @@
     display: none;
   }
 
+  /* CodeMirror sizes the line numbers on screen, before the page sets the
+     width. On paper they would miss their lines, and could cut the last
+     line. */
+  .mdame-editor .cm-gutters {
+    display: none !important;
+  }
+
+  /* The flex boxes and the scroll box of CodeMirror keep the height that they
+     had before the page breaks: the end of a long text would be cut. */
+  .mdame-editor :is(.cm-editor, .cm-scroller) {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  /* The focus frame, the cursor and the band of the current line are screen
+     state. */
+  .mdame-editor .cm-editor {
+    outline: none !important;
+  }
+
+  .mdame-editor .cm-cursorLayer {
+    display: none !important;
+  }
+
+  .mdame-editor .cm-activeLine {
+    background: none !important;
+  }
+
   /* The page gives the width. The margins that the outline sets, and the
      room of the wide blocks, follow the screen. */
   .mdame-document {

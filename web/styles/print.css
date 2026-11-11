@@ -82,6 +82,12 @@
     break-inside: avoid;
   }
 
+  /* A diagram prints as drawn. Firefox darkens light text for white paper,
+     and so the labels of a dark diagram would vanish on their dark boxes. */
+  .mdame-document .mdame-diagram {
+    print-color-adjust: exact;
+  }
+
   .mdame-document :is(h1, h2, h3, h4, h5, h6) {
     break-after: avoid;
   }

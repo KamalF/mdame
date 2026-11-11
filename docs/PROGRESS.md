@@ -1065,13 +1065,22 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 12. `CHANGELOG.md` and version 0.2.1 (done). `Cargo.toml` says 0.2.1, and the section of 0.2.1 in `CHANGELOG.md` has the date of 11 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.2.1 an early release.
    - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
 
+Review, on 11 November 2026: one pass of `/simplify`, then 2 rounds of a code reviewer and a security reviewer. The second round found no blocker and no should-fix. The first round found 1 should-fix, which is fixed: Esc and Back read the path of the editor before the discard dialog, so a rename during the dialog left them on the old name. The pass of `/simplify` and the nits gave these other fixes:
+
+- A save through a backup gets one disk check, not two.
+- A rename in diff mode leaves the focus where it is.
+- A theme chosen in the menu shows no flash of the system's theme.
+- `mise run dev` rebuilds `boot.js` too.
+
+Left for later: the findings under Open points.
+
 ### Manual checklist
 
 These checks cover what no test covers: the editor, the theme and the clipboard in real browsers, Safari among them, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds `a.md`, `docs/b.md`, and `mixed.md`, whose lines end in `\n` and in `\r\n`.
 
 Editor:
 
-1. On Linux, open `a.md` in the editor and type a word, without saving. In a terminal, `mv a.md a2.md`: the address and the status bar name `a2.md`, the unsaved dot stays, and Ctrl+Z removes the word. Ctrl+S writes `a2.md`. Open diff mode with `h`, then `mv a2.md a.md`: diff mode closes, and the editor names `a.md`. In vim, with `:set nobackup writebackup nobackupcopy`, save `a.md`: the editor stays on `a.md`, and shows the change. Esc shows the view of `a.md`.
+1. On Linux, open `a.md` in the editor and type a word, without saving. In a terminal, `mv a.md a2.md`: the address and the status bar name `a2.md`, the unsaved dot stays, and Ctrl+Z removes the word. Ctrl+S writes `a2.md`. Open diff mode with `h`, then `mv a2.md a.md`: diff mode closes, and the editor names `a.md`. In vim, with `:set nobackup writebackup nobackupcopy`, save `a.md`: the editor stays on `a.md`, and shows the change. Esc shows the view of `a.md`. Press `e`, type a word and press Esc. While the dialog asks, `mv a.md a2.md`: Discard shows the view of `a2.md`.
 2. Open `mixed.md` in the editor and press Ctrl+S, then the Save button: `sha256sum mixed.md` gives the same sum before and after, and the revisions panel lists no new revision.
 
 Tree and connection:
@@ -1115,6 +1124,10 @@ Release, after 0.2.1 is published:
   - One layout pass for an article, in the order outline, wide blocks, bars, from one observer. Today three `ResizeObserver`s and calls between the modules give the order, and one resize may lay out the wide blocks twice.
   - Side by side builds a new `MergeView` at each choice of a revision. It could replace the text of the left pane instead, as for the open point of milestone 7 on `choose()`.
   - The word count runs before the page paints: `Intl.Segmenter` takes about 88 ms for 1 MB of text, at each open and each live update.
+- From the review of milestone 13, for later:
+  - The watch of a folder follows a link: notify 9 dereferences each watched path by default. If a link replaces a folder between the walk and its watch, mdame watches the target of the link. A link to a hung mount would then block the watcher. notify 9 has `WatchPathConfig::with_dereference_symlinks(false)`, through the `update_paths` of the debouncer. Its errors then come inside `UpdatePathsError`, which `vanished` and `denied` must read.
+  - On macOS, notify-debouncer-full calls `exists()` on each rename, and holds its lock meanwhile. `exists()` follows a link, so a renamed link to a hung mount could stop live updates. 0.7 did the same. The fix belongs upstream: `symlink_metadata()`. Until then, "The watcher follows no symlink" in the spec holds for mdame's own checks only.
+  - Nit: `notify-debouncer-full = "0.8.0-rc.3"` lets Cargo take a later release candidate. `=0.8.0-rc.3` would pin the debouncer, but not notify: the debouncer asks for `9.0.0-rc.8` with a caret too. `cargo install --locked`, as the README says, takes the versions of `Cargo.lock`.
 - From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
 - From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. dist cannot write it: the formula template of dist 0.33.1 has no `test do` block, and no setting for one, as checked on 11 November 2026. A step after the publish job could add it to the formula in the tap.
 - From milestone 10, the watcher:

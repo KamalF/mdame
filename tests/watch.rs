@@ -82,10 +82,21 @@ fn drop_until_quiet(events: &mut Receiver<Event>) {
 }
 
 /// In any order. On macOS, a write can be `created`: for some seconds after
-/// the creation of a file, FSEvents keeps reporting it. A path deleted and
-/// created again can also get a `changed` before its `created`, until
-/// milestone 13 fixes live updates on macOS.
+/// the creation of a file, FSEvents keeps reporting it. A removal can also
+/// come twice: FSEvents can report the flags of a path in two batches, and
+/// the watcher merges events only within a batch.
 fn same(events: &[Event], expected: &[Event]) -> bool {
+    let repeated = |i: usize, event: &Event| {
+        cfg!(target_os = "macos")
+            && matches!(event, Event::Removed { .. })
+            && events[..i].contains(event)
+    };
+    let events: Vec<&Event> = events
+        .iter()
+        .enumerate()
+        .filter(|&(i, event)| !repeated(i, event))
+        .map(|(_, event)| event)
+        .collect();
     let matches = |expected: &Event, event: &Event| {
         expected == event
             || cfg!(target_os = "macos")
@@ -94,27 +105,10 @@ fn same(events: &[Event], expected: &[Event]) -> bool {
                     (Event::Changed { path }, Event::Created { path: created }) if path == created
                 )
     };
-    let same_as = |events: &[Event]| {
-        events.len() == expected.len()
-            && expected
-                .iter()
-                .all(|expected| events.iter().any(|event| matches(expected, event)))
-    };
-    same_as(events) || cfg!(target_os = "macos") && same_as(&without_change_before_creation(events))
-}
-
-fn without_change_before_creation(events: &[Event]) -> Vec<Event> {
-    let created_later = |i: usize, path: &String| {
-        events[i + 1..]
+    events.len() == expected.len()
+        && expected
             .iter()
-            .any(|later| matches!(later, Event::Created { path: created } if created == path))
-    };
-    events
-        .iter()
-        .enumerate()
-        .filter(|(i, event)| !matches!(event, Event::Changed { path } if created_later(*i, path)))
-        .map(|(_, event)| event.clone())
-        .collect()
+            .all(|expected| events.iter().any(|event| matches(expected, event)))
 }
 
 fn changed(path: &str) -> Event {
@@ -305,10 +299,6 @@ async fn populated_folder_moved_in_is_created() {
 }
 
 #[tokio::test]
-#[cfg_attr(
-    target_os = "macos",
-    ignore = "notify-debouncer-full drops the events of a folder delete on FSEvents: a known issue"
-)]
 async fn folder_delete_is_one_removal() {
     let mut watched = Watched::new(&[A, ("doomed/child.md", b"")]);
     fs::remove_dir_all(watched.path("doomed")).unwrap();

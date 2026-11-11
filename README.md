@@ -20,9 +20,8 @@ changed block, and the status bar lists another file that changed. Then diff
 mode shows the text that you last saw.](docs/demo.gif)
 
 0.2.0 is an early release. I have used it on Linux only. On macOS, live
-updates have [two known issues](#known-issues). The tests pass on macOS too,
-except one that needs a Linux feature, and one of the known issues. mdame does
-not run on Windows.
+updates have [a known issue](#known-issues). The tests pass on macOS too,
+except one that needs a Linux feature. mdame does not run on Windows.
 
 ## Install
 
@@ -217,8 +216,6 @@ with Enhanced spell check, it sends the text that you edit to its vendor.
 
 - On macOS, if a program renames the file on screen, the tab does not follow
   it. Open the new name from the tree.
-- On macOS, a folder deleted outside mdame stays in the tree until you reload
-  the page.
 
 ## Design, tests and reviews
 
@@ -242,9 +239,8 @@ with no mocks: real files in a temporary folder, and the real HTTP router.
 Rendering has snapshot tests, and paths and URLs have property tests. From
 milestone 6, at the end of each milestone, `cargo mutants` changes the code to
 find the rules that no test checks. CI runs the tests on Linux and macOS. On
-macOS, it skips one test of saving, which needs a Linux feature, and the test
-of a folder delete, a known issue. After each release, CI installs mdame with
-Homebrew, and checks that it starts.
+macOS, it skips one test of saving, which needs a Linux feature. After each
+release, CI installs mdame with Homebrew, and checks that it starts.
 
 ### Reviews
 

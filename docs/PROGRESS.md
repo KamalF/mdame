@@ -981,9 +981,39 @@ The decision:
 - If it does not: the fix is the batching of mdame's own on macOS, from the first open point, in 0.3.0.
 - Either way, the rename on macOS needs its own work, in 0.3.0.
 
+### Results, 11 November 2026
+
+0.8 fixes the folder delete. With one more line in `src/watch.rs` (step 2b, below), it also removes the `changed` before `created`.
+
+The failures of each test, in runs of `cargo test --test watch` on `macos-latest`, one runner for each run:
+
+| Test | 0.7, 10 runs | 0.8, 10 runs | 0.8 and step 2b, 20 runs |
+| --- | --- | --- | --- |
+| `folder_delete_is_one_removal` | 10 | 0 | 0 |
+| `delete_then_create_is_removed_and_created` | 1 | 10 | 0 |
+| `folder_deleted_then_created_is_removed_and_created` | 0 | 10 | 0 |
+| `a_folder_created_again_stays_watched` | 0 | 10 | 0 |
+| `save_through_a_temporary_file_creates_it` | 0 | 0 | 1 |
+| The 20 other tests | 0 | 0 | 0 |
+
+- Step 2b, added during the experiment. 0.8 no longer drops the removal of a path that is created again right after. The disk check found the path there, so the removal gave `changed`, before the `created`. Now a removal of a path that is on disk gives `created`, and `push` merges it with the `created` of the creation.
+- The new failure, in 1 run of 20: the temporary file got `removed` twice, then `a.md` got `created`. FSEvents probably sent the flags of the temporary file in two batches, and `push` merges events only within a batch. For a tab, it is a second removal of a path that is gone.
+- The rename (step 3): `renames_are_paired` passed in each run, with `removed` and `created` on macOS. 0.8 changes nothing there.
+- The start time on Linux (step 4), with a release build, on 15,000 folders, until `wait_started` returns: 11.3 s with 0.7, and 0.77 s with 0.8. Three runs of each.
+- On sachamac, the Intel Mac (step 5). With 0.8, 22 of the 25 watcher tests passed, the folder delete among them. The 3 failures were those of the table. With step 2b, all 25 passed, in 2 runs. By hand, with mdame from the branch, two folder deletes in the terminal left the tree without a reload: a folder made before mdame started, and a folder created and deleted right after.
+- The size of the change: `src/watch.rs` needs no change for the API of 0.8, and one line for step 2b. `rust-version` goes from 1.89 to 1.91.
+- A cost: notify 9 brings `xxhash-rust`, under BSL-1.0, which `about.toml` does not accept. `mise run licenses` fails, so CI fails on Linux.
+
+Open, for Kamal:
+
+- Does 0.2.1 ship notify-debouncer-full 0.8.0-rc.3, or wait for 0.8.0?
+- Does `about.toml` accept BSL-1.0?
+- The duplicate `removed`: do the tests accept it, or does `push` also merge across batches?
+- If 0.2.1 takes 0.8, these texts change with it: the comment of `forward` in `src/watch.rs` and the spec, which give 12 s on 15,000 folders, and the known issues of the README.
+
 ## Next
 
-1. The debouncer experiment, above.
+1. The decisions of the debouncer experiment, above.
 2. A milestone of fixes, released as 0.2.1. The experiment decides whether it takes the known issues of live updates on macOS. The other candidates:
    - comrak 0.59, already on `main`: a crafted table of 256 KB took 72 s to render with 0.56, and takes 2 s.
    - What a check in Safari finds. No checklist ran in Safari yet, and "Copy content" fetches the file before it writes to the clipboard, which Safari may refuse.

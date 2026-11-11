@@ -933,7 +933,7 @@ Editor:
 
 Print and word count:
 
-7. Pick Catppuccin Mocha, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview. Hide the preview: the print shows the whole text.
+7. Pick Catppuccin Mocha, reload the page, and print `a.md` to a PDF: the PDF shows the whole file in the Light theme, without the sidebar, the status bar, the outline, the change bars or the copy buttons. The table and the code fit the width of the page, and the left edge cuts nothing. The diagram keeps its dark colours. In the editor, the print shows the preview. Hide the preview: the print shows the whole text.
 8. The status bar of `a.md` shows its words and its reading time, such as "312 words · 2 min". Add a paragraph on disk: the count grows. The status bar of the editor and that of `data.json` show no count.
 
 Release, after 0.2.0 is published:

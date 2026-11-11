@@ -238,7 +238,8 @@ impl Folders {
 
     /// Whether `event` may change the folders that the tree shows: only a
     /// shown folder, a new folder or an ignore file can, and only in a
-    /// shown folder. After a rescan, events were lost.
+    /// shown folder. After a rescan, events were lost. A link to a folder
+    /// is not one: the walk does not follow links.
     fn changed_by(&self, event: &notify::Event) -> bool {
         let is_ignore_file = |path: &Path| {
             path.file_name()
@@ -247,7 +248,7 @@ impl Folders {
         let changes = |path: &PathBuf| match event.kind {
             EventKind::Access(_) | EventKind::Modify(ModifyKind::Metadata(_)) => false,
             EventKind::Modify(ModifyKind::Data(_)) => is_ignore_file(path),
-            _ => is_ignore_file(path) || self.watched.contains(path) || path.is_dir(),
+            _ => is_ignore_file(path) || self.watched.contains(path) || is_folder(path),
         };
         event.need_rescan()
             || event
@@ -284,7 +285,10 @@ fn watch_folders(
 ) -> bool {
     // notify has dropped the watch of a folder deleted or moved away, and
     // each call waits for its thread, busy with the events of the removal.
-    for hidden in old.difference(new).filter(|folder| folder.exists()) {
+    for hidden in old
+        .difference(new)
+        .filter(|folder| folder.symlink_metadata().is_ok())
+    {
         let _ = debouncer.unwatch(hidden);
     }
     // The debouncer looks for the watch of each event's path in the order
@@ -317,6 +321,13 @@ fn watch_folders(
         }
     }
     watched
+}
+
+/// Not `is_dir()`, which follows a link: a link to a hung mount would block
+/// the watcher.
+fn is_folder(path: &Path) -> bool {
+    path.symlink_metadata()
+        .is_ok_and(|metadata| metadata.is_dir())
 }
 
 /// Also when the folder goes between the watch and notify's check of it.
@@ -524,6 +535,7 @@ mod tests {
         let tmp = crate::workspace::tempdir();
         let root = tmp.path().to_owned();
         std::fs::create_dir(root.join("new")).unwrap();
+        std::os::unix::fs::symlink(root.join("new"), root.join("link")).unwrap();
         let folders = Folders {
             watched: HashSet::from([root.clone(), root.join("sub")]),
             root,
@@ -540,6 +552,7 @@ mod tests {
         assert!(!changes(rename(&at("a.md"), &at("b.md"))));
         assert!(!changes(write(&at("a.md"))));
         assert!(!changes(create(&at("hidden/new"))));
+        assert!(!changes(create(&at("link"))));
         // A walk opens each folder: these must not walk again.
         let on_new = |kind| notify_event(kind, &[&at("new")]);
         assert!(!changes(on_new(EventKind::Access(AccessKind::Any))));

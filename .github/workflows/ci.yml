@@ -33,3 +33,26 @@ jobs:
       # The file is the same on each system.
       - run: mise run licenses
         if: runner.os == 'Linux'
+
+  # Temporary, for the debouncer experiment of docs/PROGRESS.md: 10 runs of
+  # the watcher tests on macOS, on 10 runners.
+  watch-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # `shell: bash` sets pipefail, so that a failed test fails the step.
+      - run: cargo test --test watch 2>&1 | tee test.log
+        shell: bash
+      # Unlike the logs, annotations need no login to read: one for each
+      # failed test, with its message.
+      - if: failure()
+        run: |
+          awk -F"'" '/panicked at/ { name = $2; getline; print "::error title=" name "::" $0 }' test.log

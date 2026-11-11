@@ -594,6 +594,8 @@ mise manages the repo. `mise.toml` pins the tools (Rust toolchain, Bun) and defi
 
 **Users need only Rust.** `web/dist` is committed, so `cargo install mdame` never runs Bun or esbuild.
 
+**Updates.** Renovate opens a PR for each update, as `renovate.json5` sets. The browser packages and Bun come in one PR a month. CI checks `web/dist`, and Renovate cannot rebuild it, so that PR needs `mise run web` on its branch, then a push. dist and cargo-about stay out: their versions are also in the release workflow, which `dist generate` writes.
+
 ## What to reuse from mdlive
 
 Reuse mdlive's tests, formats and a few small functions; replace everything else. Clone v2.3.13 next to the new repo for reference. Any copied code keeps the MIT notice of mdlive and mdserve.
@@ -725,6 +727,7 @@ After milestone 13, toasts and the launchd service wait.
 | `LICENSE` holds only the MIT text and its copyright lines, so that GitHub detects it. The notices of mdlive, Lucide, Feather and Primer move to `NOTICE`, which the package and the release archives hold | 9 November 2026 |
 | The release archives carry the licence texts of the Rust crates, which cargo-about writes in each build of the release. The file stays out of git, and the npm texts stay in their own file | 9 November 2026 |
 | Milestone 12 takes arrow keys, side-by-side diff, mono, wide blocks, the Catppuccin and Minimal themes, pasted images, print and word count, then releases 0.2.0. Milestone 13 takes read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff, and the known issues of live updates on macOS, with copy as quote as a candidate. The launchd service waits | 10 November 2026 |
+| Renovate keeps the dependencies up to date, through the GitHub App. The browser packages and Bun come in one PR a month, rebuilt by hand. dist and cargo-about stay manual | 11 November 2026 |
 
 ### Review log, 14 October 2026
 

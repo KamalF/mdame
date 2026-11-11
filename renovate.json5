@@ -1,0 +1,31 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended", "helpers:pinGitHubActionDigests"],
+  schedule: ["* 0-3 * * 1"],
+  // dist writes release.yml, and refuses a release when the file differs
+  // from what it would write. Its actions are pinned in dist-workspace.toml.
+  ignorePaths: ["**/node_modules/**", ".github/workflows/release.yml"],
+  packageRules: [
+    {
+      // The release workflow installs them too, from the files of dist: an
+      // update needs `dist generate`, by hand.
+      matchManagers: ["mise"],
+      matchDepNames: ["cargo-dist", "github:EmbarkStudios/cargo-about"],
+      enabled: false,
+    },
+    {
+      // CI checks that web/dist is what web/ builds, and Renovate cannot run
+      // `mise run web`: one PR a month, rebuilt by hand. Bun bundles web/,
+      // so its updates come in the same PR.
+      matchManagers: ["bun"],
+      groupName: "browser packages",
+      schedule: ["* 0-3 1 * *"],
+    },
+    {
+      matchManagers: ["mise"],
+      matchDepNames: ["bun"],
+      groupName: "browser packages",
+      schedule: ["* 0-3 1 * *"],
+    },
+  ],
+}

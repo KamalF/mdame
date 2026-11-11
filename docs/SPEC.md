@@ -289,7 +289,7 @@ mdame/
     index.html
     favicon.svg         copied to dist/assets/ by the web task
     notices.ts          writes the licence texts of the bundled packages
-    src/                main.ts, api.ts, live.ts, sidebar.ts, view.ts,
+    src/                main.ts, boot.ts, api.ts, live.ts, sidebar.ts, view.ts,
                         editor.ts, revisions.ts, dialogs.ts,
                         toast.ts, theme.ts, keys.ts, codehl.ts
     styles/             base.css, layout.css, components.css, content.css
@@ -520,7 +520,7 @@ A theme is one CSS file that sets variables on `:root` and nothing else. The app
 - **Meaning:** `--accent`, `--accent-fg`, `--danger`, `--warning`, `--success`.
 - **Type:** `--font-ui`, `--font-content`, `--font-mono`, `--content-width`, `--content-width-mono`. `--content-width-mono` is the width of the column with Font: Mono and Width: Default.
 - **Code colours**, for the editor and rendered code alike through Lezer's `tok-*` classes: `--code-bg`, `--hl-keyword`, `--hl-string`, `--hl-number`, `--hl-comment`, `--hl-title`, `--hl-type`, `--hl-attr`, `--hl-meta`.
-- `color-scheme: light` or `dark`, a standard CSS property. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. Browsers also draw scrollbars and form controls to match.
+- `color-scheme: light` or `dark`, a standard CSS property. mdame loads the built-in theme of that scheme first, then the theme over it, so a user theme may set only the variables that it changes. Browsers also draw scrollbars and form controls to match. `boot.js`, a classic script in `<head>`, writes the links of the stored theme. The browser waits for them before its first paint: `main.js` is a module, which runs only once the page is parsed.
 
 The diff's added and removed lines mix `--success` and `--danger` into the background, and a hovered or focused row mixes in `--fg`, so themes set no diff, hover or focus colours. The change bars use `--success` for an added block, `--accent` for a changed one and `--danger` where text was removed, so themes set no colours for them either. Shadows and backdrops stay translucent black, outside the contract.
 

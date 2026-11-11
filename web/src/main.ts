@@ -531,7 +531,6 @@ async function refresh(failures = 0) {
   editor?.refreshPreview();
 }
 
-theme.apply();
 applyFont();
 applyWidth();
 

@@ -1053,7 +1053,11 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 9. A failed state check after a reconnection is tried again (done). The page held its requests until the socket closed again, which could be never.
    - With the backoff of the socket: 500 ms, doubling up to 10 s. Once the socket closes, the next reconnection checks again, and the retries of the old socket stop.
    - No unit test: `main.ts` needs a browser.
-10. The stored theme shows from the first paint. Today `main.js` applies it, after the page may have painted in the system's theme.
+10. The stored theme shows from the first paint (done). `main.js` applied it, after the page may have painted in the system's theme. `every_script_of_the_page_is_served`, in `tests/assets.rs`.
+   - Decided by Kamal on 11 November 2026, in a design session: a classic script, `boot.js`, in `<head>`. The other choices: the same script without `document.write`, which leaves Catppuccin, Minimal and user themes to flash, or no fix in 0.2.1.
+   - `boot.js` writes the links of the two built-ins, with the media of the stored theme, and the link of another theme, through `document.write`. Before its first paint, the browser waits for a link that the parser inserted, if its media matches then. It does not wait for a link that a script appends, or whose media changes later. A first version kept the built-in links in `index.html` and changed their media: with Light chosen on a dark system, the page painted before `light.css` came.
+   - `stylesheets.ts` holds the code of the links, for `boot.ts` and for the menu, which `theme.ts` keeps. Bun builds `boot.ts` on its own, as an IIFE: a classic script may hold no `import`.
+   - Checked in headless Chromium, on `web/dist` served with theme files 400 ms late: the first paint came after the stylesheet of the shown theme, for Catppuccin Mocha, Dark and Light against the other system scheme, and System. A deleted theme gave the system's theme.
 11. Copy content works in Safari (done). It fetches the file before it writes to the clipboard, and Safari may refuse a write that comes after the click's turn. The failure tooltip blamed localhost on a secure page too.
    - When the text comes from a promise, the button writes a `ClipboardItem` that holds the promise, during the click's turn. Chrome, Firefox from 127 and Safari from 13.1 take one. Without `ClipboardItem`, the button keeps `writeText`.
    - On a secure page, a failure now says "Copy failed". Only a page that is not secure, such as one on a LAN address, names localhost.
@@ -1105,7 +1109,6 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
   - `forget()` keeps the article that the editor replaced in memory until the next file shows.
   - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.
 - Nits deferred by the review and the over-engineering check of milestone 8:
-  - A stored theme applies only when `main.js` runs, so a reload may show the system's theme first. Check 2 of the manual checklist watches for it.
   - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 
 - From the review of milestone 7, for later:

@@ -5,66 +5,12 @@ import { icon, iconButton } from "./icons.ts";
 import { chooseOutline, layoutOutline, outlineOn } from "./outline.ts";
 import { chooseSpellcheck, spellcheckOn } from "./spellcheck.ts";
 import { load, store } from "./storage.ts";
+import { apply, KEY } from "./stylesheets.ts";
 import { chooseWidth, currentWidth, WIDTHS } from "./width.ts";
-
-const KEY = "mdame:theme";
-const DARK = "(prefers-color-scheme: dark)";
-export const BUILT_INS = ["light", "dark"] as const;
-type BuiltIn = (typeof BUILT_INS)[number];
 
 /** The stored theme if mdame knows it, or null for the system's. */
 export function chosen(stored: unknown, known: readonly string[]): string | null {
   return typeof stored === "string" && known.includes(stored) ? stored : null;
-}
-
-/** The `media` of the link to the built-in `name`, when `scheme` is the
- * built-in to show. With none, the system's scheme picks it, live. */
-export function media(name: BuiltIn, scheme: BuiltIn | null): string {
-  if (scheme === null) return name === "dark" ? DARK : `not all and ${DARK}`;
-  return name === scheme ? "all" : "not all";
-}
-
-/** Whether the theme on screen is dark. */
-export function isDark(): boolean {
-  return getComputedStyle(document.documentElement).colorScheme === "dark";
-}
-
-function isBuiltIn(theme: string): theme is BuiltIn {
-  return (BUILT_INS as readonly string[]).includes(theme);
-}
-
-function showBuiltIn(scheme: BuiltIn | null) {
-  for (const name of BUILT_INS) {
-    const link = document.getElementById(`mdame-theme-${name}`) as HTMLLinkElement;
-    link.media = media(name, scheme);
-  }
-}
-
-/** Shows the stored theme. A user theme goes over the built-in of its own
- * scheme, so that it may set only the variables that it changes. */
-export function apply() {
-  const stored = load<unknown>(KEY, null);
-  const theme = typeof stored === "string" ? stored : null;
-  document.getElementById("mdame-theme-user")?.remove();
-  if (theme === null || isBuiltIn(theme)) {
-    showBuiltIn(theme);
-    return;
-  }
-  const link = document.createElement("link");
-  link.id = "mdame-theme-user";
-  link.rel = "stylesheet";
-  // Paper takes the built-in light theme.
-  link.media = "screen";
-  link.href = `/themes/${encodeURIComponent(theme)}.css`;
-  link.addEventListener("load", () => {
-    showBuiltIn(isDark() ? "dark" : "light");
-  });
-  // Deleted since it was chosen: the system's theme.
-  link.addEventListener("error", () => {
-    link.remove();
-    showBuiltIn(null);
-  });
-  document.head.append(link);
 }
 
 function choose(theme: string | null) {

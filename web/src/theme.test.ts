@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
-import { BUILT_INS, chosen, label, media } from "./theme.ts";
+import { BUILT_INS, media } from "./stylesheets.ts";
+import { chosen, label } from "./theme.ts";
 
 test("each built-in theme has a name in the menu, and a user theme shows its file name", () => {
   for (const file of readdirSync(`${import.meta.dir}/../themes`).filter((f) => f.endsWith(".css"))) {

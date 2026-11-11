@@ -12,6 +12,8 @@ rust = { version = "1.99.1", components = "rust-analyzer,clippy,rustfmt" }
 
 [vars]
 bundle = "bun build web/src/main.ts --outdir web/dist/assets --splitting --minify --format esm --external '*.woff2' --external '*.woff'"
+# A classic script, so not a module: no import may remain.
+boot = "bun build web/src/boot.ts --outdir web/dist/assets --minify --format iife"
 
 [tasks.web]
 description = "Install the browser packages and bundle web/ into web/dist, with their licence texts"
@@ -20,6 +22,7 @@ run = [
   "rm -rf web/dist",
   "mkdir -p target",
   "{{vars.bundle}} --metafile=target/web-meta.json",
+  "{{vars.boot}}",
   "cp web/index.html web/dist/index.html",
   "cp web/favicon.svg web/dist/assets/",
   "mkdir web/dist/assets/files",

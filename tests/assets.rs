@@ -118,6 +118,27 @@ async fn only_api_and_raw_answers_stay_out_of_the_cache() {
 }
 
 #[tokio::test]
+async fn every_script_of_the_page_is_served() {
+    let page = text(send(local(), "/", &[HOST]).await).await;
+    let scripts: Vec<&str> = page
+        .split("<script")
+        .skip(1)
+        .filter_map(|tag| tag.split_once("src=\"")?.1.split_once('"'))
+        .map(|(src, _)| src)
+        .collect();
+    assert_eq!(scripts, ["/assets/boot.js", "/assets/main.js"]);
+    for uri in scripts {
+        let response = send(local(), uri, &[HOST]).await;
+        assert_eq!(response.status(), StatusCode::OK, "{uri}");
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "text/javascript; charset=utf-8",
+            "{uri}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn every_woff2_font_of_the_css_is_served() {
     let response = send(local(), "/assets/main.css", &[HOST]).await;
     let css = text(response).await;

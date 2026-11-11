@@ -1,5 +1,5 @@
 import type { Mermaid } from "mermaid";
-import { isDark } from "./theme.ts";
+import { isDark } from "./stylesheets.ts";
 
 let ready: Promise<Mermaid> | undefined;
 

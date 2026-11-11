@@ -32,6 +32,14 @@ test("react reloads the tree unless a change keeps the sort", () => {
   expect(react(created, null, () => false)).toMatchObject({ tree: true });
 });
 
+test("react reloads the tree after a change to an ignore file", () => {
+  for (const path of [".gitignore", "docs/.ignore"]) {
+    expect(react({ type: "changed", path }, null, () => false)).toMatchObject({ tree: true });
+  }
+  const lookalike: LiveEvent = { type: "changed", path: "docs/a.gitignore" };
+  expect(react(lookalike, null, () => false)).toMatchObject({ tree: false });
+});
+
 test("react refreshes or follows the open file", () => {
   const cases: [LiveEvent, Partial<{ refresh: boolean; followTo: string | null }>][] = [
     [{ type: "changed", path: "docs/a.md" }, { refresh: true }],

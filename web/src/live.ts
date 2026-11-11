@@ -14,6 +14,12 @@ export function movedPath(open: string, from: string, to: string): string | null
   return isWithin(open, from) ? to + open.slice(from.length) : null;
 }
 
+/** Whether a change to `path` can hide or show entries of the tree. */
+function isIgnoreFile(path: string): boolean {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  return name === ".gitignore" || name === ".ignore";
+}
+
 /** What the page does for a live event. */
 export type Reaction =
   | { kind: "reload" }
@@ -29,7 +35,7 @@ export function react(
   dated: (path: string) => boolean,
 ): Reaction {
   if (event.type === "resync") return { kind: "reload" };
-  const tree = event.type !== "changed" || dated(event.path);
+  const tree = event.type !== "changed" || dated(event.path) || isIgnoreFile(event.path);
   const update = { kind: "update", tree, refresh: false, followTo: null } as const;
   if (!open) return update;
   if (event.type === "renamed" && !isWithin(open, event.to)) {

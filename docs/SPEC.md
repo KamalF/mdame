@@ -185,7 +185,7 @@ Every request passes the guard before reaching a handler. Handlers stay thin and
 
 **Viewing a file.** The browser asks `GET /api/file?path=…`; the server reads the file through the `Dir`, renders it with comrak, sanitizes it with ammonia and returns HTML with source positions. The browser morphs it into the content area, highlights new code blocks with Lezer and runs Mermaid on new diagrams.
 
-**When a file changes on disk.** The debouncer reports the path; `watch.rs` sends `changed`; tabs showing that file refetch and morph, keeping scroll. The tree refetches only on create, remove or rename, and on a change to a file of the tree while it is sorted by date.
+**When a file changes on disk.** The debouncer reports the path; `watch.rs` sends `changed`; tabs showing that file refetch and morph, keeping scroll. The tree refetches only on create, remove or rename, on a change to a `.gitignore` or `.ignore`, and on a change to a file of the tree while it is sorted by date.
 
 **Saving.** The editor loads its text with `GET /api/source`, which returns the content and its `ETag` (a content hash) in one response. It saves with `PUT /api/file` and `If-Match` set to that ETag. If the content on disk changed since, the server answers 412, and the editor checks the file on disk as after a `changed` event. Otherwise `history.rs` snapshots the old content, the new content is written, and the watcher's own event updates other tabs.
 
@@ -359,7 +359,7 @@ Server to client only, JSON with a `type` field. The upgrade request passes the 
 
 | Event | Fields | Browser reaction |
 | --- | --- | --- |
-| `changed` | `path` | If it is the open file or a folder holding it: refetch and morph; in the editor, compare the file with the editor's text (see Saving) |
+| `changed` | `path` | If it is the open file or a folder holding it: refetch and morph; in the editor, compare the file with the editor's text (see Saving). If it is a `.gitignore` or `.ignore`, refetch the tree |
 | `created` | `path` | Refetch the tree; if it is the open file or a folder holding it, refetch the file too: a save through a temporary file and a rename arrives as `created` |
 | `removed` | `path` | Refetch the tree; if it was the open file or a folder holding it, refetch the file, which shows not-found unless it is already back |
 | `renamed` | `from`, `to` | Refetch the tree; if `from` was open, or a folder holding it, and the open file is gone, navigate to its new path (an editor that renames the file to a backup writes it again); if `to` is the open file or a folder holding it, refetch the file |

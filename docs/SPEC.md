@@ -729,6 +729,7 @@ After milestone 13, toasts and the launchd service wait.
 | Milestone 12 takes arrow keys, side-by-side diff, mono, wide blocks, the Catppuccin and Minimal themes, pasted images, print and word count, then releases 0.2.0. Milestone 13 takes read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff, and the known issues of live updates on macOS, with copy as quote as a candidate. The launchd service waits | 10 November 2026 |
 | Milestone 13 ends with the release of 0.3.0 | 11 November 2026 |
 | Renovate keeps the dependencies up to date, through the GitHub App. The browser packages and Bun come in one PR a month, rebuilt by hand. dist and cargo-about stay manual | 11 November 2026 |
+| A release 0.2.1 of fixes comes before 0.3.0. An experiment with notify-debouncer-full 0.8 decides whether it takes the known issues of live updates on macOS | 11 November 2026 |
 
 ### Review log, 14 October 2026
 

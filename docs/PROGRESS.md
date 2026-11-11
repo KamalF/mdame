@@ -959,10 +959,38 @@ Decided on 29 October 2026, before milestone 8:
 
 Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.io has `mdame` 0.0.1.
 
+## Experiment: notify-debouncer-full 0.8, before 0.2.1
+
+Decided on 11 November 2026: a release 0.2.1 of fixes comes before 0.3.0. This experiment decides whether 0.2.1 also takes the two known issues of live updates on macOS: a folder delete, and a tab that follows a renamed file. It runs in a session of its own, on the branch `debouncer-0.8`, which is not merged as it is.
+
+The question: does notify-debouncer-full 0.8.0-rc.3, with notify 9.0.0-rc.8, fix the folder delete and the flaky `changed` before `created` on macOS, with no batching of mdame's own? Two entries of their changelogs point that way. notify-debouncer-full 0.8.0-rc.2: "emit `remove` events even if a file was created and then removed (because macOS repeats the "create" event)". notify 9.0.0-rc.1: "Fixed ordering where `FsEventWatcher` emitted `Remove` events non-terminally".
+
+Steps, one commit each on the branch:
+
+1. The baseline, on 0.7. `folder_delete_is_one_removal` runs on macOS too, and `same` in `tests/watch.rs` drops its tolerance of a `changed` before a `created`. A temporary job in `ci.yml` runs `cargo test --test watch` 10 times on `macos-latest`, as a matrix with `fail-fast: false`. Count the failures of each test.
+2. The upgrade. `notify-debouncer-full = "0.8.0-rc.3"`, and `rust-version = "1.91"`, which 0.8 needs. `src/watch.rs` follows the changes of the API. fmt, clippy and the tests pass on Linux. Then the same 10 runs on macOS.
+3. The rename on macOS. mdame keeps no cache of file ids, so FSEvents gives a rename as `removed` and `created`, and the tab loses the file. `renames_are_paired` shows whether 0.8 changes that. No change is expected.
+4. The start time on Linux. A scratch program in `target/review` times `mdame::watch::start` on 15,000 folders until the first `resync`, with 0.7 and then 0.8. Milestone 10 measured 12 s with 0.7, a known issue of the README. 0.8 says that it no longer watches in quadratic time.
+5. On the Mac, through a runbook, since `ssh sachamac` hangs from the sandbox: the watcher tests once. Then by hand, with mdame from the branch: delete a folder in the terminal, and the tree drops it without a reload.
+
+The results go here: the failures of each test out of 10 runs, with 0.7 and with 0.8; the start time on 15,000 folders; the size of the change to `src/watch.rs`.
+
+The decision:
+
+- If 0.8 fixes the folder delete and the flake: decide whether 0.2.1 ships a release candidate of notify-debouncer-full, or waits for 0.8.0.
+- If it does not: the fix is the batching of mdame's own on macOS, from the first open point, in 0.3.0.
+- Either way, the rename on macOS needs its own work, in 0.3.0.
+
 ## Next
 
-1. The Show HN.
-2. Milestone 13.
+1. The debouncer experiment, above.
+2. A milestone of fixes, released as 0.2.1. The experiment decides whether it takes the known issues of live updates on macOS. The other candidates:
+   - comrak 0.59, already on `main`: a crafted table of 256 KB took 72 s to render with 0.56, and takes 2 s.
+   - What a check in Safari finds. No checklist ran in Safari yet, and "Copy content" fetches the file before it writes to the clipboard, which Safari may refuse.
+   - From the open points: the editor shows "deleted" after a rename of its file; a `changed` event during `editor.mount` is lost; a failed state check after a reconnection hangs the tab; Ctrl+S with no edit rewrites a file with mixed line breaks; a write to `.gitignore` that hides folders leaves them in the tree; a stored theme shows after the system's theme; `is_dir()` and `exists()` of the watcher follow symlinks.
+   - The `test do` block of the Homebrew formula, if dist can write it.
+3. The Show HN, before or after 0.2.1: not decided yet.
+4. Handoff and keys, for 0.3.0. It becomes milestone 14 if the fixes take number 13, as the fixes for 0.1.1 did with milestone 11.
 
 ## Open points
 

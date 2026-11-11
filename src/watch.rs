@@ -424,8 +424,9 @@ fn events(
 
 /// For each path, FSEvents reports all the flags that the path collected, in
 /// no order, and never the side of a rename: only the disk tells whether
-/// the path is gone. A path that is there was created after a creation or
-/// a rename, and changed after anything else.
+/// the path is gone. A path that is there was created after a creation, a
+/// rename or a removal, and changed after anything else. After a removal,
+/// the path is there only if it was created again.
 fn kind_from_disk(event: &notify::Event) -> EventKind {
     // Not `exists()`, which follows a link: a link to a hung mount would
     // block the watcher.
@@ -438,7 +439,7 @@ fn kind_from_disk(event: &notify::Event) -> EventKind {
     match event.kind {
         EventKind::Access(_) | EventKind::Any | EventKind::Other => event.kind,
         _ if gone() => EventKind::Remove(RemoveKind::Any),
-        EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(_)) => {
+        EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(ModifyKind::Name(_)) => {
             EventKind::Create(CreateKind::Any)
         }
         _ => EventKind::Modify(ModifyKind::Data(DataChange::Any)),
@@ -875,7 +876,7 @@ mod tests {
         }];
         assert_eq!(here(CREATE), created);
         assert_eq!(here(RENAME), created);
-        assert_eq!(here(REMOVE), changed);
+        assert_eq!(here(REMOVE), created);
         assert_eq!(here(WRITE), changed);
     }
 
@@ -891,6 +892,13 @@ mod tests {
         let written = on_fsevents(&[(CREATE, "here.md"), (WRITE, "here.md")]);
         assert_eq!(
             written,
+            [Event::Created {
+                path: path("here.md")
+            }]
+        );
+        let created_again = on_fsevents(&[(REMOVE, "here.md"), (CREATE, "here.md")]);
+        assert_eq!(
+            created_again,
             [Event::Created {
                 path: path("here.md")
             }]

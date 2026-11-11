@@ -4,7 +4,7 @@ Where the build stands against the milestones in `docs/SPEC.md`.
 
 ## How we work
 
-One commit at a time. Claude writes the code and its tests, and runs fmt, clippy and the tests. Kamal reads the code and asks questions. For each commit of milestone 12, Kamal says when it is ready who writes the message: he does, or Claude does after a quiz on the commit. A change with open design questions starts with a design session, right before its code. One branch per milestone.
+One commit at a time. Claude writes the code and its tests, and runs fmt, clippy and the tests. Kamal reads the code and asks questions. Since the debouncer experiment, Claude writes each commit message, and quizzes Kamal first on a commit with decisions that are not obvious. A change with open design questions starts with a design session, right before its code. One branch per milestone.
 
 ## Milestones
 
@@ -22,9 +22,10 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
-| 13 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November | 6 items |
+| 13 | Fixes for 0.2.1 | Started 11 November 2026 | 12 planned |
+| 14 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November | 6 items |
 
-Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
+Milestone 14 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
 
 ## Milestone 1: skeleton
 
@@ -1010,20 +1011,40 @@ Decided on 11 November 2026, after the results:
 - `about.toml` accepts BSL-1.0, for `xxhash-rust`. It is a permissive licence, as MIT is.
 - On macOS, the watcher tests accept a repeated `removed` of a path. `push` still merges events only within a batch: the extra removal costs a tab nothing.
 
+## Milestone 13: fixes for 0.2.1
+
+Decided on 11 November 2026, before the milestone started. `docs/SPEC.md` holds the scope: milestone 13 in the build order.
+
+- Milestone 13 takes the candidates of 0.2.1, and releases 0.2.1. Handoff and keys become milestone 14, released as 0.3.0.
+- The branch `m13-fixes` starts from `main`. It takes the code of the debouncer experiment in a new order, so that CI passes at each commit, without the temporary job of CI.
+- comrak 0.59 is already on `main`: a crafted table of 256 KB took 72 s to render with 0.56, and takes 2 s. It gets a line in the changelog only.
+- The `test do` block of the Homebrew formula leaves 0.2.1: the formula template of dist 0.33.1 has no `test do` block, and no setting for one.
+
+Rules, as test names, by commit. The names are a first guess, which each commit settles. Each commit also updates the README and the spec where they describe what it changes. Done when: the watcher tests pass on the macOS runner of CI in each run of the branch, with no rerun. `brew upgrade` gives a working 0.2.1 on Linux and macOS.
+
+1. notify-debouncer-full 0.8.0-rc.3. `rust-version` goes to 1.91, and `about.toml` accepts BSL-1.0, for `xxhash-rust`. The texts that give 12 s on 15,000 folders change: the comment of `forward` in `src/watch.rs`, the spec and the README. The README drops the slow start on Linux from its known issues.
+2. On macOS, a removal of a path that is on disk gives `created`: step 2b of the experiment. `on_fsevents_the_disk_gives_the_kind_of_an_event`, `on_fsevents_the_flags_of_a_path_give_one_event`.
+3. The watcher tests run on macOS as on Linux. `folder_delete_is_one_removal` runs on macOS too. `same` drops its tolerance of a `changed` before a `created`, and accepts a repeated `removed` of a path on macOS. The README drops the folder delete from its known issues.
+4. The watcher follows no symlink. `is_dir()` in `changed_by` and `exists()` in `watch_folders` take `symlink_metadata()`, as the disk check does: a link to a hung mount would block the watcher.
+5. A write to a `.gitignore` or `.ignore` reloads the tree. Today a tab gets `changed` for it, which reloads the tree only under the date sort, so the folders that it hides stay in the tree. `a_change_to_an_ignore_file_reloads_the_tree`, in `web/src/live.test.ts`.
+6. Ctrl+S with no edit writes nothing. A save writes the more common line break of the file on each line, so an unedited save rewrote a file with mixed line breaks.
+7. A `changed` during the mount of the editor is not lost. The page checked the disk only for an editor already open, so a change between the read of the file and the end of the mount gave a 412 at the next save.
+8. The editor follows a rename of its file, as the view does. Today it shows "This file was deleted on disk." A design session comes first: the unsaved edits, the revisions panel, and macOS, where a rename gives `removed` and `created`.
+9. A failed state check after a reconnection is tried again. Today the page holds its requests until the socket closes again.
+10. The stored theme shows from the first paint. Today `main.js` applies it, after the page may have painted in the system's theme.
+11. Copy content works in Safari. It fetches the file before it writes to the clipboard, and Safari may refuse a write that comes after the click's turn. The failure tooltip blames localhost on a secure page too.
+12. `CHANGELOG.md` and version 0.2.1.
+   - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
+
 ## Next
 
-1. A milestone of fixes, released as 0.2.1. Its candidates:
-   - notify-debouncer-full 0.8.0-rc.3, from the branch `debouncer-0.8`: the upgrade, step 2b and the results, without the temporary job of CI. With it, `about.toml` accepts BSL-1.0, and the watcher tests accept a repeated `removed` on macOS. The texts that give 12 s on 15,000 folders change: the comment of `forward` in `src/watch.rs`, the spec and the README. The README drops two known issues: the slow start on Linux and the folder delete on macOS.
-   - comrak 0.59, already on `main`: a crafted table of 256 KB took 72 s to render with 0.56, and takes 2 s.
-   - What a check in Safari finds. No checklist ran in Safari yet, and "Copy content" fetches the file before it writes to the clipboard, which Safari may refuse.
-   - From the open points: the editor shows "deleted" after a rename of its file; a `changed` event during `editor.mount` is lost; a failed state check after a reconnection hangs the tab; Ctrl+S with no edit rewrites a file with mixed line breaks; a write to `.gitignore` that hides folders leaves them in the tree; a stored theme shows after the system's theme; `is_dir()` and `exists()` of the watcher follow symlinks.
-   - The `test do` block of the Homebrew formula, if dist can write it.
+1. Milestone 13: fixes for 0.2.1.
 2. The Show HN, before or after 0.2.1: not decided yet.
-3. Handoff and keys, for 0.3.0. It becomes milestone 14 if the fixes take number 13, as the fixes for 0.1.1 did with milestone 11.
+3. Milestone 14: handoff and keys, for 0.3.0.
 
 ## Open points
 
-- Live updates on macOS, for milestone 13: two known issues are left after commits 2 and 3 of milestone 11. A tab does not follow a renamed file, and a folder delete sends nothing, so the folder stays in the tree.
+- Live updates on macOS, for milestones 13 and 14: two known issues are left after commits 2 and 3 of milestone 11. A tab does not follow a renamed file, and a folder delete sends nothing, so the folder stays in the tree.
   - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. Since commit 2, the disk gives the kinds, so a rename gives `removed` and `created`.
   - For some seconds after the creation of a file, FSEvents keeps reporting it, so a write gives `created`. It costs a reload of the tree. Measured on an Intel Mac with macOS 15.7.9, on 8 and 9 November 2026.
   - A folder delete: notify-debouncer-full 0.7 drops its events before mdame sees them. 0.8 fixes it, in 0.2.1: see the debouncer experiment.
@@ -1039,8 +1060,8 @@ Decided on 11 November 2026, after the results:
   - Side by side builds a new `MergeView` at each choice of a revision. It could replace the text of the left pane instead, as for the open point of milestone 7 on `choose()`.
   - The word count runs before the page paints: `Intl.Segmenter` takes about 88 ms for 1 MB of text, at each open and each live update.
 - From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
-- From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. Find out whether dist can write it.
-- From the release of 0.2.0, for milestone 13: watcher tests fail now and then on the macOS runner of CI, and pass on a rerun. A test deletes a folder or a file and creates it again. On macOS it expects one `created`, and gets `changed`, then `created`. It happened to `a_folder_created_again_stays_watched` in the first CI run of `main` after 0.2.0. On 11 November 2026, it happened in 3 macOS jobs of the first Renovate PRs: twice to that test, and once to `delete_then_create_is_removed_and_created`. FSEvents probably sent the flags of the path in two batches, so the debouncer could not merge them. The disk check found the path again, so its modify flag gave `changed`. Until then, `same` in `tests/watch.rs` accepts a `changed` before a `created` of the same path on macOS. The fix of live updates on macOS, the first open point, replaces this code. After that fix, `same` drops this tolerance, and the watcher tests must pass on macOS several runs in a row. With notify-debouncer-full 0.8, it happened in each run: the removal reached mdame, and the disk check made it `changed`. Step 2b of the debouncer experiment fixes it, in 0.2.1.
+- From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. dist cannot write it: the formula template of dist 0.33.1 has no `test do` block, and no setting for one, as checked on 11 November 2026. A step after the publish job could add it to the formula in the tap.
+- From the release of 0.2.0: watcher tests fail now and then on the macOS runner of CI, and pass on a rerun. A test deletes a folder or a file and creates it again. On macOS it expects one `created`, and gets `changed`, then `created`. It happened to `a_folder_created_again_stays_watched` in the first CI run of `main` after 0.2.0. On 11 November 2026, it happened in 3 macOS jobs of the first Renovate PRs: twice to that test, and once to `delete_then_create_is_removed_and_created`. FSEvents probably sent the flags of the path in two batches, so the debouncer could not merge them. The disk check found the path again, so its modify flag gave `changed`. Until then, `same` in `tests/watch.rs` accepts a `changed` before a `created` of the same path on macOS. The fix of live updates on macOS, the first open point, replaces this code. After that fix, `same` drops this tolerance, and the watcher tests must pass on macOS several runs in a row. With notify-debouncer-full 0.8, it happened in each run: the removal reached mdame, and the disk check made it `changed`. Step 2b of the debouncer experiment fixes it, in 0.2.1.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8: 0.2.1 takes 0.8.0-rc.3, from the debouncer experiment. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.

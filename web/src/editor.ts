@@ -148,9 +148,8 @@ function etagOf(response: Response): string {
 /** The last mount failed: its reason is on screen, and no editor is. */
 let failed = false;
 
-/** A mount waits for its file. A disk check asked for meanwhile sets
- * `missed`: the file may have changed after the mount read it. */
-let mounting = false;
+/** A disk check asked for while a mount waits for its file: the file may
+ * have changed after the mount read it. */
 let missed = false;
 
 export function mountFailed(): boolean {
@@ -169,20 +168,17 @@ export async function mount(
   const id = ++request;
   onState = listener;
   failed = false;
-  mounting = true;
   missed = false;
   let source: Source;
   try {
     source = await fetchSource(path);
   } catch (error) {
     if (id !== request) return;
-    mounting = false;
     failed = true;
     message(el, (error as ApiError).message);
     return;
   }
   if (id !== request) return;
-  mounting = false;
   const view = new EditorView({
     doc: source.content,
     extensions: [
@@ -344,7 +340,6 @@ export function unmount() {
     editorClosed(path, saved.sliceString(0, saved.length, lineBreak));
   }
   request++;
-  mounting = false;
   revisions.hide();
   preview.stop();
   // Its listener holds the closed editor and its whole text.
@@ -470,8 +465,9 @@ function restore(current: Open, id: string, content: string) {
 
 /** Compares the file on disk with the editor's text, after an event about it. */
 export function checkDisk() {
+  // With no mount waiting, the next mount clears it.
   if (open) check(open);
-  else if (mounting) missed = true;
+  else missed = true;
 }
 
 function check(current: Open) {

@@ -69,7 +69,8 @@ export function pasteImages(path: () => string, failed: (message: string) => voi
   const pending = new Set<Place>();
 
   async function link(view: EditorView, files: File[], place: Place, name: (file: File) => string) {
-    const folder = path().slice(0, path().lastIndexOf("/") + 1);
+    const markdown = path();
+    const folder = markdown.slice(0, markdown.lastIndexOf("/") + 1);
     const links: string[] = [];
     pending.add(place);
     try {

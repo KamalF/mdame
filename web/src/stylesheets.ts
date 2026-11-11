@@ -40,24 +40,25 @@ export function apply(boot = false) {
   const theme = typeof stored === "string" ? stored : null;
   // Until another theme loads, the system's scheme picks the built-in.
   const scheme = theme !== null && isBuiltIn(theme) ? theme : null;
+  // Paper takes the built-in light theme.
+  const user =
+    theme === null || scheme !== null
+      ? ""
+      : `<link id="${USER}" rel="stylesheet" media="screen" href="/themes/${encodeURIComponent(theme)}.css">`;
   // Before it paints, the browser waits for a link that the parser
   // inserts, if its media matches then. A link that a script appends, or
   // whose media changes later, does not hold the paint.
   if (boot) {
     const link = (name: BuiltIn) =>
       `<link id="mdame-theme-${name}" rel="stylesheet" href="/themes/${name}.css" media="${media(name, scheme)}">`;
-    document.write(BUILT_INS.map(link).join(""));
+    document.write(BUILT_INS.map(link).join("") + user);
   } else {
     document.getElementById(USER)?.remove();
     showBuiltIn(scheme);
+    document.head.insertAdjacentHTML("beforeend", user);
   }
-  if (theme === null || scheme !== null) return;
-  const href = `/themes/${encodeURIComponent(theme)}.css`;
-  // Paper takes the built-in light theme.
-  const tag = `<link id="${USER}" rel="stylesheet" media="screen" href="${href}">`;
-  if (boot) document.write(tag);
-  else document.head.insertAdjacentHTML("beforeend", tag);
-  const link = document.getElementById(USER) as HTMLLinkElement;
+  const link = document.getElementById(USER) as HTMLLinkElement | null;
+  if (!link) return;
   link.addEventListener("load", () => {
     showBuiltIn(isDark() ? "dark" : "light");
   });

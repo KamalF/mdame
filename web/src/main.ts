@@ -468,10 +468,21 @@ function show(state: State) {
 /** Counts the closes of the WebSocket. */
 let closes = 0;
 
-/** Refetches everything on screen, after events may have been missed. */
-async function refresh() {
+/** Refetches everything on screen, after events may have been missed.
+ * `failures` counts the state checks that failed in a row. */
+async function refresh(failures = 0) {
   const closed = closes;
-  const state = await api<State>("GET", "/api/state");
+  let state: State;
+  try {
+    state = await api<State>("GET", "/api/state");
+  } catch {
+    // Until a check passes, the page holds its requests. While this socket
+    // stays open, no reconnection asks again.
+    setTimeout(() => {
+      if (closes === closed) refresh(failures + 1);
+    }, live.retryDelay(failures));
+    return;
+  }
   // The answer may come from the mdame that is gone since.
   if (closes !== closed) return;
   // The server restarted on another folder.

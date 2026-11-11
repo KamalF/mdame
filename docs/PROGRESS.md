@@ -1043,7 +1043,9 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - The same holds for the check after a reconnection.
    - No unit test: the race needs a browser, and a change at the right moment.
 8. The editor follows a rename of its file, as the view does. Today it shows "This file was deleted on disk." A design session comes first: the unsaved edits, the revisions panel, and macOS, where a rename gives `removed` and `created`.
-9. A failed state check after a reconnection is tried again. Today the page holds its requests until the socket closes again.
+9. A failed state check after a reconnection is tried again (done). The page held its requests until the socket closed again, which could be never.
+   - With the backoff of the socket: 500 ms, doubling up to 10 s. Once the socket closes, the next reconnection checks again, and the retries of the old socket stop.
+   - No unit test: `main.ts` needs a browser.
 10. The stored theme shows from the first paint. Today `main.js` applies it, after the page may have painted in the system's theme.
 11. Copy content works in Safari. It fetches the file before it writes to the clipboard, and Safari may refuse a write that comes after the click's turn. The failure tooltip blames localhost on a secure page too.
 12. `CHANGELOG.md` and version 0.2.1.
@@ -1119,7 +1121,6 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
   - The view's notice for a 1–8 MB file says "Open it in the editor" for a hidden file that is not markdown, or for a file that is not UTF-8.
   - A file rewritten during editing as non-UTF-8, or past 8 MB, gives a status error or a 413, and no notice.
   - Two quick Backs with unsaved edits open two dialogs. `e`, a `#…` link in the preview, then Esc leave [view, edit, view] in the history.
-  - If the state check of a reconnection fails once, the page holds its requests while its socket stays open.
   - Ctrl+S on non-Latin keyboard layouts (not checked).
   - The scroll sync reads one rect per `[data-sourcepos]` element at each scroll frame.
   - A file swapped for a FIFO between the type check and the open hangs the save, and the saves after it: the `O_NONBLOCK` fix of milestone 4's open point must cover the save's open too.

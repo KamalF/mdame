@@ -21,7 +21,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 9 | Agent workflow | Done 7 November 2026, merged into `main` the same day | 22, with the review fixes |
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
-| 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; the release and the Show HN are next | 45, with the review and checklist fixes |
+| 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
 | 13 | Handoff and keys | Scope decided 10 November 2026 | 6 items |
 
 Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`.
@@ -900,6 +900,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 9. Version 0.2.0 (done). `Cargo.toml` says 0.2.0, and the section of 0.2.0 in `CHANGELOG.md` has the date of 11 November 2026, the day of the release. The README calls 0.2.0 an early release. `dist plan --tag=v0.2.0` takes the title and the notes of the release from that section.
    - Then checks 1 to 8 of the manual checklist, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, and the Show HN.
    - Checked on 10 November 2026: the release job of dist works with GitHub's immutable releases. Immutable releases freeze the assets of a release once it is published. The `host` job creates the release with one `gh release create … artifacts/*`, and gh creates a draft, uploads the archives, and then publishes it. The jobs after it push the formula to the tap and download the archives, so none changes the release.
+   - Done on 11 November 2026: mdame 0.2.0 is on GitHub, in the tap and on crates.io. The push of the branch for CI also pushed the tag, since Kamal's git config sets `push.followTags`. The release run was cancelled during its builds and the tag deleted. The tag went out again after CI passed on the branch and on `main`.
 
 Review, on 10 November 2026: one pass of `/simplify`, then 9 rounds of a code reviewer and a security reviewer, until a round found no blocker and no should-fix. The rounds found 19 should-fix findings, all fixed: the items above give them, under "From the review". Some reviewers checked the layout in a headless Chromium. Left for later: the contrast of the mixed backgrounds, and the nits, under Open points.
 
@@ -944,6 +945,8 @@ Release, after 0.2.0 is published:
 9. CI runs for the push of `main`, and the job "Check release" passes on its Linux and macOS runners. The release job passes, and GitHub shows the release of 0.2.0 as immutable, with the notes of its section in `CHANGELOG.md`.
 10. `brew upgrade mdame` on Linux and on the Mac, `mise use -g github:KamalF/mdame@0.2.0`, and `cargo install --locked mdame` each give a mdame whose `--version` is 0.2.0, and that opens a folder.
 
+Run on 11 November 2026, after the release: checks 9 and 10 pass. Kamal ran them with the runbook `~/dev/claude/runbooks/2026-11-11-mdame-release-0.2.0.md`. The first CI run of `main` failed a test on the macOS runner, and a rerun of the job passed: see Open points.
+
 ## Public repository and crate
 
 Decided on 29 October 2026, before milestone 8:
@@ -958,7 +961,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Release 0.2.0. Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, then the Show HN.
+1. The Show HN.
 2. Milestone 13.
 
 ## Open points
@@ -980,6 +983,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
   - The word count runs before the page paints: `Intl.Segmenter` takes about 88 ms for 1 MB of text, at each open and each live update.
 - From check 7 of milestone 11: if a bad ignore file at or above the root empties the tree, the page says only "This folder has no file that mdame shows". The cause is in the terminal only. The page could name the file.
 - From the release of 0.1.1: `brew audit` asks for a `test do` block in the formula that dist writes, such as one that runs `mdame --version`. Find out whether dist can write it.
+- From the release of 0.2.0: a test failed once on the macOS runner, in the first CI run of `main`, and passed on a rerun. The same commit had passed on the branch. Its name is in the log of that attempt: `gh run view 42999685662 --attempt 1 --log-failed`.
 - From milestone 10, the watcher:
   - Move to notify-debouncer-full 0.8 once it is final. Its watches no longer take quadratic time, so live updates would start at once on a large workspace, and the watches after an overflow would come back at once. Its unwatching stays linear for each folder, so hiding many folders stays slow.
   - A gitignored file in a folder that the tree shows still sends events, so the list of changes can show a markdown file that the tree hides.

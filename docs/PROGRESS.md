@@ -1076,11 +1076,17 @@ Left for later: the findings under Open points.
 
 ### Manual checklist
 
+Run on 11 and 12 November 2026, before the merge: checks 1 to 7 pass. Claude ran checks 1 to 4 in the headless Chrome of agent-browser, on the release build, and made the changes on disk. Kamal ran checks 5 and 6 in Chrome and Firefox, and Claude ran the print of check 5. On 12 November, Kamal ran the Safari parts of checks 6 and 7 on sachamac, with the runbook `~/dev/claude/runbooks/2026-11-11-mdame-m13-safari.md`. Notes:
+
+- 1: three steps of the first text were wrong, and are fixed below. vim refuses `nobackupcopy`, since `backupcopy` takes a value. In the editor, `h` types a letter, so the Revisions button opens diff mode. After Ctrl+Z, the text matches the disk, so Ctrl+S writes nothing: the word is typed again first.
+- 4: a wrapper around `fetch` in the page refused `/api/state`, in place of the request blocking of DevTools. The token file kept the cookie valid across the restart. After the unblock, the next state check passed in 1.8 s, and the editor opened with no second click.
+- 6 and 7, in Safari: `pbpaste` over ssh read the clipboard of the Mac. Check 7 also reloaded the page after each of two themes, Catppuccin Mocha and Light: no white page came first.
+
 These checks cover what no test covers: the editor, the theme and the clipboard in real browsers, Safari among them, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds `a.md`, `docs/b.md`, and `mixed.md`, whose lines end in `\n` and in `\r\n`.
 
 Editor:
 
-1. On Linux, open `a.md` in the editor and type a word, without saving. In a terminal, `mv a.md a2.md`: the address and the status bar name `a2.md`, the unsaved dot stays, and Ctrl+Z removes the word. Ctrl+S writes `a2.md`. Open diff mode with `h`, then `mv a2.md a.md`: diff mode closes, and the editor names `a.md`. In vim, with `:set nobackup writebackup nobackupcopy`, save `a.md`: the editor stays on `a.md`, and shows the change. Esc shows the view of `a.md`. Press `e`, type a word and press Esc. While the dialog asks, `mv a.md a2.md`: Discard shows the view of `a2.md`.
+1. On Linux, open `a.md` in the editor and type a word, without saving. In a terminal, `mv a.md a2.md`: the address and the status bar name `a2.md`, the unsaved dot stays, and Ctrl+Z removes the word. Type it again: Ctrl+S writes `a2.md`. Open diff mode with the Revisions button, then `mv a2.md a.md`: diff mode closes, and the editor names `a.md`. In vim, with `:set nobackup writebackup backupcopy=no`, save `a.md`: the editor stays on `a.md`, and shows the change. Esc shows the view of `a.md`. Press `e`, type a word and press Esc. While the dialog asks, `mv a.md a2.md`: Discard shows the view of `a2.md`.
 2. Open `mixed.md` in the editor and press Ctrl+S, then the Save button: `sha256sum mixed.md` gives the same sum before and after, and the revisions panel lists no new revision.
 
 Tree and connection:

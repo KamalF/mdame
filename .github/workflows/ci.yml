@@ -2,9 +2,10 @@ name: CI
 
 on:
   # Only branches, so not tags: CI already tested the commit of a release
-  # tag on its branch.
+  # tag on its branch. Not Renovate's branches either: each has a pull
+  # request, which runs CI.
   push:
-    branches: ['**']
+    branches: ['**', '!renovate/**']
   pull_request:
 
 permissions:

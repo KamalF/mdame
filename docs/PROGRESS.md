@@ -897,7 +897,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - `Intl.Segmenter` finds the words, so a text in Chinese or Thai, with no spaces, counts too. Punctuation does not count, and numbers do.
    - Markdown only: other types render as code, or as a table of data. The editor shows no count: its status bar is rebuilt at each keystroke. A file too large to show gets no count: its article holds only the notice. The review found it.
    - The count runs at each render, and at each live update of the file.
-9. Version 0.2.0 (done). `Cargo.toml` says 0.2.0, and the section of 0.2.0 in `CHANGELOG.md` has the date of 10 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.2.0 an early release. `dist plan --tag=v0.2.0` takes the title and the notes of the release from that section.
+9. Version 0.2.0 (done). `Cargo.toml` says 0.2.0, and the section of 0.2.0 in `CHANGELOG.md` has the date of 11 November 2026, the day of the release. The README calls 0.2.0 an early release. `dist plan --tag=v0.2.0` takes the title and the notes of the release from that section.
    - Then checks 1 to 8 of the manual checklist, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, and the Show HN.
    - Checked on 10 November 2026: the release job of dist works with GitHub's immutable releases. Immutable releases freeze the assets of a release once it is published. The `host` job creates the release with one `gh release create … artifacts/*`, and gh creates a draft, uploads the archives, and then publishes it. The jobs after it push the formula to the tap and download the archives, so none changes the release.
 
@@ -958,7 +958,7 @@ Done on 29 October 2026: https://github.com/KamalF/mdame is public, and crates.i
 
 ## Next
 
-1. Release 0.2.0. The section of 0.2.0 in `CHANGELOG.md` takes the date of the release. Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, then the Show HN.
+1. Release 0.2.0. Kamal pushes `main` and the tag `v0.2.0`, and runs `cargo publish`. Then checks 9 and 10, then the Show HN.
 2. Milestone 13.
 
 ## Open points

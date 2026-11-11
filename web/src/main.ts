@@ -334,7 +334,7 @@ async function followEditor(from: string, to: string) {
     view.renameSeen(from, to);
     editor?.rename(to);
   }
-  editor?.checkDisk();
+  checkDiskSoon();
 }
 
 function onEvent(event: live.LiveEvent) {

@@ -54,7 +54,9 @@ export function apply(boot = false) {
     document.write(BUILT_INS.map(link).join("") + user);
   } else {
     document.getElementById(USER)?.remove();
-    showBuiltIn(scheme);
+    // Another theme sets the built-ins once it loads. Until then, they keep
+    // showing the previous theme, not the system's scheme.
+    if (user === "") showBuiltIn(scheme);
     document.head.insertAdjacentHTML("beforeend", user);
   }
   const link = document.getElementById(USER) as HTMLLinkElement | null;

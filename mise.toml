@@ -8,7 +8,7 @@ cargo-insta = "1.49.0"
 # Mutation testing runs on Linux only: cargo-mutants has no build for ARM macOS.
 "github:nextest-rs/nextest" = { version = "cargo-nextest-0.9.148", os = ["linux"] }
 "github:sourcefrog/cargo-mutants" = { version = "27.1.0", os = ["linux"] }
-rust = { version = "1.99.0", components = "rust-analyzer,clippy,rustfmt" }
+rust = { version = "1.99.1", components = "rust-analyzer,clippy,rustfmt" }
 
 [vars]
 bundle = "bun build web/src/main.ts --outdir web/dist/assets --splitting --minify --format esm --external '*.woff2' --external '*.woff'"

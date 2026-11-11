@@ -22,9 +22,9 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
-| 13 | Handoff and keys | Scope decided 10 November 2026 | 6 items |
+| 13 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November | 6 items |
 
-Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`.
+Milestone 13 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
 
 ## Milestone 1: skeleton
 

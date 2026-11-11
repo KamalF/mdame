@@ -670,7 +670,7 @@ Ten milestones for v1, released as 0.1.0, then two more before the Show HN, and 
 11. **Fixes for 0.1.1.** Live updates on macOS, through a check of the disk for each event, and the watcher tests on macOS. Security: the rules of hidden folders apply to the root too, `/api/*` refuses cross-site requests, the walker skips an ignore file that is not a regular file, and search answers cut long lines. Release: a licence that GitHub detects, the licence texts of the Rust dependencies in the archives, a changelog, `rust-version`, stripped binaries with attestations. A favicon. Then release 0.1.1.
    - Done when: the watcher tests pass on the macOS runner of CI, except the cases that the README lists as known issues. `brew install` gives a working 0.1.1 on Linux and macOS.
 12. **Later items for 0.2.0.** Arrow keys in the sidebar tree, side-by-side diff, the mono toggle, wide blocks, the Catppuccin and Minimal themes, pasting or dropping an image into the editor, a print stylesheet, word count. Then release 0.2.0, and the Show HN.
-13. **Handoff and keys.** Read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff to a running mdame, and the two known issues of live updates on macOS: a folder delete, and a tab that follows a renamed file. Maybe copy as quote.
+13. **Handoff and keys.** Read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff to a running mdame, and the two known issues of live updates on macOS: a folder delete, and a tab that follows a renamed file. Maybe copy as quote. Then release 0.3.0.
 
 After milestone 13, toasts and the launchd service wait.
 
@@ -727,6 +727,7 @@ After milestone 13, toasts and the launchd service wait.
 | `LICENSE` holds only the MIT text and its copyright lines, so that GitHub detects it. The notices of mdlive, Lucide, Feather and Primer move to `NOTICE`, which the package and the release archives hold | 9 November 2026 |
 | The release archives carry the licence texts of the Rust crates, which cargo-about writes in each build of the release. The file stays out of git, and the npm texts stay in their own file | 9 November 2026 |
 | Milestone 12 takes arrow keys, side-by-side diff, mono, wide blocks, the Catppuccin and Minimal themes, pasted images, print and word count, then releases 0.2.0. Milestone 13 takes read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff, and the known issues of live updates on macOS, with copy as quote as a candidate. The launchd service waits | 10 November 2026 |
+| Milestone 13 ends with the release of 0.3.0 | 11 November 2026 |
 | Renovate keeps the dependencies up to date, through the GitHub App. The browser packages and Bun come in one PR a month, rebuilt by hand. dist and cargo-about stay manual | 11 November 2026 |
 
 ### Review log, 14 October 2026

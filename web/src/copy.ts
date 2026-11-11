@@ -13,12 +13,14 @@ interface CopyOptions {
 export function copyButton({ label, iconName, text }: CopyOptions): HTMLButtonElement {
   const button = iconButton(label, iconName, async () => {
     try {
-      await navigator.clipboard.writeText(await text());
+      await write(text());
       button.replaceChildren(icon("check"));
     } catch {
-      // The clipboard API exists only on secure pages: localhost, not a LAN address.
       button.replaceChildren(icon("cross"));
-      button.title = "Copy failed: the clipboard works only through localhost";
+      // The clipboard API exists only on secure pages: localhost, not a LAN address.
+      button.title = isSecureContext
+        ? "Copy failed"
+        : "Copy failed: the clipboard works only through localhost";
     }
     setTimeout(() => {
       button.replaceChildren(icon(iconName));
@@ -26,4 +28,15 @@ export function copyButton({ label, iconName, text }: CopyOptions): HTMLButtonEl
     }, 1200);
   });
   return button;
+}
+
+/** Safari refuses a write that starts after the click's turn, such as one
+ * after a fetch. A `ClipboardItem` takes the promise during that turn. */
+async function write(text: string | Promise<string>) {
+  if (typeof text === "string" || typeof ClipboardItem === "undefined") {
+    await navigator.clipboard.writeText(await text);
+    return;
+  }
+  const blob = text.then((value) => new Blob([value], { type: "text/plain" }));
+  await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
 }

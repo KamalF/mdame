@@ -1047,7 +1047,10 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - With the backoff of the socket: 500 ms, doubling up to 10 s. Once the socket closes, the next reconnection checks again, and the retries of the old socket stop.
    - No unit test: `main.ts` needs a browser.
 10. The stored theme shows from the first paint. Today `main.js` applies it, after the page may have painted in the system's theme.
-11. Copy content works in Safari. It fetches the file before it writes to the clipboard, and Safari may refuse a write that comes after the click's turn. The failure tooltip blames localhost on a secure page too.
+11. Copy content works in Safari (done). It fetches the file before it writes to the clipboard, and Safari may refuse a write that comes after the click's turn. The failure tooltip blamed localhost on a secure page too.
+   - When the text comes from a promise, the button writes a `ClipboardItem` that holds the promise, during the click's turn. Chrome, Firefox from 127 and Safari from 13.1 take one. Without `ClipboardItem`, the button keeps `writeText`.
+   - On a secure page, a failure now says "Copy failed". Only a page that is not secure, such as one on a LAN address, names localhost.
+   - Checked by hand, in the manual checklist: Copy content in Chrome, Firefox and Safari.
 12. `CHANGELOG.md` and version 0.2.1.
    - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
 
@@ -1137,7 +1140,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
   - No test fails if `with_follow_symlinks(false)` is removed: the event filter hides it, and only the number of inotify watches shows it. To check again since `2f2a6e9`: with a watch per folder, the setting may change nothing on Linux.
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
-- From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread; "Copy content" fetches before it writes to the clipboard, which Safari may refuse, and the failure tooltip then blames localhost.
+- From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread.
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.
 - Debug builds render a dense 1 MB markdown file in about 10 s. If `mise run dev` feels slow, `[profile.dev.package."*"] opt-level = 2` optimizes the dependencies only.
 - From the review of 18 October 2026, for later:

@@ -82,7 +82,9 @@ fn drop_until_quiet(events: &mut Receiver<Event>) {
 }
 
 /// In any order. On macOS, a write can be `created`: for some seconds after
-/// the creation of a file, FSEvents keeps reporting it.
+/// the creation of a file, FSEvents keeps reporting it. A path deleted and
+/// created again can also get a `changed` before its `created`, until
+/// milestone 13 fixes live updates on macOS.
 fn same(events: &[Event], expected: &[Event]) -> bool {
     let matches = |expected: &Event, event: &Event| {
         expected == event
@@ -92,10 +94,27 @@ fn same(events: &[Event], expected: &[Event]) -> bool {
                     (Event::Changed { path }, Event::Created { path: created }) if path == created
                 )
     };
-    events.len() == expected.len()
-        && expected
+    let same_as = |events: &[Event]| {
+        events.len() == expected.len()
+            && expected
+                .iter()
+                .all(|expected| events.iter().any(|event| matches(expected, event)))
+    };
+    same_as(events) || cfg!(target_os = "macos") && same_as(&without_change_before_creation(events))
+}
+
+fn without_change_before_creation(events: &[Event]) -> Vec<Event> {
+    let created_later = |i: usize, path: &String| {
+        events[i + 1..]
             .iter()
-            .all(|expected| events.iter().any(|event| matches(expected, event)))
+            .any(|later| matches!(later, Event::Created { path: created } if created == path))
+    };
+    events
+        .iter()
+        .enumerate()
+        .filter(|(i, event)| !matches!(event, Event::Changed { path } if created_later(*i, path)))
+        .map(|(_, event)| event.clone())
+        .collect()
 }
 
 fn changed(path: &str) -> Event {
@@ -229,16 +248,12 @@ async fn folder_deleted_then_created_is_removed_and_created() {
     let mut watched = Watched::new(&[A, ("docs/child.md", b"")]);
     fs::remove_dir_all(watched.path("docs")).unwrap();
     fs::create_dir(watched.path("docs")).unwrap();
-    let events = watched.next().await;
-    let (linux, macos) = ([removed("docs"), created("docs")], [created("docs")]);
-    let expected = per_os(&linux, &macos);
-    // On the macOS runner of CI, FSEvents once also reported a change of
-    // `docs`, before its creation.
-    let with_change = [changed("docs"), created("docs")];
-    assert!(
-        same(&events, expected) || cfg!(target_os = "macos") && events == with_change,
-        "expected {expected:?}, got {events:?}"
-    );
+    watched
+        .assert_next(per_os(
+            &[removed("docs"), created("docs")],
+            &[created("docs")],
+        ))
+        .await;
 }
 
 #[tokio::test]

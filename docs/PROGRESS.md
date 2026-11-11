@@ -1065,6 +1065,34 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
 12. `CHANGELOG.md` and version 0.2.1 (done). `Cargo.toml` says 0.2.1, and the section of 0.2.1 in `CHANGELOG.md` has the date of 11 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.2.1 an early release.
    - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
 
+### Manual checklist
+
+These checks cover what no test covers: the editor, the theme and the clipboard in real browsers, Safari among them, and the release as a user gets it. Run mdame with `cargo run --release -- -p 4996 <folder>`, and reload each open tab after a rebuild. A change on disk comes from a terminal, not from mdame's editor. The test folder holds `a.md`, `docs/b.md`, and `mixed.md`, whose lines end in `\n` and in `\r\n`.
+
+Editor:
+
+1. On Linux, open `a.md` in the editor and type a word, without saving. In a terminal, `mv a.md a2.md`: the address and the status bar name `a2.md`, the unsaved dot stays, and Ctrl+Z removes the word. Ctrl+S writes `a2.md`. Open diff mode with `h`, then `mv a2.md a.md`: diff mode closes, and the editor names `a.md`. In vim, with `:set nobackup writebackup nobackupcopy`, save `a.md`: the editor stays on `a.md`, and shows the change. Esc shows the view of `a.md`.
+2. Open `mixed.md` in the editor and press Ctrl+S, then the Save button: `sha256sum mixed.md` gives the same sum before and after, and the revisions panel lists no new revision.
+
+Tree and connection:
+
+3. Add a line `docs/` to `.gitignore` in a terminal: `docs` leaves the tree, without a reload. Remove the line: `docs` comes back.
+4. In Chrome's DevTools, under Network request blocking, block `/api/state`. Stop mdame and start it again: the page says "Try again once mdame is back" when you click Edit. Unblock `/api/state`: within 10 s, Edit works again, without a reload.
+
+Theme and clipboard:
+
+5. Choose Catppuccin Mocha with the system in light mode, and reload the page five times: no reload shows a white page first. Choose Light with the system in dark mode, and do the same. Print `a.md`: the paper shows the Light theme.
+6. Copy content and Copy path, in Chrome, Firefox and Safari: each pastes the text of `a.md`, or its path, into a terminal.
+
+Safari, on the Mac:
+
+7. Open `a.md`, change it on disk, edit it and save it, and choose two themes. Each works as in Chrome. Delete a folder in the terminal: the tree drops it, without a reload.
+
+Release, after 0.2.1 is published:
+
+8. CI runs for the push of `main`: the watcher tests pass on the macOS runner, and the job "Check release" passes on its Linux and macOS runners. The release job passes, and GitHub shows the release of 0.2.1 with the notes of its section in `CHANGELOG.md`.
+9. `brew upgrade mdame` on Linux and on the Mac, `mise use -g github:KamalF/mdame@0.2.1`, and `cargo install --locked mdame` each give a mdame whose `--version` is 0.2.1, and that opens a folder.
+
 ## Next
 
 1. Milestone 13: fixes for 0.2.1.

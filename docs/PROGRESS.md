@@ -1062,7 +1062,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - When the text comes from a promise, the button writes a `ClipboardItem` that holds the promise, during the click's turn. Chrome, Firefox from 127 and Safari from 13.1 take one. Without `ClipboardItem`, the button keeps `writeText`.
    - On a secure page, a failure now says "Copy failed". Only a page that is not secure, such as one on a LAN address, names localhost.
    - Checked by hand, in the manual checklist: Copy content in Chrome, Firefox and Safari.
-12. `CHANGELOG.md` and version 0.2.1 (done). `Cargo.toml` says 0.2.1, and the section of 0.2.1 in `CHANGELOG.md` has the date of 11 November 2026. If the release comes on a later day, the date changes with it. The README calls 0.2.1 an early release.
+12. `CHANGELOG.md` and version 0.2.1 (done). `Cargo.toml` says 0.2.1, and the section of 0.2.1 in `CHANGELOG.md` has the date of 12 November 2026, the day of the release. The README calls 0.2.1 an early release.
    - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
 
 Review, on 11 November 2026: one pass of `/simplify`, then 2 rounds of a code reviewer and a security reviewer. The second round found no blocker and no should-fix. The first round found 1 should-fix, which is fixed: Esc and Back read the path of the editor before the discard dialog, so a rename during the dialog left them on the old name. The pass of `/simplify` and the nits gave these other fixes:
@@ -1110,7 +1110,7 @@ Release, after 0.2.1 is published:
 
 ## Next
 
-1. Milestone 13: fixes for 0.2.1.
+1. Release 0.2.1. Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`. Then checks 8 and 9.
 2. The Show HN, before or after 0.2.1: not decided yet.
 3. Milestone 14: handoff and keys, for 0.3.0.
 

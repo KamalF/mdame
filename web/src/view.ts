@@ -131,31 +131,65 @@ export async function refreshFile(el: HTMLElement, path: string): Promise<FileVi
   const id = ++request;
   const file = await fetchFile(el, path, id);
   if (!file) return null;
-  const article = await prepare(file.html);
+  const onPage = el.querySelector<HTMLElement>(":scope > article")!;
+  const article = articleFor(file.html);
+  const change = await prepare(article, onPage);
   if (id !== request) return null;
   shown = { path, file };
   onScreen = { path, source: file.source };
-  const onPage = el.querySelector<HTMLElement>(":scope > article")!;
   clearBars(onPage);
-  morphInto(onPage, article);
+  morphInto(onPage, article, change);
   bars(onPage, path, file);
   return file;
 }
 
-/** The article for `html`, coloured and with its diagrams drawn, ready for
- * `morphInto` without a flash of plain code. */
-export async function prepare(html: string): Promise<HTMLElement> {
-  const article = articleFor(html);
-  await Promise.all([highlightAll(article), renderDiagrams(article)]);
-  // An image may have changed during the wait above.
-  for (const img of article.querySelectorAll("img")) useVersion(img);
-  return article;
+/** The top-level nodes of `next` that differ from those of the article on
+ * screen: all but `start` nodes at the start and `end` at the end. */
+export interface Change {
+  start: number;
+  end: number;
 }
 
-/** Replaces only what differs between `shown` and `next`. The scroll
- * position stays. A text selection and an open `<details>` stay if no
- * block changes above them, or none below them. */
-export function morphInto(shown: HTMLElement, next: HTMLElement) {
+/**
+ * Colours the code of `next`, an article from `articleFor`, and draws its
+ * diagrams, so that `morphInto` shows no flash of plain code. With
+ * `shown`, the article on screen, only the blocks that differ from it:
+ * a dense 1 MB file has 2,000 code blocks.
+ */
+export async function prepare(next: HTMLElement, shown?: HTMLElement): Promise<Change> {
+  // idiomorph over the whole article costs more than linear time in its
+  // blocks: 4 s for a dense 1 MB file. An edit changes a few blocks, so
+  // the unchanged ones at the start and the end stay as they are. Nodes,
+  // not elements: an HTML block can leave text between the blocks.
+  const was = shown ? keysOf(shown) : [];
+  const now = keysOf(next);
+  let start = 0;
+  while (start < was.length && start < now.length && was[start] === now[start]) start++;
+  let end = 0;
+  while (
+    end < was.length - start &&
+    end < now.length - start &&
+    was[was.length - 1 - end] === now[now.length - 1 - end]
+  ) {
+    end++;
+  }
+  const nodes = [...next.childNodes];
+  const changed = new Set<Node>(nodes.slice(start, nodes.length - end));
+  const inChange = (element: Element) => {
+    let node: Node = element;
+    while (node.parentNode !== next) node = node.parentNode!;
+    return changed.has(node);
+  };
+  await Promise.all([highlightAll(next, inChange), renderDiagrams(next, inChange)]);
+  // An image may have changed during the wait above.
+  for (const img of next.querySelectorAll("img")) useVersion(img);
+  return { start, end };
+}
+
+/** Replaces only what differs between `shown` and `next`, as `prepare`
+ * found it. The scroll position stays. A text selection and an open
+ * `<details>` stay if no block changes above them, or none below them. */
+export function morphInto(shown: HTMLElement, next: HTMLElement, { start, end }: Change) {
   const config = {
     callbacks: {
       // The server's HTML never has it: a `<details>` the reader opened
@@ -164,23 +198,8 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
         !(type === "remove" && name === "open"),
     },
   };
-  // idiomorph over the whole article costs more than linear time in its
-  // blocks: 4 s for a dense 1 MB file. An edit changes a few blocks, so
-  // the unchanged ones at the start and the end stay as they are. Nodes,
-  // not elements: an HTML block can leave text between the blocks.
   const old = [...shown.childNodes];
   const neu = [...next.childNodes];
-  const same = (a: Node, b: Node) => a.nodeType === b.nodeType && key(a) === key(b);
-  let start = 0;
-  while (start < old.length && start < neu.length && same(old[start], neu[start])) start++;
-  let end = 0;
-  while (
-    end < old.length - start &&
-    end < neu.length - start &&
-    same(old[old.length - 1 - end], neu[neu.length - 1 - end])
-  ) {
-    end++;
-  }
   // An edit above them moves their lines.
   for (let i = 0; i < start; i++) copyLines(old[i], neu[i]);
   for (let i = 1; i <= end; i++) copyLines(old[old.length - i], neu[neu.length - i]);
@@ -195,11 +214,29 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
   for (const removed of oldMiddle.slice(pairs)) removed.remove();
   const before = end > 0 ? old[old.length - end] : null;
   for (const added of newMiddle.slice(pairs)) shown.insertBefore(added, before);
+  keys.set(shown, keysOf(next));
   // idiomorph inserts copies of new nodes, without their click listeners.
   for (const block of shown.querySelectorAll(".mdame-code")) {
     const button = block.querySelector(":scope > button");
     if (button && !copyButtons.has(button)) button.replaceWith(codeCopyButton(block));
   }
+}
+
+/** The keys of each article's top-level nodes, from the server's HTML:
+ * highlighting and diagrams change the nodes, but not what they show.
+ * Each node on screen pairs with the node of the same index here: a
+ * diagram replaces its code block, and a failed one wraps it. */
+const keys = new WeakMap<HTMLElement, string[]>();
+
+/** A message or a notice is not from the server's HTML, and its nodes are
+ * their own keys. */
+function keysOf(article: HTMLElement): string[] {
+  let found = keys.get(article);
+  if (!found) {
+    found = [...article.childNodes].map(key);
+    keys.set(article, found);
+  }
+  return found;
 }
 
 /** A node's HTML without what a fresh render does not decide: the values
@@ -209,20 +246,25 @@ export function morphInto(shown: HTMLElement, next: HTMLElement) {
  * tags only: a text can hold the same words, but its `<` and `>` are
  * escaped. */
 function key(node: Node): string {
-  if (!(node instanceof Element)) return node.textContent ?? "";
+  if (!(node instanceof Element)) return `${node.nodeType} ${node.textContent ?? ""}`;
   return node.outerHTML.replace(/( data-sourcepos)="[^"]*"(?=[^<>]*>)| open=""(?=[^<>]*>)/g, "$1");
 }
 
-/** Gives `shown` the line numbers of `next`, an equal node. */
+/** The elements of `node` that have a line number, `node` first if it
+ * has one. */
+function withLines(node: Element): Element[] {
+  const inside = [...node.querySelectorAll("[data-sourcepos]")];
+  return node.hasAttribute("data-sourcepos") ? [node, ...inside] : inside;
+}
+
+/** Gives `shown` the line numbers of `next`, an equal node. `next` may be
+ * a code block that `shown` turned into a diagram. */
 function copyLines(shown: Node, next: Node) {
   if (!(shown instanceof Element && next instanceof Element)) return;
-  const from = [next, ...next.querySelectorAll("[data-sourcepos]")];
-  const to = [shown, ...shown.querySelectorAll("[data-sourcepos]")];
-  from.forEach((element, i) => {
-    const lines = element.getAttribute("data-sourcepos");
-    if (lines !== null && to[i].getAttribute("data-sourcepos") !== lines) {
-      to[i].setAttribute("data-sourcepos", lines);
-    }
+  const to = withLines(shown);
+  withLines(next).forEach((element, i) => {
+    const lines = element.getAttribute("data-sourcepos")!;
+    if (to[i].getAttribute("data-sourcepos") !== lines) to[i].setAttribute("data-sourcepos", lines);
   });
 }
 
@@ -285,7 +327,7 @@ export function refreshImages(el: HTMLElement) {
   for (const img of el.querySelectorAll("img")) useVersion(img);
 }
 
-function articleFor(html: string): HTMLElement {
+export function articleFor(html: string): HTMLElement {
   const article = document.createElement("article");
   article.className = "mdame-document";
   // Sanitized by the server.
@@ -297,6 +339,7 @@ function articleFor(html: string): HTMLElement {
   for (const img of article.querySelectorAll("img")) useVersion(img);
   addCopyButtons(article);
   markImages(article);
+  keysOf(article);
   return article;
 }
 

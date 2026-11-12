@@ -56,16 +56,19 @@ async function draw(source: string, copy: number): Promise<string> {
   return svg;
 }
 
-/** Turns `.mmd` files and `mermaid` code blocks in `root` into diagrams. */
-export async function renderDiagrams(root: HTMLElement) {
+/** Turns `.mmd` files and `mermaid` code blocks in `root` into diagrams,
+ * those that `include` keeps. */
+export async function renderDiagrams(root: HTMLElement, include = (_: Element) => true) {
   const blocks = root.querySelectorAll("pre.mermaid, pre:has(> code.language-mermaid)");
   const copies = new Map<string, number>();
   for (const pre of blocks) {
-    const figure = document.createElement("div");
-    figure.className = "mdame-diagram";
     const source = pre.textContent ?? "";
+    // Counted in all of `root`: a copy's number gives its ids.
     const copy = (copies.get(source) ?? 0) + 1;
     copies.set(source, copy);
+    if (!include(pre)) continue;
+    const figure = document.createElement("div");
+    figure.className = "mdame-diagram";
     try {
       figure.innerHTML = await draw(source, copy);
       // Mermaid gives the drawing a width of 100%, and its own width as
@@ -79,10 +82,13 @@ export async function renderDiagrams(root: HTMLElement) {
       }
       pre.replaceWith(figure);
     } catch (error) {
-      // Keep the source, with the reason below it.
+      // Keep the source, with the reason below it, in one block: the view
+      // pairs its blocks with those of the server's HTML.
       figure.className = "mdame-diagram-error";
       figure.textContent = `Mermaid: ${(error as Error).message}`;
-      pre.after(figure);
+      const failed = document.createElement("div");
+      pre.replaceWith(failed);
+      failed.append(pre, figure);
     }
   }
 }

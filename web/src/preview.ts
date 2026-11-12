@@ -1,6 +1,6 @@
 import { api, type ApiError } from "./api.ts";
 import { serial } from "./serial.ts";
-import { message, morphInto, prepare } from "./view.ts";
+import { articleFor, message, morphInto, prepare } from "./view.ts";
 import { watchWide } from "./wide.ts";
 
 /** Typing pauses shorter than this share one render. */
@@ -40,7 +40,7 @@ async function render(path: string, content: string): Promise<HTMLElement> {
   }
   try {
     const { html } = await api<{ html: string }>("POST", "/api/render", { path, content });
-    return await prepare(html);
+    return articleFor(html);
   } catch (error) {
     const article = document.createElement("article");
     article.className = "mdame-document";
@@ -75,9 +75,10 @@ export function show(el: HTMLElement, path: string, content: string) {
     const { el, path, content } = next;
     next = null;
     const article = await render(path, content);
+    const shown = el.querySelector<HTMLElement>(":scope > article") ?? undefined;
+    const change = await prepare(article, shown);
     if (target !== el) return;
-    const shown = el.querySelector<HTMLElement>(":scope > article");
-    if (shown) morphInto(shown, article);
+    if (shown) morphInto(shown, article, change);
     else {
       el.replaceChildren(article);
       watchWide(article);

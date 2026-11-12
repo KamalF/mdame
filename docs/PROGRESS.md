@@ -1161,9 +1161,18 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
    - Each node on screen pairs with the node of the same index in the server's HTML. A failed diagram now wraps its code block and its error in one block, instead of adding the error after it.
    - `copyLines` pairs the elements that have a line number: a diagram on screen pairs with its code block in the new article.
    - Measure, appending a paragraph to `dense.md`: the update blocks the tab 1.6 s instead of 2.0 s. `morphInto` takes 0.24 s instead of 0.48 s, and the highlighting of 2,000 code blocks no longer runs. Appending a line to `changelog.md`: 335 ms instead of about 410 ms. What remains is mostly the parse of the new HTML and one layout of the page.
-6. A virtual tree, which builds only the rows in view.
-7. A refetch of the tree renders only when what the tree draws changed, if the virtual tree leaves it slow.
-8. The opening of a search result, profiled after the virtual tree.
+6. A virtual tree, which builds only the rows in view (done). "treeRows lists the rows top to bottom, with the open folders' rows under them", "rowsInView covers the view and 10 rows past each edge, within the list", in `web/src/sidebar.test.ts`.
+   - The tree keeps its rows as a flat list, and builds the rows in view, 10 past each edge, and the focused row. Each row is placed at its index times 26 px, in a list as high as all the rows. A scroll or a resize of the sidebar builds the rows that come into view. A row on screen stays, so that it keeps the focus, and is placed and updated again: its index, its chevron and its `aria-current` can change.
+   - The focused row stays when the view scrolls away from it, so that the arrow keys still move from it. An arrow key to a row out of view builds that row, and the focus scrolls it into view.
+   - The list is flat, so each row gives screen readers its depth and its place among its siblings: `aria-level`, `aria-setsize` and `aria-posinset`. The nested lists gave the same.
+   - A click on a folder renders the tree again: with only the rows in view, it costs a few milliseconds. `select` opens the folders of the current file the same way.
+   - The filter's results are not virtual: 100 at most.
+   - `content-visibility` on the rows, from milestone 10, goes.
+   - The browser's find in page no longer finds the rows out of view. The filter finds files by name.
+   - The harness checked, on `mdn/content` with `web/api` open: the last row shows at the bottom of the scroll; 60 ↓ from `web/api` move the focus through 60 rows, in view; after a scroll away, ↓ moves from the focused row; → opens a folder and moves into it, ← moves back and closes it; a link to a deep file opens its folders, and ↓ in the sidebar focuses its row, marked current; the filter shows 100 results, and Esc brings the tree back.
+   - Measure, with `web/api` open: the page holds 585 elements instead of 20,473. Opening `web/api` gives no long frame, instead of 138 ms, and a click on a file in it none, instead of 72 ms. A drag of the sidebar runs at 60 fps instead of 28 to 33. A refetch that changes only times takes 68 ms instead of 232 ms.
+7. A refetch of the tree renders only when what the tree draws changed: dropped. With the virtual tree, the render takes 2.4 ms of the 64 ms of a refetch. The rest is the parse of `/api/tree`, the sort and the list of files, which a refetch needs anyway.
+8. The opening of a search result: the virtual tree fixed it. With `web/api` open, it takes 110 ms of long frames instead of 350 to 390 ms, and what remains is the view of the file that opens. The time went to the style of 20,000 elements, when the panel's modal dialog closed.
 
 ## Next
 
@@ -1249,6 +1258,7 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - `HEAD /raw` runs the GET handler and reads the file (up to 64 MB) only to answer whether it exists.
 - `mise run dev -- -v`: argument passing to mdame not checked yet.
 - From the review of milestone 4, for later: stream `/raw` instead of reading the file whole (capped at 64 MB now); open files with `O_NONBLOCK` so that a file swapped for a FIFO between the type check and the open cannot block a thread.
+- `web/src/sidebar.ts` holds 790 lines since the virtual tree of milestone 14, past the 400 lines at which the spec asks to discuss a split. The rows of the tree could go into a module of their own, with the state that `mount` keeps in its closures.
 - Handlers all live in `server.rs`; the spec's `api.rs` + `api/` split (`files.rs`, `history.rs`, `workspace.rs`) is not done. Do it when `server.rs` gets hard to read, in a commit of its own.
 - Debug builds render a dense 1 MB markdown file in about 10 s. If `mise run dev` feels slow, `[profile.dev.package."*"] opt-level = 2` optimizes the dependencies only.
 - From the review of 18 October 2026, for later:
@@ -1257,10 +1267,7 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - Sidebar: `mount` and `setupLayout` return controller objects instead of setting module-level functions.
   - Big workspaces: latinized names computed once for the filter. The limit on the filter results, the cached icons and a faster `/api/tree` came in milestone 10.
 - From the second review of the performance fixes, and the run of the manual checklist of milestone 10, for after 0.1.0:
-  - Tree: a virtual tree, which builds only the rows in view. A drag of the sidebar runs at 22 fps with 1,614 rows.
-  - Tree: a refetch compares the whole text of `/api/tree`, the times included. Under the name sort, a change of time renders all the rows: compare what the tree draws instead.
   - Server: one walk for the tabs that ask at the same time. Today, N tabs wait N walks.
   - Server: with notify 9, which can leave out the events of opened folders, revisit the 4 threads of the walk, the `WALKING` lock and the filters of Access events.
   - Morph: match the equal nodes of the middle before the pairs by position, so that an open `<details>` stays open when blocks change on both sides of it.
   - Mermaid: the cache holds 50 drawings, so a file with more diagrams misses on each one. A Gantt chart keeps the width of its first drawing. The diagrams on screen keep their theme until the next render.
-  - Search panel: opening a result with `web/api` open takes 289 ms, in the panel itself.

@@ -159,6 +159,47 @@ export function arrowKey(rows: VisibleRow[], index: number, key: string): number
   return null;
 }
 
+/** The height of a row of the tree, and the padding of the list: the CSS
+ * gives them too. */
+export const ROW_HEIGHT = 26;
+const LIST_PADDING = 6;
+/** The rows built past each edge of the view, so that a scroll shows them
+ * before the next paint. */
+const OVERSCAN = 10;
+
+/** A row of the tree. `size` and `position` place the node among its
+ * siblings: the list is flat, so screen readers learn the nesting from
+ * them and from `depth`. */
+export interface Row {
+  node: TreeNode;
+  depth: number;
+  size: number;
+  position: number;
+}
+
+/** The rows of `nodes`, top to bottom, with the rows of the open folders
+ * under them. */
+export function treeRows(nodes: TreeNode[], open: Set<string>, depth = 0, rows: Row[] = []): Row[] {
+  nodes.forEach((node, index) => {
+    rows.push({ node, depth, size: nodes.length, position: index + 1 });
+    if (node.kind === "dir" && open.has(node.path)) treeRows(node.children!, open, depth + 1, rows);
+  });
+  return rows;
+}
+
+/** The rows to build, `[first, last)` of `count`, for a view `height` px
+ * high whose top is `top` px below the top of the list. */
+export function rowsInView(top: number, height: number, count: number): [number, number] {
+  const first = Math.max(0, Math.floor((top - LIST_PADDING) / ROW_HEIGHT) - OVERSCAN);
+  const last = Math.min(count, Math.ceil((top + height - LIST_PADDING) / ROW_HEIGHT) + OVERSCAN);
+  return [first, Math.max(first, last)];
+}
+
+/** A row's key on screen: a path can change from a file to a folder. */
+function rowKey(node: TreeNode): string {
+  return `${node.kind}:${node.path}`;
+}
+
 /** `docs/a b.md` gives `docs/a%20b.md`: each part is encoded, not the slashes. */
 export function encodePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
@@ -259,6 +300,10 @@ export async function mount(
   let results: Match[] = [];
   let more = 0;
   let highlight = -1;
+  /** The rows of the tree, built on screen only near the view: 1,600 rows
+   * made each drag of the sidebar lay out 1,600 elements. */
+  let rows: Row[] = [];
+  let rowIndex = new Map<string, number>();
 
   function showSort() {
     const label = `Sort: ${SORT_LABELS[order]}`;
@@ -324,11 +369,24 @@ export async function mount(
 
   /** Focuses the row of the current file, or else the first row. */
   function enterTree() {
+    if (!query) {
+      if (rows.length === 0) return false;
+      focusRow(current === null ? 0 : (rowIndex.get(`file:${current}`) ?? 0));
+      return true;
+    }
     const row =
       list.querySelector<HTMLElement>('[aria-current="page"]') ??
       list.querySelector<HTMLElement>(".mdame-tree-row");
     row?.focus();
     return row !== null;
+  }
+
+  /** Builds row `index` if it is out of view, and focuses it: the browser
+   * then scrolls it into view. */
+  function focusRow(index: number) {
+    paint(index);
+    const key = CSS.escape(rowKey(rows[index].node));
+    list.querySelector<HTMLElement>(`li[data-key="${key}"] .mdame-tree-row`)?.focus();
   }
 
   // A click on empty space focuses the sidebar, and an arrow key then
@@ -344,23 +402,41 @@ export async function mount(
     const line = (event.target as HTMLElement).closest<HTMLElement>(".mdame-tree-line");
     // Alt+← is the browser's Back.
     if (!line || !event.key.startsWith("Arrow") || !shouldHandle(event)) return;
-    const lines = [...list.querySelectorAll<HTMLElement>(".mdame-tree-line")];
-    const rows = lines.map((each) => {
-      const expanded = each.firstElementChild!.getAttribute("aria-expanded");
-      return { path: each.dataset.path!, open: expanded === null ? undefined : expanded === "true" };
-    });
-    const next = arrowKey(rows, lines.indexOf(line), event.key);
+    if (query) {
+      // The results of the filter: all on screen, with no folder.
+      const lines = [...list.querySelectorAll<HTMLElement>(".mdame-tree-line")];
+      const next = arrowKey(lines.map((each) => ({ path: each.dataset.path! })), lines.indexOf(line), event.key);
+      if (typeof next !== "number") return;
+      event.preventDefault();
+      (lines[next].firstElementChild as HTMLElement).focus();
+      return;
+    }
+    const visible = rows.map(({ node }) => ({
+      path: node.path,
+      open: node.kind === "dir" ? open.has(node.path) : undefined,
+    }));
+    const next = arrowKey(visible, rowIndex.get(line.parentElement!.dataset.key!)!, event.key);
     if (next === null) return;
     event.preventDefault();
     if (next === "toggle") (line.firstElementChild as HTMLElement).click();
-    else (lines[next].firstElementChild as HTMLElement).focus();
+    else focusRow(next);
   });
+
+  // The rows in view change with the scroll and the height of the sidebar.
+  el.addEventListener("scroll", () => query || paint(), { passive: true });
+  new ResizeObserver(() => query || paint()).observe(el);
 
   function render() {
     if (!query) {
-      list.replaceChildren(...items(tree.children!, 0));
+      rows = treeRows(tree.children!, open);
+      rowIndex = new Map(rows.map((row, index) => [rowKey(row.node), index]));
+      list.classList.add("is-virtual");
+      list.style.height = `${rows.length * ROW_HEIGHT + 2 * LIST_PADDING}px`;
+      paint();
       return;
     }
+    list.classList.remove("is-virtual");
+    list.style.height = "";
     if (results.length === 0) {
       const none = document.createElement("li");
       none.className = "mdame-tree-empty";
@@ -399,23 +475,65 @@ export async function mount(
     return item;
   }
 
-  function items(nodes: TreeNode[], depth: number): HTMLLIElement[] {
-    return nodes.map((node) => {
-      const item = document.createElement("li");
-      const row = node.kind === "dir" ? folderRow(node, depth) : fileRow(node);
-      row.style.paddingLeft = `${8 + depth * 16}px`;
-      const newFile = node.kind === "dir" ? newFileButton(node.path) : undefined;
-      newFile?.classList.add("mdame-new-file");
-      item.append(line(row, node.path, newFile));
-      if (node.kind === "dir" && open.has(node.path)) item.append(childList(node, depth));
+  /**
+   * Builds the rows in view, and `extra` if it is a row, and drops the
+   * others. The focused row stays, even out of view: the arrow keys move
+   * from it. A row on screen stays as it is, so that it keeps the focus.
+   */
+  function paint(extra = -1) {
+    // Below the top of the view, while the header shows.
+    const top = el.getBoundingClientRect().top + el.clientTop - list.getBoundingClientRect().top;
+    const [first, last] = rowsInView(top, el.clientHeight, rows.length);
+    const indexes = [];
+    for (let index = first; index < last; index++) indexes.push(index);
+    const active = document.activeElement;
+    const focused = list.contains(active) ? active!.closest("li")!.dataset.key : undefined;
+    for (const index of [extra, focused === undefined ? -1 : (rowIndex.get(focused) ?? -1)]) {
+      if (index >= 0 && (index < first || index >= last) && !indexes.includes(index)) indexes.push(index);
+    }
+    indexes.sort((a, b) => a - b);
+    const shown = new Map<string, HTMLLIElement>();
+    for (const item of list.children as HTMLCollectionOf<HTMLLIElement>) {
+      if (item.dataset.key) shown.set(item.dataset.key, item);
+    }
+    const wanted = indexes.map((index) => {
+      const row = rows[index];
+      const item = shown.get(rowKey(row.node)) ?? rowItem(row);
+      place(item, row, index);
       return item;
     });
+    const kept = new Set(wanted);
+    for (const item of [...list.children]) if (!kept.has(item as HTMLLIElement)) item.remove();
+    // Inserts the new rows around those on screen, which do not move.
+    let next = list.firstElementChild;
+    for (const item of wanted) {
+      if (item === next) next = next.nextElementSibling;
+      else list.insertBefore(item, next);
+    }
   }
 
-  function childList(folder: TreeNode, depth: number) {
-    const children = document.createElement("ul");
-    children.append(...items(folder.children!, depth + 1));
-    return children;
+  function rowItem({ node, depth }: Row) {
+    const item = document.createElement("li");
+    item.dataset.key = rowKey(node);
+    const row = node.kind === "dir" ? folderRow(node) : fileRow(node);
+    row.style.paddingLeft = `${8 + depth * 16}px`;
+    const newFile = node.kind === "dir" ? newFileButton(node.path) : undefined;
+    newFile?.classList.add("mdame-new-file");
+    item.append(line(row, node.path, newFile));
+    return item;
+  }
+
+  /** Puts `item` at row `index`, with the state of its row now: a refetch
+   * or a new current file can change a row that stays on screen. */
+  function place(item: HTMLLIElement, { node, depth, size, position }: Row, index: number) {
+    setStyle(item, "top", `${LIST_PADDING + index * ROW_HEIGHT}px`);
+    setAttribute(item, "aria-level", String(depth + 1));
+    setAttribute(item, "aria-setsize", String(size));
+    setAttribute(item, "aria-posinset", String(position));
+    const row = item.querySelector<HTMLElement>(".mdame-tree-row")!;
+    if (node.kind === "dir") showOpen(row, open.has(node.path));
+    else if (node.path === current) setAttribute(row, "aria-current", "page");
+    else row.removeAttribute("aria-current");
   }
 
   function newFileButton(folder: string) {
@@ -423,28 +541,14 @@ export async function mount(
     return iconButton(label, "file-plus", () => onNewFile(folder));
   }
 
-  function folderRow(node: TreeNode, depth: number) {
+  function folderRow(node: TreeNode) {
     const row = document.createElement("button");
     row.className = "mdame-tree-row";
-    const name = label(node.name);
-    const showOpen = () => {
-      const expanded = open.has(node.path);
-      row.setAttribute("aria-expanded", String(expanded));
-      row.replaceChildren(icon(expanded ? "chevron-down" : "chevron-right"), name);
-    };
-    showOpen();
-    // Only this folder's list: a render of the whole tree took 0.5 s with
-    // a large folder open.
+    row.append(icon("chevron-right"), label(node.name));
     row.addEventListener("click", () => {
-      const item = row.closest("li")!;
-      if (open.delete(node.path)) {
-        item.querySelector(":scope > ul")?.remove();
-      } else {
-        open.add(node.path);
-        item.append(childList(node, depth));
-      }
+      if (!open.delete(node.path)) open.add(node.path);
       store(openKey, [...open]);
-      showOpen();
+      render();
     });
     return row;
   }
@@ -499,23 +603,17 @@ export async function mount(
   focusField = () => filter.focus();
   select = (path) => {
     current = path;
-    // Only the rows that change: a render of the whole tree took 0.8 s
-    // with a large folder open.
-    list.querySelector('[aria-current="page"]')?.removeAttribute("aria-current");
-    const [top, ...below] = ancestors(path ?? "").filter((folder) => !open.has(folder));
-    for (const folder of below) open.add(folder);
-    const topRow = top === undefined ? null : rowOf(top);
-    if (topRow) {
-      // A click on the folder builds its list, with the new current row.
-      topRow.click();
-    } else if (top !== undefined) {
-      // No row to click: the filter's results are on screen, or the tree
-      // does not have the folder yet.
-      open.add(top);
-      render();
-    } else if (path !== null) {
-      rowOf(path)?.setAttribute("aria-current", "page");
+    const closed = ancestors(path ?? "").filter((folder) => !open.has(folder));
+    for (const folder of closed) open.add(folder);
+    if (closed.length > 0) store(openKey, [...open]);
+    if (!query) {
+      if (closed.length > 0) render();
+      else paint();
+      return;
     }
+    // The results of the filter.
+    list.querySelector('[aria-current="page"]')?.removeAttribute("aria-current");
+    if (path !== null) rowOf(path)?.setAttribute("aria-current", "page");
   };
   render();
   return allFiles.length;
@@ -533,6 +631,22 @@ function line(row: HTMLElement, path: string, newFile?: HTMLButtonElement) {
   if (newFile) wrapper.append(newFile);
   wrapper.append(copy);
   return wrapper;
+}
+
+/** The chevron and `aria-expanded` of a folder's row. */
+function showOpen(row: HTMLElement, expanded: boolean) {
+  if (row.getAttribute("aria-expanded") === String(expanded)) return;
+  row.setAttribute("aria-expanded", String(expanded));
+  row.firstElementChild!.replaceWith(icon(expanded ? "chevron-down" : "chevron-right"));
+}
+
+/** Writes only a change: a scroll frame places each row again. */
+function setAttribute(element: Element, name: string, value: string) {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+
+function setStyle(element: HTMLElement, name: "top", value: string) {
+  if (element.style[name] !== value) element.style[name] = value;
 }
 
 function label(text: string) {

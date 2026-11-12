@@ -196,8 +196,8 @@ export function rowsInView(top: number, height: number, count: number): [number,
 }
 
 /** A row's key on screen: a path can change from a file to a folder. */
-function rowKey(node: TreeNode): string {
-  return `${node.kind}:${node.path}`;
+function rowKey({ kind, path }: Pick<TreeNode, "kind" | "path">): string {
+  return `${kind}:${path}`;
 }
 
 /** `docs/a b.md` gives `docs/a%20b.md`: each part is encoded, not the slashes. */
@@ -371,7 +371,7 @@ export async function mount(
   function enterTree() {
     if (!query) {
       if (rows.length === 0) return false;
-      focusRow(current === null ? 0 : (rowIndex.get(`file:${current}`) ?? 0));
+      focusRow(current === null ? 0 : (rowIndex.get(rowKey({ kind: "file", path: current })) ?? 0));
       return true;
     }
     const row =
@@ -385,8 +385,7 @@ export async function mount(
    * then scrolls it into view. */
   function focusRow(index: number) {
     paint(index);
-    const key = CSS.escape(rowKey(rows[index].node));
-    list.querySelector<HTMLElement>(`li[data-key="${key}"] .mdame-tree-row`)?.focus();
+    rowOf(rows[index].node.path)?.focus();
   }
 
   // A click on empty space focuses the sidebar, and an arrow key then
@@ -431,7 +430,7 @@ export async function mount(
       rows = treeRows(tree.children!, open);
       rowIndex = new Map(rows.map((row, index) => [rowKey(row.node), index]));
       list.classList.add("is-virtual");
-      list.style.height = `${rows.length * ROW_HEIGHT + 2 * LIST_PADDING}px`;
+      list.style.height = `${rows.length * ROW_HEIGHT}px`;
       paint();
       return;
     }
@@ -489,7 +488,7 @@ export async function mount(
     const active = document.activeElement;
     const focused = list.contains(active) ? active!.closest("li")!.dataset.key : undefined;
     for (const index of [extra, focused === undefined ? -1 : (rowIndex.get(focused) ?? -1)]) {
-      if (index >= 0 && (index < first || index >= last) && !indexes.includes(index)) indexes.push(index);
+      if (index >= 0 && !indexes.includes(index)) indexes.push(index);
     }
     indexes.sort((a, b) => a - b);
     const shown = new Map<string, HTMLLIElement>();
@@ -526,7 +525,8 @@ export async function mount(
   /** Puts `item` at row `index`, with the state of its row now: a refetch
    * or a new current file can change a row that stays on screen. */
   function place(item: HTMLLIElement, { node, depth, size, position }: Row, index: number) {
-    setStyle(item, "top", `${LIST_PADDING + index * ROW_HEIGHT}px`);
+    const top = `${LIST_PADDING + index * ROW_HEIGHT}px`;
+    if (item.style.top !== top) item.style.top = top;
     setAttribute(item, "aria-level", String(depth + 1));
     setAttribute(item, "aria-setsize", String(size));
     setAttribute(item, "aria-posinset", String(position));
@@ -643,10 +643,6 @@ function showOpen(row: HTMLElement, expanded: boolean) {
 /** Writes only a change: a scroll frame places each row again. */
 function setAttribute(element: Element, name: string, value: string) {
   if (element.getAttribute(name) !== value) element.setAttribute(name, value);
-}
-
-function setStyle(element: HTMLElement, name: "top", value: string) {
-  if (element.style[name] !== value) element.style[name] = value;
 }
 
 function label(text: string) {

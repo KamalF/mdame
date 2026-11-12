@@ -233,8 +233,8 @@ export function morphInto(shown: HTMLElement, next: HTMLElement, { start, end }:
  * diagram replaces its code block, and a failed one wraps it. */
 const keys = new WeakMap<HTMLElement, string[]>();
 
-/** A message or a notice is not from the server's HTML, and its nodes are
- * their own keys. */
+/** A message is not from the server's HTML, and its nodes are their own
+ * keys. */
 function keysOf(article: HTMLElement): string[] {
   let found = keys.get(article);
   if (!found) {
@@ -267,7 +267,10 @@ function withLines(node: Element): Element[] {
 function copyLines(shown: Node, next: Node) {
   if (!(shown instanceof Element && next instanceof Element)) return;
   const to = withLines(shown);
-  withLines(next).forEach((element, i) => {
+  const from = withLines(next);
+  // A step that changed the elements of a block would pair the wrong ones.
+  if (to.length !== from.length) return;
+  from.forEach((element, i) => {
     const lines = element.getAttribute("data-sourcepos")!;
     if (to[i].getAttribute("data-sourcepos") !== lines) to[i].setAttribute("data-sourcepos", lines);
   });

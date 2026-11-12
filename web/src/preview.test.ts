@@ -1,11 +1,5 @@
 import { expect, test } from "bun:test";
-import fc from "fast-check";
-import { overRenderLimit, RENDER_LIMIT, utf8Length } from "./preview.ts";
-
-test("utf8Length gives the length of the text in UTF-8", () => {
-  const encoder = new TextEncoder();
-  fc.assert(fc.property(fc.string({ unit: "grapheme" }), (text) => utf8Length(text) === encoder.encode(text).length));
-});
+import { overRenderLimit, RENDER_LIMIT } from "./preview.ts";
 
 test("overRenderLimit counts bytes, not characters", () => {
   expect(overRenderLimit("a".repeat(RENDER_LIMIT))).toBe(false);

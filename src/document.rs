@@ -15,7 +15,8 @@ use crate::render::{self, Family};
 use crate::workspace::{fd_path, is_git_or_mdame, is_hidden};
 
 /// Bigger files are not rendered: the page would freeze. The editor can
-/// still open them.
+/// still open them. Its preview checks the limit too, so that it sends no
+/// text over it.
 pub const RENDER_LIMIT: u64 = 1024 * 1024;
 
 /// `/raw` reads a file whole, into memory.

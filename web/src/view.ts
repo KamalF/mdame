@@ -12,6 +12,7 @@ import { scrolledTo, showOutline } from "./outline.ts";
 import { blockAt } from "./search.ts";
 import { encodePath } from "./sidebar.ts";
 import { watchWide } from "./wide.ts";
+import { forgetWords } from "./words.ts";
 
 /** What `/api/file` answers. */
 export interface FileView {
@@ -208,8 +209,12 @@ export function morphInto(shown: HTMLElement, next: HTMLElement, { start, end }:
   const pairs = Math.min(oldMiddle.length, newMiddle.length);
   for (let i = 0; i < pairs; i++) {
     const [was, now] = [oldMiddle[i], newMiddle[i]];
-    if (was instanceof Element && now instanceof Element) Idiomorph.morph(was, now, config);
-    else was.replaceWith(now);
+    if (was instanceof Element && now instanceof Element) {
+      Idiomorph.morph(was, now, config);
+      forgetWords(was);
+    } else {
+      was.replaceWith(now);
+    }
   }
   for (const removed of oldMiddle.slice(pairs)) removed.remove();
   const before = end > 0 ? old[old.length - end] : null;

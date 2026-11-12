@@ -17,7 +17,7 @@ import * as sidebar from "./sidebar.ts";
 import * as theme from "./theme.ts";
 import * as view from "./view.ts";
 import { applyWidth } from "./width.ts";
-import { countWords, PER_MINUTE, prose, wordLabel } from "./words.ts";
+import { articleWords, PER_MINUTE, wordLabel } from "./words.ts";
 
 // The editor and CodeMirror load on the first edit: they are more than
 // half of the page's code. Until then, nothing is open in the editor.
@@ -107,7 +107,7 @@ function showFileStatus(path: string, file: view.FileView) {
     requestAnimationFrame(() =>
       setTimeout(() => {
         if (id !== statuses || !words.isConnected) return;
-        counted = { path, label: wordLabel(countWords(prose(article))) };
+        counted = { path, label: wordLabel(articleWords(article)) };
         showWords(words, counted.label);
       }),
     );

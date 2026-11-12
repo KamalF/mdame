@@ -18,13 +18,40 @@ export function wordLabel(words: number): string | null {
   return `${words.toLocaleString("en")} ${words === 1 ? "word" : "words"} · ${minutes} min`;
 }
 
-/** What a reader reads: no code, diagram, change bar or copy button. */
-const SKIP = "pre, .mdame-diagram, .mdame-bars, button";
+/** What a reader reads: no code, diagram, diagram error, change bar or
+ * copy button. */
+const SKIP = "pre, .mdame-diagram, .mdame-diagram-error, .mdame-bars, button";
 
-/** The text that a reader reads in the rendered `article`. */
-export function prose(article: HTMLElement): string {
+/** The words of each top-level node of an article: an update counts
+ * again only the nodes that it changed. */
+const counts = new WeakMap<Node, number>();
+
+/** The words that a reader reads in the rendered `article`. Blocks hold no
+ * space between them, so each one counts on its own: "Title" and "Text"
+ * would make one word. */
+export function articleWords(article: HTMLElement): number {
+  let total = 0;
+  for (const node of article.childNodes) {
+    let count = counts.get(node);
+    if (count === undefined) {
+      count = node instanceof Element && node.matches(SKIP) ? 0 : countWords(prose(node));
+      counts.set(node, count);
+    }
+    total += count;
+  }
+  return total;
+}
+
+/** A morph changed `node` in place: its words count again. */
+export function forgetWords(node: Node) {
+  counts.delete(node);
+}
+
+/** The text that a reader reads in `root`. */
+function prose(root: Node): string {
+  if (root.nodeType === Node.TEXT_NODE) return root.textContent ?? "";
   // Elements too, so that a skipped one is left out with all that it holds.
-  const walker = document.createTreeWalker(article, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode: (node) =>
       node.nodeType === Node.TEXT_NODE
         ? NodeFilter.FILTER_ACCEPT
@@ -33,7 +60,6 @@ export function prose(article: HTMLElement): string {
           : NodeFilter.FILTER_SKIP,
   });
   const parts: string[] = [];
-  // Blocks hold no space between them: "Title" and "Text" would make one word.
   while (walker.nextNode()) parts.push(walker.currentNode.textContent ?? "");
   return parts.join(" ");
 }

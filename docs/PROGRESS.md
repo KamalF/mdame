@@ -23,7 +23,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
 | 13 | Fixes for 0.2.1 | Done 12 November 2026, merged into `main` the same day; 0.2.1 released the same day | 25, with the review fixes |
-| 14 | Performance | Done 12 November 2026, on the branch `m14-performance`; its manual checklist and the merge wait for Kamal | 11, with the review fixes |
+| 14 | Performance | Done 12 November 2026, on the branch `m14-performance`; its manual checklist passed the same day, and the merge waits for Kamal | 12, with the review fixes |
 | 15 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November; renumbered from 14 on 12 November | 6 items |
 
 Milestone 15 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
@@ -1224,14 +1224,27 @@ Firefox:
 
 15. Checks 1, 3, 9, 11 and 13: each works as in Chrome.
 
+Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the Chrome 156 of agent-browser, at 1280×633, on Kamal's release build. Kamal ran check 15 in Firefox. The measures:
+
+- 1: opening `web/api`, 1,270 rows, gives no long frame. A width change of the sidebar at each frame, as a drag does, runs at 60 fps, with 17 ms for the longest frame.
+- 2: a scroll to the end in steps of 800 px, one per frame, left no empty row in view in 41 frames.
+- 3: 50 ↓ from `web/api` moved the focus through 50 rows, each in view. After a scroll of 16,000 px away, ↓ moved on from the focused row and brought it back into view.
+- 7: opening a search result in `web/api` gives no long frame.
+- 9: an update of `dense.md` blocks the tab 1.86 s, and the word count 0.37 s after the paint. The count went from 115,399 to 115,405, then 115,409 words, with no state between.
+- 10: the outline marked the right section at 30 scroll positions at 1280×633, and at 30 more at 1700×800.
+- 11: the line at the top of the editor and the block at the top of the preview stayed within 9 lines at 5 positions, and at 3 more after a drag of the divider.
+- 12: the paste and three typing pauses sent no request. The undo sent one, of 736 ms, and the preview came back with its 19,236 blocks.
+- 14: in this Chrome, the content of a closed `<details>` keeps a box: `getClientRects()` gives a rect of 24 px. See Open points.
+
 ## Next
 
 1. The Show HN.
-2. Milestone 14: Kamal runs its manual checklist, merges it, and decides whether it releases 0.2.2.
+2. Milestone 14: Kamal merges it, and decides whether it releases 0.2.2.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
 
+- From the manual checklist of milestone 14: in Chrome 156, the content of a closed `<details>` keeps a box, so `getClientRects()` is not empty. The scroll sync, the outline and the change bars take an element with no rect as hidden, so they count that content as shown. It was so before the milestone. `checkVisibility()` may be the fix.
 - From the review of milestone 14, for later:
   - The filter's results could be rows of the virtual tree too. The arrow keys, the focus and the current file would then follow one model, with no branch on the filter.
   - The server could count the words, and send the count in `/api/file`: the first count of a file still runs the segmenter in the tab, after the paint.

@@ -9,7 +9,10 @@ import {
   FILTER_LIMIT,
   filterFiles,
   pathFromUrl,
+  ROW_HEIGHT,
+  rowsInView,
   sortTree,
+  treeRows,
   viewUrl,
   type TreeNode,
   type VisibleRow,
@@ -63,6 +66,34 @@ test("files lists every file, at any depth", () => {
     "A2.md",
     "a10.md",
   ]);
+});
+
+test("treeRows lists the rows top to bottom, with the open folders' rows under them", () => {
+  const sorted = sortTree(tree, "name-asc");
+  const rows = (open: string[]) =>
+    treeRows(sorted.children!, new Set(open)).map(({ node, depth, size, position }) => [node.path, depth, size, position]);
+  expect(rows([])).toEqual([
+    ["docs", 0, 4, 1],
+    ["A2.md", 0, 4, 2],
+    ["a10.md", 0, 4, 3],
+    ["b.md", 0, 4, 4],
+  ]);
+  expect(rows(["docs"]).slice(0, 4)).toEqual([
+    ["docs", 0, 4, 1],
+    ["docs/a.md", 1, 2, 1],
+    ["docs/z.md", 1, 2, 2],
+    ["A2.md", 0, 4, 2],
+  ]);
+});
+
+test("rowsInView covers the view and 10 rows past each edge, within the list", () => {
+  // 6 px of padding, then 26 px per row: a view of 260 px at the top shows rows 0 to 9.
+  expect(rowsInView(0, 10 * ROW_HEIGHT, 1000)).toEqual([0, 20]);
+  expect(rowsInView(6 + 100 * ROW_HEIGHT, 10 * ROW_HEIGHT, 1000)).toEqual([90, 120]);
+  expect(rowsInView(6 + 995 * ROW_HEIGHT, 10 * ROW_HEIGHT, 1000)).toEqual([985, 1000]);
+  // The header is in view: the list starts below the top of the view.
+  expect(rowsInView(-40, 10 * ROW_HEIGHT, 1000)).toEqual([0, 19]);
+  expect(rowsInView(0, 10 * ROW_HEIGHT, 0)).toEqual([0, 0]);
 });
 
 test("ancestors gives the folders to open for a path", () => {

@@ -1139,8 +1139,8 @@ Before the milestone:
 
 Fixes, by commit. Each commit gives its measure after the fix, and updates the README and the spec where they describe what it changes. Done when: each fix has its measure, and the manual checklist on Kamal's machine confirms them.
 
-1. The preview of a text over 1 MB sends no request: it shows the notice itself (done). "utf8Length gives the length of the text in UTF-8", in `web/src/preview.test.ts`.
-   - The page counts the bytes in UTF-8, as the server does, without encoding the text. A text under a third of the limit, in UTF-16 units, needs no count.
+1. The preview of a text over 1 MB sends no request: it shows the notice itself (done). "overRenderLimit counts bytes, not characters", in `web/src/preview.test.ts`.
+   - The page counts the bytes in UTF-8, as the server does. A text over the limit in UTF-16 units, or under a third of it, needs no count.
    - Measure: typing past 1 MB sends no request, instead of 4 requests and 4.7 MB. An undo back under 1 MB renders the preview again.
 2. The word count runs after the paint (done). No unit test: the order of paint and count needs a browser, and the harness checked it.
    - The count runs in a task after the next paint. A live update keeps the last count of the same file on screen until then, so the count does not blink. Another file shows its count once counted.
@@ -1152,8 +1152,8 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
    - `spy` writes only the two links that change. It wrote `aria-current` to each link at each frame: 4,274 links on `dense.md`.
    - Measure, scrolling the view of `dense.md`: `spy` takes 0.2 ms per frame instead of 26 ms, and a frame 30 ms instead of 58 ms.
 4. The scroll sync reads the positions of the preview's blocks once per render or resize (done). No unit test: the positions need a browser. In the harness, six editor positions, before and after a resize of the window, moved the preview to the same places as before the fix.
-   - A `ResizeObserver` on the preview and its article drops the positions: an image that loads, a `<details>` that opens, a new width. The article is observed again only when a render replaces it, since each new observation calls back once.
-   - The table itself is still built at each frame from the positions: it needs the editor's number of lines, which typing changes.
+   - A `ResizeObserver` on the preview and its article drops the positions when the width of the preview or its scroll height changed: an image that loads, a `<details>` that opens, a new width. A render reads the positions after it changes the article, so its own resize keeps them.
+   - The table keeps the editor's number of lines from its last read, until the next render: typing adds lines, and a render follows each typing pause.
    - Measure, in the editor of `dense.md` with its preview: a scroll frame of the editor takes 78 ms instead of 718 ms, and of the preview 60 ms instead of 647 ms. Most of what remains is CodeMirror's own work on 1 MB of text.
 5. An update of the view highlights and draws only the blocks that changed (done). No unit test: the morph needs a browser. In the harness, 7 kinds of edit to a file with code, three diagrams and a `<details>` each left the same article as a fresh open: an append, a line at the top, code in the middle, blank lines only, text between two diagrams, a deleted block, a changed diagram. The open `<details>` stayed open, and the diagrams kept distinct ids.
    - `articleFor` keeps the key of each top-level node, from the server's HTML. `prepare` compares the keys of the new article with those of the article on screen, and highlights and draws only the blocks between the unchanged start and end. The keys of the article on screen no longer come from its highlighted nodes.

@@ -34,7 +34,10 @@ export function articleWords(article: HTMLElement): number {
   for (const node of article.childNodes) {
     let count = counts.get(node);
     if (count === undefined) {
-      count = node instanceof Element && node.matches(SKIP) ? 0 : countWords(prose(node));
+      const text = node instanceof Element ? (node.matches(SKIP) ? "" : prose(node)) : (node.textContent ?? "");
+      // A line break sits between each two blocks, and each call to the
+      // segmenter has a cost.
+      count = /\S/.test(text) ? countWords(text) : 0;
       counts.set(node, count);
     }
     total += count;
@@ -48,8 +51,7 @@ export function forgetWords(node: Node) {
 }
 
 /** The text that a reader reads in `root`. */
-function prose(root: Node): string {
-  if (root.nodeType === Node.TEXT_NODE) return root.textContent ?? "";
+function prose(root: Element): string {
   // Elements too, so that a skipped one is left out with all that it holds.
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode: (node) =>

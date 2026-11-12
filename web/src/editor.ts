@@ -252,17 +252,16 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
   // The position that this code set last on each pane: its own scroll
   // event must not move the other pane back.
   const set = new Map<HTMLElement, number>();
-  /** The preview's blocks and height, read once per render or resize, not
-   * at each scroll: a dense 1 MB file has 30,000 blocks. */
-  let read: { blocks: Anchor[]; height: number } | null = null;
+  /** The anchors, read once per render or change of the preview's size,
+   * not at each scroll: a dense 1 MB file has 30,000 blocks. */
+  let read: { table: Anchor[]; width: number; height: number } | null = null;
+  // The pane for its width, its article for its height: an image that
+  // loads, a `<details>` that opens. A render reads the anchors after it
+  // changes the article, so the sizes then match.
   const resized = new ResizeObserver(() => {
-    read = null;
+    if (read && (pane.clientWidth !== read.width || pane.scrollHeight !== read.height)) read = null;
   });
   resized.observe(pane);
-  /** The article for its height: an image that loads, a `<details>` that
-   * opens. Observed again only when a render replaces it, since each new
-   * observation calls back once. */
-  let article: Element | null = null;
 
   function table(): Anchor[] {
     if (!read) {
@@ -275,9 +274,10 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
           line: parseInt(el.getAttribute("data-sourcepos")!),
           top: el.getBoundingClientRect().top - origin,
         }));
-      read = { blocks, height: pane.scrollHeight };
+      const height = pane.scrollHeight;
+      read = { table: anchorTable(blocks, view.state.doc.lines, height), width: pane.clientWidth, height };
     }
-    return anchorTable(read.blocks, view.state.doc.lines, read.height);
+    return read.table;
   }
 
   /** The source line at the top of the editor, fractional. */
@@ -317,12 +317,8 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
   follow(pane, () => scrollEditorTo(topToLine(table(), pane.scrollTop)));
   return () => {
     read = null;
-    const shown = pane.querySelector(":scope > article");
-    if (shown !== article) {
-      if (article) resized.unobserve(article);
-      if (shown) resized.observe(shown);
-      article = shown;
-    }
+    const article = pane.querySelector(":scope > article");
+    if (article) resized.observe(article);
     alignPreview();
   };
 }

@@ -77,6 +77,8 @@
   color: var(--fg);
 }
 
+/* The tree places its rows from this padding and from the height of a
+   row: ROW_HEIGHT and LIST_PADDING in sidebar.ts. */
 .mdame-tree {
   margin: 0;
   padding: 6px;
@@ -87,7 +89,6 @@
    high as all the rows. */
 .mdame-tree.is-virtual {
   position: relative;
-  box-sizing: border-box;
 }
 
 .mdame-tree.is-virtual > li {
@@ -129,7 +130,6 @@
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-/* The background shows the focus, not a ring. */
 .mdame-tree-row:focus {
   outline: none;
 }

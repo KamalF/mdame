@@ -77,7 +77,6 @@ function showStatus(state: State) {
   );
 }
 
-let statuses = 0;
 /** The last word count, which stays on screen while a live update counts
  * again. */
 let counted: { path: string; label: string | null } | undefined;
@@ -88,7 +87,6 @@ function showWords(words: HTMLElement, label: string | null) {
 }
 
 function showFileStatus(path: string, file: view.FileView) {
-  const id = ++statuses;
   const name = document.createElement("span");
   name.textContent = path;
   const modified = document.createElement("span");
@@ -106,7 +104,8 @@ function showFileStatus(path: string, file: view.FileView) {
     // and each live update.
     requestAnimationFrame(() =>
       setTimeout(() => {
-        if (id !== statuses || !words.isConnected) return;
+        // Another status replaced this one.
+        if (!words.isConnected) return;
         counted = { path, label: wordLabel(articleWords(article)) };
         showWords(words, counted.label);
       }),

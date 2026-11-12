@@ -1139,7 +1139,9 @@ Before the milestone:
 
 Fixes, by commit. Each commit gives its measure after the fix, and updates the README and the spec where they describe what it changes. Done when: each fix has its measure, and the manual checklist on Kamal's machine confirms them.
 
-1. The preview of a text over 1 MB sends no request: it shows the notice itself.
+1. The preview of a text over 1 MB sends no request: it shows the notice itself (done). "utf8Length gives the length of the text in UTF-8", in `web/src/preview.test.ts`.
+   - The page counts the bytes in UTF-8, as the server does, without encoding the text. A text under a third of the limit, in UTF-16 units, needs no count.
+   - Measure: typing past 1 MB sends no request, instead of 4 requests and 4.7 MB. An undo back under 1 MB renders the preview again.
 2. The word count runs after the paint.
 3. The outline finds the heading in view from positions that it reads once per layout.
 4. The scroll sync reads the positions of the preview's blocks once per render or resize.
@@ -1214,7 +1216,6 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - `split.ts` copies the sidebar's resize handle and its CSS.
   - Each preview render runs Mermaid again on every diagram, with new ids, so the morph rewrites them all.
   - The check after our own save downloads the whole file to compare its `ETag`. `If-None-Match` and a 304 would skip the body.
-  - A 1–8 MB text goes to `/api/render` at each typing pause, only to get the notice back.
 - Nits deferred by the review of milestone 6:
   - Ctrl+B and Ctrl+I: a marker next to a backslash is escaped; Ctrl+I strips the stars inside a code span; between `**a**` and `**b**`, Ctrl+B merges them. Neither undoes itself when a `*` is inside the selection or right next to it.
   - The editor's status bar has no Copy path or Copy content. It is rebuilt at each keystroke, so Save loses the focus and an error is announced again. A failed disk check leaves its error until a save succeeds.

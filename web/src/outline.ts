@@ -77,9 +77,15 @@ let shown: { article: HTMLElement; entries: Entry[] } | undefined;
 /** The outline on screen, if any. */
 let wrapper: HTMLElement | undefined;
 let links: HTMLAnchorElement[] = [];
+/** The index of the link that `spy` highlights, or -1. */
+let highlighted = -1;
 /** The heading that the view scrolled to, with the pane's position after
  * the scroll. Near the end of a file, the heading cannot reach the top. */
 let target: { element: Element; scrollTop: number } | undefined;
+/** The top of each entry's heading in the pane's content, or null for a
+ * heading with no box, as in a closed `<details>`. Read at each layout,
+ * not at each scroll: a dense 1 MB file has 4,000 headings. */
+let tops: (number | null)[] = [];
 // Made at the first outline: the tests run with no DOM.
 let observer: ResizeObserver | undefined;
 let frame = 0;
@@ -117,6 +123,7 @@ function render() {
     return;
   }
   const list = document.createElement("ul");
+  highlighted = -1;
   links = shown.entries.map(({ element, level, line, dot }) => {
     const item = document.createElement("li");
     if (level === 3) item.className = "is-sub";
@@ -186,6 +193,10 @@ export function layoutOutline() {
   nav.style.maxHeight = `${pane.clientHeight}px`;
   // The column moved, and the outline holds the room at its right.
   layoutWide(article);
+  const origin = pane.getBoundingClientRect().top - pane.scrollTop;
+  tops = shown.entries.map(({ element }) =>
+    element.getClientRects().length === 0 ? null : element.getBoundingClientRect().top - origin,
+  );
   spy();
 }
 
@@ -215,15 +226,18 @@ function spy() {
   if (target && pane.scrollTop !== target.scrollTop) target = undefined;
   let current = shown.entries.findIndex(({ element }) => element === target?.element);
   if (current === -1) {
-    const reached = pane.getBoundingClientRect().top + REACHED;
-    shown.entries.forEach(({ element }, index) => {
-      // A heading in a closed `<details>` has no box.
-      if (element.getClientRects().length === 0) return;
-      if (element.getBoundingClientRect().top <= reached) current = index;
+    const reached = pane.scrollTop + REACHED;
+    tops.forEach((top, index) => {
+      if (top !== null && top <= reached) current = index;
     });
     // The last sections may be too short to reach the top.
     const bottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1;
     if (pane.scrollTop > 0 && bottom) current = shown.entries.length - 1;
   }
-  links.forEach((link, index) => link.setAttribute("aria-current", String(index === current)));
+  // Only the two links that change: a scroll frame would otherwise write
+  // to each link.
+  if (current === highlighted) return;
+  links[highlighted]?.setAttribute("aria-current", "false");
+  links[current]?.setAttribute("aria-current", "true");
+  highlighted = current;
 }

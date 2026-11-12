@@ -23,7 +23,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
 | 13 | Fixes for 0.2.1 | Done 12 November 2026, merged into `main` the same day; 0.2.1 released the same day | 25, with the review fixes |
-| 14 | Performance | Started 12 November 2026, on the branch `m14-performance` | 8 items |
+| 14 | Performance | Done 12 November 2026, on the branch `m14-performance`; its manual checklist and the merge wait for Kamal | 11, with the review fixes |
 | 15 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November; renumbered from 14 on 12 November | 6 items |
 
 Milestone 15 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
@@ -1049,7 +1049,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - As for the view, the page first asks whether the old name is still there: an editor that saves through a backup renames the file away, then writes it again. If it is, the editor stays on it and checks the disk.
    - After a rename, closing the editor shows the view of the new name: going back would show the old name, which is gone.
    - While the discard dialog of a Back is open, the address names the next page: it stays, and only the editor follows.
-   - On macOS, a rename still gives `removed` and `created`, so the editor shows the notice: the known issue of milestone 14.
+   - On macOS, a rename still gives `removed` and `created`, so the editor shows the notice: the known issue of milestone 15.
    - `live.movedTo` holds the rule of a move, for `react` and the editor. No unit test for the editor itself: it needs a browser. The manual checklist covers it.
 9. A failed state check after a reconnection is tried again (done). The page held its requests until the socket closed again, which could be never.
    - With the backoff of the socket: 500 ms, doubling up to 10 s. Once the socket closes, the next reconnection checks again, and the retries of the old socket stop.
@@ -1177,14 +1177,64 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
 7. A refetch of the tree renders only when what the tree draws changed: dropped. With the virtual tree, the render takes 2.4 ms of the 64 ms of a refetch. The rest is the parse of `/api/tree`, the sort and the list of files, which a refetch needs anyway.
 8. The opening of a search result: the virtual tree fixed it. With `web/api` open, it takes 110 ms of long frames instead of 350 to 390 ms, and what remains is the view of the file that opens. The time went to the style of 20,000 elements, when the panel's modal dialog closed.
 
+Review, on 12 November 2026: one pass of `/simplify`, then 2 rounds of a code reviewer. The second round found no blocker and no should-fix. The first round found 3 should-fix, which are fixed: see commit 5. The pass of `/simplify` gave these other fixes:
+
+- The preview counts the bytes of a text with `TextEncoder`, and builds its notice with `articleFor`.
+- The scroll sync keeps its table, and drops it only when the width or the height of the preview changed: the resize after a render threw away the table that the render had read.
+- The word count skips the line breaks between blocks: each call to the segmenter has a cost.
+- `copyLines` pairs no elements when two blocks differ in their elements.
+- Smaller cleanups in the tree and in the status bar.
+
+Rejected: a fallback in `prepare` when the keys of the article on screen do not match its nodes. The bars layer is a node of the article until `clearBars`, just before the morph, so that check would fail at each update with bars. The pairing holds by construction, and `copyLines` no longer throws when it breaks.
+
+`cargo mutants`: no Rust code changed, only a comment.
+
+Left for later: the findings under Open points.
+
+### Manual checklist
+
+These checks cover what no test covers: the page in a real browser, on a large repository and on large files, in Chrome and Firefox. Run mdame with `cargo run --release -- -p 4996 <folder>`, and reload each open tab after a rebuild. A change on disk comes from a terminal or another editor, not from mdame's editor. To measure an action, use the Performance panel of DevTools, as in milestone 10: the time is that of the long tasks on the Main track.
+
+The folders:
+
+- a copy of `mdn/content`: `git clone --depth 1 https://github.com/mdn/content`;
+- `target/review/perf-files` in the repository: `dense.md` (1 MB), `changelog.md` (195 KB) and `morph.md` (code, two copies of a diagram, a failed diagram, a `<details>`). `bun target/review/perf/gen.ts target/review/perf-files` writes them again.
+
+The tree, on `mdn/content`, in Chrome:
+
+1. Open the folder `files/en-us/web/api`: it opens at once. Drag the edge of the sidebar: about 60 fps (28 to 33 in the harness before the milestone).
+2. Scroll the tree to its end with the wheel, fast: the rows show as they come into view, with no empty band. The last row is the last file of the root.
+3. Click a row in `web/api`, and press ↓ 50 times: the focus moves one row at a time, and stays in view. Scroll away with the wheel, and press ↓: the focus moves on from the focused row, which comes back into view. → on a closed folder opens it, → again moves into it, ← goes back to it, ← again closes it.
+4. Open `/view/files/en-us/web/css/reference/properties/color/index.md`: its folders open in the tree. Click empty space in the sidebar, and press ↓: the row of the file takes the focus, with the background of the current file.
+5. Type `index` in the filter: 100 results, then the number of the others. ↓ and ↑ move the choice. Esc brings the tree back, with the same folders open.
+6. Change the sort twice: the rows follow the order, and the open folders stay open.
+7. Press `s`, search `XPathResult`, and open a result in another folder: about 110 ms of long tasks in the harness (350 to 390 ms before).
+8. Narrow the window under 900 px, and open the sidebar: the tree scrolls and opens folders as in a wide window.
+
+The view and the editor, on `target/review/perf-files`, in Chrome:
+
+9. Open `dense.md`: the word count shows a moment after the text, "115,399 words". Append a paragraph to the file on disk: the page shows it, and the count grows by its words, without blinking.
+10. Scroll the view of `dense.md`: the outline marks the section at the top of the view. Resize the window, and scroll again: the mark still follows.
+11. Press `e` on `dense.md`, with the preview on. Scroll the editor, then the preview: each follows the other. Drag the divider, and scroll again: they still follow.
+12. In the editor of `dense.md`, paste 100 KB of text at the end: the preview shows "This file is over 1 MB, too large to preview.", and the Network panel shows no request to `/api/render` while you type. Undo the paste: the preview comes back.
+13. Open `morph.md`, and open its `<details>`. On disk, change `const b = 2;`: the code stays coloured, the diagrams stay drawn, and the `<details>` stays open. Change the second diagram: it is drawn again. The failed diagram shows its source and its error, and the word count says 14 words: the error does not count.
+14. Press `e` on `morph.md`, and open the `<details>` in the preview. Scroll the editor: the preview follows, below the `<details>` too.
+
+Firefox:
+
+15. Checks 1, 3, 9, 11 and 13: each works as in Chrome.
+
 ## Next
 
 1. The Show HN.
-2. Milestone 14: performance.
+2. Milestone 14: Kamal runs its manual checklist, merges it, and decides whether it releases 0.2.2.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
 
+- From the review of milestone 14, for later:
+  - The filter's results could be rows of the virtual tree too. The arrow keys, the focus and the current file would then follow one model, with no branch on the filter.
+  - The server could count the words, and send the count in `/api/file`: the first count of a file still runs the segmenter in the tab, after the paint.
 - Live updates on macOS, for milestone 15: a tab does not follow a renamed file. Milestone 13 fixed the other known issue, the folder delete.
   - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. Since commit 2, the disk gives the kinds, so a rename gives `removed` and `created`.
   - For some seconds after the creation of a file, FSEvents keeps reporting it, so a write gives `created`. It costs a reload of the tree. Measured on an Intel Mac with macOS 15.7.9, on 8 and 9 November 2026.

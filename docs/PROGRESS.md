@@ -1145,7 +1145,10 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
 2. The word count runs after the paint (done). No unit test: the order of paint and count needs a browser, and the harness checked it.
    - The count runs in a task after the next paint. A live update keeps the last count of the same file on screen until then, so the count does not blink. Another file shows its count once counted.
    - Measure: the frame of an update of `dense.md` loses the count, 0.49 s in the profile. The count then blocks a frame of its own. `prose()` takes 0.38 s of it, and the segmenter only 0.1 s. Commit 5 may count only the blocks that changed.
-3. The outline finds the heading in view from positions that it reads once per layout.
+3. The outline finds the heading in view from positions that it reads once per layout (done). No unit test: the positions need a browser. The harness compared the highlighted entry with the one that the boxes give, at 40 scroll positions, before and after a resize of the window: all 80 matched.
+   - `layoutOutline` reads the top of each heading after its writes, and `spy` compares the scroll position with these tops. The outline's `ResizeObserver` already runs `layoutOutline` when the article changes size: an image that loads, a `<details>` that opens, a new width.
+   - `spy` writes only the two links that change. It wrote `aria-current` to each link at each frame: 4,274 links on `dense.md`.
+   - Measure, scrolling the view of `dense.md`: `spy` takes 0.2 ms per frame instead of 26 ms, and a frame 30 ms instead of 58 ms.
 4. The scroll sync reads the positions of the preview's blocks once per render or resize.
 5. An update of the view highlights and draws only the blocks that changed.
 6. A virtual tree, which builds only the rows in view.
@@ -1195,7 +1198,6 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - "Last seen" of a file that was not UTF-8 holds U+FFFD, and its Restore writes them.
   - A blank line that splits a paragraph in two gets no bar.
   - A list item added two lines above another change gets a "changed" bar, not "added": the line diff merges the two changes. Found by check 4 of the manual checklist.
-  - `spy()` in the outline reads the box of every heading at each scroll frame.
   - `forget()` keeps the article that the editor replaced in memory until the next file shows.
   - `highlight` in `search.ts` could return the `Part` type of `sidebar.ts`. The `write` helper of the search tests copies the one of the tree tests.
 - Nits deferred by the review and the over-engineering check of milestone 8:

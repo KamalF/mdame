@@ -674,6 +674,7 @@ Ten milestones for v1, released as 0.1.0, then two more before the Show HN, and 
 13. **Fixes for 0.2.1.** notify-debouncer-full 0.8.0-rc.3, which fixes the folder delete on macOS and starts live updates at once on a large workspace. The watcher tests run on macOS as on Linux. The watcher follows no symlink. A write to an ignore file reloads the tree. The editor writes nothing on Ctrl+S with no edit, keeps a change made during its mount, and follows a rename of its file. A failed state check after a reconnection is tried again. The stored theme shows from the first paint. Copy content works in Safari. Then release 0.2.1.
    - Done when: the watcher tests pass on the macOS runner of CI in each run of the branch, with no rerun. `brew upgrade` gives a working 0.2.1 on Linux and macOS.
 14. **Performance.** The open points of medium and large impact on performance: the preview of a text over 1 MB, the word count, the outline's highlight, the scroll sync, the morph of the view, a virtual tree, the tree's refetch, and the opening of a search result.
+   - Then release 0.2.2.
    - Done when: each fix has its measure before and after, and the manual checklist on `mdn/content` and on the test files confirms them.
 15. **Handoff and keys.** Read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff to a running mdame, and a tab that follows a renamed file on macOS, a known issue of live updates. Maybe copy as quote. Then release 0.3.0.
 
@@ -681,7 +682,6 @@ After milestone 15, toasts and the launchd service wait.
 
 ## Open decisions
 
-- **Milestone 14:** whether it releases 0.2.2, or its fixes wait for 0.3.0.
 
 - **Settled in milestone 8:** the built-in themes map each contract variable to a Primer variable, and the theme pass checked each pair that the screens use. Dark sets `--accent-fg` to `bgColor-inset`, since Primer's white is 3.1:1 on its accent.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
@@ -740,6 +740,7 @@ After milestone 15, toasts and the launchd service wait.
 | 0.2.1 takes notify-debouncer-full 0.8.0-rc.3 and the fix of step 2b of the experiment, without waiting for 0.8.0. `about.toml` accepts BSL-1.0. On macOS, the watcher tests accept a repeated `removed` | 11 November 2026 |
 | Milestone 13 takes the fixes for 0.2.1, and releases it. Handoff and keys become milestone 14, released as 0.3.0. The `test do` block of the Homebrew formula waits: dist 0.33.1 cannot write it | 11 November 2026 |
 | Milestone 14 takes the open points of medium and large impact on performance. Kamal asked for it to run without him; Claude decides the design and records each decision. Handoff and keys become milestone 15 | 12 November 2026 |
+| Milestone 14 releases 0.2.2, after its manual checklist | 12 November 2026 |
 
 ### Review log, 14 October 2026
 

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.2 - 2026-11-12
+
+### Changed
+
+- On a large folder, the sidebar builds only the rows in view. With a folder
+  of 1,300 files open, a drag of the sidebar no longer stutters, and opening
+  a folder or a search result no longer pauses the page.
+- When a large file changes on disk, the page colours and draws only the
+  blocks that changed. The word count comes after the page shows, and counts
+  only the blocks that changed.
+- Scrolling a long file, or the editor of a large file with its preview, no
+  longer measures each heading or block at each frame. In the editor of a
+  1 MB file, a scroll frame takes a tenth of the time.
+- The preview of a text over 1 MB shows its notice without sending the text
+  to mdame at each typing pause.
+- The browser's find in page no longer finds the files of the sidebar that
+  are out of view. The filter finds files by name.
+
+### Fixed
+
+- The error of a failed Mermaid diagram no longer counts in the word count.
+
 ## 0.2.1 - 2026-11-12
 
 ### Fixed

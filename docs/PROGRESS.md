@@ -22,7 +22,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 10 | Release | Done 8 November 2026, merged into `main` the same day | 50, with the review fixes |
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
-| 13 | Fixes for 0.2.1 | Started 11 November 2026 | 12 planned |
+| 13 | Fixes for 0.2.1 | Done 12 November 2026, merged into `main` the same day; 0.2.1 released the same day | 25, with the review fixes |
 | 14 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November | 6 items |
 
 Milestone 14 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
@@ -1064,6 +1064,7 @@ Rules, as test names, by commit. The names are a first guess, which each commit 
    - Checked by hand, in the manual checklist: Copy content in Chrome, Firefox and Safari.
 12. `CHANGELOG.md` and version 0.2.1 (done). `Cargo.toml` says 0.2.1, and the section of 0.2.1 in `CHANGELOG.md` has the date of 12 November 2026, the day of the release. The README calls 0.2.1 an early release.
    - Then the review, the manual checklist, in Safari too, the merge into `main`, and the release: Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`.
+   - Done on 12 November 2026: mdame 0.2.1 is on GitHub, in the tap and on crates.io.
 
 Review, on 11 November 2026: one pass of `/simplify`, then 2 rounds of a code reviewer and a security reviewer. The second round found no blocker and no should-fix. The first round found 1 should-fix, which is fixed: Esc and Back read the path of the editor before the discard dialog, so a rename during the dialog left them on the old name. The pass of `/simplify` and the nits gave these other fixes:
 
@@ -1108,11 +1109,12 @@ Release, after 0.2.1 is published:
 8. CI runs for the push of `main`: the watcher tests pass on the macOS runner, and the job "Check release" passes on its Linux and macOS runners. The release job passes, and GitHub shows the release of 0.2.1 with the notes of its section in `CHANGELOG.md`.
 9. `brew upgrade mdame` on Linux and on the Mac, `mise use -g github:KamalF/mdame@0.2.1`, and `cargo install --locked mdame` each give a mdame whose `--version` is 0.2.1, and that opens a folder.
 
+Run on 12 November 2026, after the release: checks 8 and 9 pass. Kamal ran them with the runbook `~/dev/claude/runbooks/2026-11-12-mdame-release-0.2.1.md`. The milestone is done: CI passed at the first attempt in each run of the branch and of `main`, the watcher tests on the macOS runner among them.
+
 ## Next
 
-1. Release 0.2.1. Kamal pushes `main` and the tag `v0.2.1`, and runs `cargo publish`. Then checks 8 and 9.
-2. The Show HN, before or after 0.2.1: not decided yet.
-3. Milestone 14: handoff and keys, for 0.3.0.
+1. The Show HN.
+2. Milestone 14: handoff and keys, for 0.3.0.
 
 ## Open points
 

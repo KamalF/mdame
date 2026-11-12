@@ -1153,7 +1153,12 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
    - A `ResizeObserver` on the preview and its article drops the positions: an image that loads, a `<details>` that opens, a new width. The article is observed again only when a render replaces it, since each new observation calls back once.
    - The table itself is still built at each frame from the positions: it needs the editor's number of lines, which typing changes.
    - Measure, in the editor of `dense.md` with its preview: a scroll frame of the editor takes 78 ms instead of 718 ms, and of the preview 60 ms instead of 647 ms. Most of what remains is CodeMirror's own work on 1 MB of text.
-5. An update of the view highlights and draws only the blocks that changed.
+5. An update of the view highlights and draws only the blocks that changed (done). No unit test: the morph needs a browser. In the harness, 7 kinds of edit to a file with code, three diagrams and a `<details>` each left the same article as a fresh open: an append, a line at the top, code in the middle, blank lines only, text between two diagrams, a deleted block, a changed diagram. The open `<details>` stayed open, and the diagrams kept distinct ids.
+   - `articleFor` keeps the key of each top-level node, from the server's HTML. `prepare` compares the keys of the new article with those of the article on screen, and highlights and draws only the blocks between the unchanged start and end. The keys of the article on screen no longer come from its highlighted nodes.
+   - A diagram's copy number still counts all the diagrams of the article: two copies of a diagram need distinct ids.
+   - Each node on screen pairs with the node of the same index in the server's HTML. A failed diagram now wraps its code block and its error in one block, instead of adding the error after it.
+   - `copyLines` pairs the elements that have a line number: a diagram on screen pairs with its code block in the new article.
+   - Measure, appending a paragraph to `dense.md`: the update blocks the tab 1.6 s instead of 2.0 s. `morphInto` takes 0.24 s instead of 0.48 s, and the highlighting of 2,000 code blocks no longer runs. Appending a line to `changelog.md`: 335 ms instead of about 410 ms. What remains is mostly the parse of the new HTML and one layout of the page.
 6. A virtual tree, which builds only the rows in view.
 7. A refetch of the tree renders only when what the tree draws changed, if the virtual tree leaves it slow.
 8. The opening of a search result, profiled after the virtual tree.
@@ -1220,7 +1225,6 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - The editor uses the markdown language for every file family.
   - `e` opens the editor at line 1, and Esc shows the view from the top.
   - `split.ts` copies the sidebar's resize handle and its CSS.
-  - Each preview render runs Mermaid again on every diagram, with new ids, so the morph rewrites them all.
   - The check after our own save downloads the whole file to compare its `ETag`. `If-None-Match` and a 304 would skip the body.
 - Nits deferred by the review of milestone 6:
   - Ctrl+B and Ctrl+I: a marker next to a backslash is escaped; Ctrl+I strips the stars inside a code span; between `**a**` and `**b**`, Ctrl+B merges them. Neither undoes itself when a `*` is inside the selection or right next to it.
@@ -1255,7 +1259,6 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - Tree: a refetch compares the whole text of `/api/tree`, the times included. Under the name sort, a change of time renders all the rows: compare what the tree draws instead.
   - Server: one walk for the tabs that ask at the same time. Today, N tabs wait N walks.
   - Server: with notify 9, which can leave out the events of opened folders, revisit the 4 threads of the walk, the `WALKING` lock and the filters of Access events.
-  - Morph: key the blocks on the server's HTML, before `prepare`, and highlight and draw only the changed blocks.
   - Morph: match the equal nodes of the middle before the pairs by position, so that an open `<details>` stays open when blocks change on both sides of it.
   - Mermaid: the cache holds 50 drawings, so a file with more diagrams misses on each one. A Gantt chart keeps the width of its first drawing. The diagrams on screen keep their theme until the next render.
   - Search panel: opening a result with `web/api` open takes 289 ms, in the panel itself.

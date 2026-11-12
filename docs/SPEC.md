@@ -183,7 +183,7 @@ Every request passes the guard before reaching a handler. Handlers stay thin and
 
 **Two launches on one workspace.** Allowed in v1. Each runs on its own port and sees the other's saves as changes on disk, and the save check works across them because it compares content, not process state. Shared writes are made safe instead of locked: snapshots are created with `create_new`, and pruning ignores snapshots that are already gone. Detecting the second launch is a Later item.
 
-**Viewing a file.** The browser asks `GET /api/file?path=…`; the server reads the file through the `Dir`, renders it with comrak, sanitizes it with ammonia and returns HTML with source positions. The browser morphs it into the content area, highlights new code blocks with Lezer and runs Mermaid on new diagrams.
+**Viewing a file.** The browser asks `GET /api/file?path=…`; the server reads the file through the `Dir`, renders it with comrak, sanitizes it with ammonia and returns HTML with source positions. The browser morphs it into the content area, highlights new code blocks with Lezer and runs Mermaid on new diagrams. An update finds the blocks that changed by their HTML from the server, before the highlighting and the diagrams change them, and prepares only those blocks.
 
 **When a file changes on disk.** The debouncer reports the path; `watch.rs` sends `changed`; tabs showing that file refetch and morph, keeping scroll. The tree refetches only on create, remove or rename, on a change to a `.gitignore` or `.ignore`, and on a change to a file of the tree while it is sorted by date.
 

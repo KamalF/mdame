@@ -77,7 +77,18 @@ function showStatus(state: State) {
   );
 }
 
+let statuses = 0;
+/** The last word count, which stays on screen while a live update counts
+ * again. */
+let counted: { path: string; label: string | null } | undefined;
+
+function showWords(words: HTMLElement, label: string | null) {
+  words.textContent = label;
+  words.hidden = label === null;
+}
+
 function showFileStatus(path: string, file: view.FileView) {
+  const id = ++statuses;
   const name = document.createElement("span");
   name.textContent = path;
   const modified = document.createElement("span");
@@ -86,13 +97,20 @@ function showFileStatus(path: string, file: view.FileView) {
   fileStatus.replaceChildren(name, modified);
   const article = content.querySelector<HTMLElement>(":scope > article");
   // A file too large to show holds only the notice.
-  const counted = file.family === "markdown" && !file.too_large && article;
-  const label = counted ? wordLabel(countWords(prose(article))) : null;
-  if (label) {
+  if (file.family === "markdown" && !file.too_large && article) {
     const words = document.createElement("span");
-    words.textContent = label;
     words.title = `Reading time at ${PER_MINUTE} words a minute`;
+    showWords(words, counted?.path === path ? counted.label : null);
     fileStatus.append(words);
+    // After the paint: counting 1 MB of text blocks the tab, at each open
+    // and each live update.
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        if (id !== statuses || !words.isConnected) return;
+        counted = { path, label: wordLabel(countWords(prose(article))) };
+        showWords(words, counted.label);
+      }),
+    );
   }
   fileStatus.append(copyPath);
   if (file.editable) {

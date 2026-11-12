@@ -1142,7 +1142,9 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
 1. The preview of a text over 1 MB sends no request: it shows the notice itself (done). "utf8Length gives the length of the text in UTF-8", in `web/src/preview.test.ts`.
    - The page counts the bytes in UTF-8, as the server does, without encoding the text. A text under a third of the limit, in UTF-16 units, needs no count.
    - Measure: typing past 1 MB sends no request, instead of 4 requests and 4.7 MB. An undo back under 1 MB renders the preview again.
-2. The word count runs after the paint.
+2. The word count runs after the paint (done). No unit test: the order of paint and count needs a browser, and the harness checked it.
+   - The count runs in a task after the next paint. A live update keeps the last count of the same file on screen until then, so the count does not blink. Another file shows its count once counted.
+   - Measure: the frame of an update of `dense.md` loses the count, 0.49 s in the profile. The count then blocks a frame of its own. `prose()` takes 0.38 s of it, and the segmenter only 0.1 s. Commit 5 may count only the blocks that changed.
 3. The outline finds the heading in view from positions that it reads once per layout.
 4. The scroll sync reads the positions of the preview's blocks once per render or resize.
 5. An update of the view highlights and draws only the blocks that changed.
@@ -1171,7 +1173,6 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
 - From the review of milestone 12, for later:
   - One layout pass for an article, in the order outline, wide blocks, bars, from one observer. Today three `ResizeObserver`s and calls between the modules give the order, and one resize may lay out the wide blocks twice.
   - Side by side builds a new `MergeView` at each choice of a revision. It could replace the text of the left pane instead, as for the open point of milestone 7 on `choose()`.
-  - The word count runs before the page paints: `Intl.Segmenter` takes about 88 ms for 1 MB of text, at each open and each live update.
 - From the review of milestone 13, for later:
   - The watch of a folder follows a link: notify 9 dereferences each watched path by default. If a link replaces a folder between the walk and its watch, mdame watches the target of the link. A link to a hung mount would then block the watcher. notify 9 has `WatchPathConfig::with_dereference_symlinks(false)`, through the `update_paths` of the debouncer. Its errors then come inside `UpdatePathsError`, which `vanished` and `denied` must read.
   - On macOS, notify-debouncer-full calls `exists()` on each rename, and holds its lock meanwhile. `exists()` follows a link, so a renamed link to a hung mount could stop live updates. 0.7 did the same. The fix belongs upstream: `symlink_metadata()`. Until then, "The watcher follows no symlink" in the spec holds for mdame's own checks only.

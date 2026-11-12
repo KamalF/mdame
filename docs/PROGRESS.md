@@ -23,9 +23,10 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
 | 13 | Fixes for 0.2.1 | Done 12 November 2026, merged into `main` the same day; 0.2.1 released the same day | 25, with the review fixes |
-| 14 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November | 6 items |
+| 14 | Performance | Started 12 November 2026, on the branch `m14-performance` | 8 items |
+| 15 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November; renumbered from 14 on 12 November | 6 items |
 
-Milestone 14 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
+Milestone 15 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
 
 ## Milestone 1: skeleton
 
@@ -1111,14 +1112,51 @@ Release, after 0.2.1 is published:
 
 Run on 12 November 2026, after the release: checks 8 and 9 pass. Kamal ran them with the runbook `~/dev/claude/runbooks/2026-11-12-mdame-release-0.2.1.md`. The milestone is done: CI passed at the first attempt in each run of the branch and of `main`, the watcher tests on the macOS runner among them.
 
+## Milestone 14: performance
+
+Decided on 12 November 2026. Kamal asked for the open points of medium and large impact on performance, done without him. Claude decides the design of each fix, and records the decisions here. `docs/SPEC.md` holds the scope: milestone 14 in the build order. Handoff and keys become milestone 15.
+
+- The branch `m14-performance` starts from `main`, after the release of 0.2.1.
+- Kamal decides at the end whether the milestone releases 0.2.2.
+- The small fixes come first, then the morph and the virtual tree. The refetch of the tree and the search panel come after the virtual tree, which may fix them.
+
+The measures come from a harness in `target/review/perf`, outside git, as in milestone 10. A small crate serves a folder with the router of the library. A headless Chromium 156 runs in the same command, and a Bun script drives it over the DevTools protocol. The script sums the long animation frames of each action, and the CPU profiler gives the time of each function. The folders are a shallow copy of `mdn/content` at `fd6a5b07`, and two generated files: `dense.md`, 1 MB of headings, lists, tables, links, code and raw HTML, and `changelog.md`, 195 KB. The machine had a load average of about 8 on 16 cores. So the times are several times those of milestone 10: compare only the measures before and after a fix.
+
+Before the milestone:
+
+| Action | Measure |
+| --- | --- |
+| Open `dense.md` | 18.3 s of long frames |
+| Append a paragraph to `dense.md` | 2.9 s, of which the word count takes 0.5 s |
+| Append a line to `changelog.md` | 0.44 s |
+| Scroll the view of `dense.md` | 58 ms per frame, of which `spy()` takes 26 ms |
+| Scroll the editor of `dense.md`, with its preview | 718 ms per frame, of which the scroll sync takes about 600 ms |
+| Type in the editor of a text over 1 MB | 4 requests to `/api/render`, 4.7 MB in all, only to get the notice |
+| Open `web/api` in the tree: 1,277 rows | 138 ms |
+| A refetch of the tree that changes only times | 232 ms |
+| Drag the sidebar with `web/api` open | 28 to 33 fps |
+| Open a search result with `web/api` open | 350 to 390 ms of long frames |
+
+Fixes, by commit. Each commit gives its measure after the fix, and updates the README and the spec where they describe what it changes. Done when: each fix has its measure, and the manual checklist on Kamal's machine confirms them.
+
+1. The preview of a text over 1 MB sends no request: it shows the notice itself.
+2. The word count runs after the paint.
+3. The outline finds the heading in view from positions that it reads once per layout.
+4. The scroll sync reads the positions of the preview's blocks once per render or resize.
+5. An update of the view highlights and draws only the blocks that changed.
+6. A virtual tree, which builds only the rows in view.
+7. A refetch of the tree renders only when what the tree draws changed, if the virtual tree leaves it slow.
+8. The opening of a search result, profiled after the virtual tree.
+
 ## Next
 
 1. The Show HN.
-2. Milestone 14: handoff and keys, for 0.3.0.
+2. Milestone 14: performance.
+3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
 
-- Live updates on macOS, for milestone 14: a tab does not follow a renamed file. Milestone 13 fixed the other known issue, the folder delete.
+- Live updates on macOS, for milestone 15: a tab does not follow a renamed file. Milestone 13 fixed the other known issue, the folder delete.
   - The cause. For each path, FSEvents reports all the flags that the path collected, in no order, and never the side of a rename. notify turns each flag into its own event, always in the same order: creation, removal, rename, change. notify-debouncer-full then drops a creation that a removal follows, and a change that follows a creation. Since commit 2, the disk gives the kinds, so a rename gives `removed` and `created`.
   - For some seconds after the creation of a file, FSEvents keeps reporting it, so a write gives `created`. It costs a reload of the tree. Measured on an Intel Mac with macOS 15.7.9, on 8 and 9 November 2026.
 - From the review of milestone 3: screen readers do not hear the filter's arrow-key choice. `aria-selected` needs the listbox pattern, and a listbox may hold only options: the copy-path button beside each result breaks it. Left open on 10 November 2026, in the design session of commit 1 of milestone 12.

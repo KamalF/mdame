@@ -106,7 +106,7 @@ v1 is the owner's Keep list from the feature checklist, plus a few nearly free i
 
 ### Later, by cost
 
-Milestone 12 takes six small items and two medium ones: arrow keys in the sidebar tree, side-by-side diff, the mono toggle, the Catppuccin and Minimal themes, the print stylesheet, word count, wide blocks, and pasting or dropping an image. Milestone 14 takes custom key bindings, new file with `n`, vim key bindings, read-only mode, and the handoff to a running mdame. Copy as quote is a candidate for milestone 14. Toasts and the launchd service wait.
+Milestone 12 takes six small items and two medium ones: arrow keys in the sidebar tree, side-by-side diff, the mono toggle, the Catppuccin and Minimal themes, the print stylesheet, word count, wide blocks, and pasting or dropping an image. Milestone 15 takes custom key bindings, new file with `n`, vim key bindings, read-only mode, and the handoff to a running mdame. Copy as quote is a candidate for milestone 15. Toasts and the launchd service wait.
 
 | Item | Cost | Notes |
 | --- | --- | --- |
@@ -121,7 +121,7 @@ Milestone 12 takes six small items and two medium ones: arrow keys in the sideba
 | Print stylesheet | Small | Ctrl+P prints the content alone, without the sidebar and the status bar; the browser can print to PDF. See Print under Design decisions |
 | Word count and reading time in the status bar | Small | For the open file: see Word count under Design decisions |
 | Read-only mode, `--read-only` | Small | The write routes (save, create, restore, image) answer 403, and `/api/state` tells the page to hide the editor. For a LAN share, or a folder that you only watch |
-| Copy as quote | Small | Maybe, so only a candidate for milestone 14. With `q`, a selection in the view copies as a markdown quote of its source lines, with `path:line`, to paste into an agent |
+| Copy as quote | Small | Maybe, so only a candidate for milestone 15. With `q`, a selection in the view copies as a markdown quote of its source lines, with `path:line`, to paste into an agent |
 | Handoff to a running mdame | Medium | `mdame <file>`, in a folder that a running mdame serves, opens the file in that mdame's tabs and exits. Two designs: a lock file per instance in the state folder and an `open` event to the tabs, or a check of ports 4891–4900 and a new browser tab on the running server. Either needs a flag for agents, so that a call with no mdame running fails instead of serving. Out of v1 on 3 November 2026: the list of changes covers the agent loop |
 | Wide blocks | Medium | Tables, code blocks, diagrams and images grow past the text column, into the room beside it, and the text keeps its width. The outline keeps its place: see Wide blocks under Design decisions |
 | launchd service (`mdame service …`) | Medium | macOS only, a plist template |
@@ -672,11 +672,15 @@ Ten milestones for v1, released as 0.1.0, then two more before the Show HN, and 
 12. **Later items for 0.2.0.** Arrow keys in the sidebar tree, side-by-side diff, the mono toggle, wide blocks, the Catppuccin and Minimal themes, pasting or dropping an image into the editor, a print stylesheet, word count. Then release 0.2.0, and the Show HN.
 13. **Fixes for 0.2.1.** notify-debouncer-full 0.8.0-rc.3, which fixes the folder delete on macOS and starts live updates at once on a large workspace. The watcher tests run on macOS as on Linux. The watcher follows no symlink. A write to an ignore file reloads the tree. The editor writes nothing on Ctrl+S with no edit, keeps a change made during its mount, and follows a rename of its file. A failed state check after a reconnection is tried again. The stored theme shows from the first paint. Copy content works in Safari. Then release 0.2.1.
    - Done when: the watcher tests pass on the macOS runner of CI in each run of the branch, with no rerun. `brew upgrade` gives a working 0.2.1 on Linux and macOS.
-14. **Handoff and keys.** Read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff to a running mdame, and a tab that follows a renamed file on macOS, a known issue of live updates. Maybe copy as quote. Then release 0.3.0.
+14. **Performance.** The open points of medium and large impact on performance: the preview of a text over 1 MB, the word count, the outline's highlight, the scroll sync, the morph of the view, a virtual tree, the tree's refetch, and the opening of a search result.
+   - Done when: each fix has its measure before and after, and the manual checklist on `mdn/content` and on the test files confirms them.
+15. **Handoff and keys.** Read-only mode, custom key bindings, new file with `n`, vim key bindings, the handoff to a running mdame, and a tab that follows a renamed file on macOS, a known issue of live updates. Maybe copy as quote. Then release 0.3.0.
 
-After milestone 14, toasts and the launchd service wait.
+After milestone 15, toasts and the launchd service wait.
 
 ## Open decisions
+
+- **Milestone 14:** whether it releases 0.2.2, or its fixes wait for 0.3.0.
 
 - **Settled in milestone 8:** the built-in themes map each contract variable to a Primer variable, and the theme pass checked each pair that the screens use. Dark sets `--accent-fg` to `bgColor-inset`, since Primer's white is 3.1:1 on its accent.
 - **Settled in milestone 5:** notify-debouncer-full 0.7 pairs the two halves of a rename on inotify, for files and folders (`tests/watch.rs`).
@@ -734,6 +738,7 @@ After milestone 14, toasts and the launchd service wait.
 | A release 0.2.1 of fixes comes before 0.3.0. An experiment with notify-debouncer-full 0.8 decides whether it takes the known issues of live updates on macOS | 11 November 2026 |
 | 0.2.1 takes notify-debouncer-full 0.8.0-rc.3 and the fix of step 2b of the experiment, without waiting for 0.8.0. `about.toml` accepts BSL-1.0. On macOS, the watcher tests accept a repeated `removed` | 11 November 2026 |
 | Milestone 13 takes the fixes for 0.2.1, and releases it. Handoff and keys become milestone 14, released as 0.3.0. The `test do` block of the Homebrew formula waits: dist 0.33.1 cannot write it | 11 November 2026 |
+| Milestone 14 takes the open points of medium and large impact on performance. Kamal asked for it to run without him; Claude decides the design and records each decision. Handoff and keys become milestone 15 | 12 November 2026 |
 
 ### Review log, 14 October 2026
 

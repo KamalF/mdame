@@ -7,10 +7,11 @@ import { blocksOf, clearBars, drawBars } from "./bars.ts";
 import { Seen } from "./changes.ts";
 import { copyButton } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
-import { renderDiagrams } from "./diagrams.ts";
+import { DIAGRAM_BLOCKS, renderDiagrams } from "./diagrams.ts";
 import { scrolledTo, showOutline } from "./outline.ts";
 import { blockAt } from "./search.ts";
 import { encodePath } from "./sidebar.ts";
+import { isDark } from "./stylesheets.ts";
 import { watchWide } from "./wide.ts";
 import { forgetWords } from "./words.ts";
 
@@ -112,6 +113,7 @@ export async function showFile(el: HTMLElement, path: string): Promise<FileView 
   showOutline(article);
   scrollToHash();
   highlightAll(article);
+  themes.set(article, isDark());
   renderDiagrams(article).then(() => {
     if (id !== request) return;
     // A diagram above the `#…` target moves it once drawn.
@@ -175,6 +177,20 @@ export async function prepare(next: HTMLElement, shown?: HTMLElement): Promise<C
     end++;
   }
   const nodes = [...next.childNodes];
+  const dark = isDark();
+  if (shown && themes.get(shown) !== dark) {
+    // The diagrams on screen have the other theme: they change too.
+    const diagrams = nodes.flatMap((node, index) =>
+      node instanceof Element && (node.matches(DIAGRAM_BLOCKS) || node.querySelector(DIAGRAM_BLOCKS))
+        ? [index]
+        : [],
+    );
+    if (diagrams.length > 0) {
+      start = Math.min(start, diagrams[0]);
+      end = Math.min(end, nodes.length - 1 - diagrams.at(-1)!);
+    }
+  }
+  themes.set(next, dark);
   const changed = new Set<Node>(nodes.slice(start, nodes.length - end));
   const inChange = (element: Element) => {
     let node: Node = element;
@@ -220,6 +236,7 @@ export function morphInto(shown: HTMLElement, next: HTMLElement, { start, end }:
   const before = end > 0 ? old[old.length - end] : null;
   for (const added of newMiddle.slice(pairs)) shown.insertBefore(added, before);
   keys.set(shown, keysOf(next));
+  themes.set(shown, themes.get(next)!);
   // idiomorph inserts copies of new nodes, without their click listeners.
   for (const block of shown.querySelectorAll(".mdame-code")) {
     const button = block.querySelector(":scope > button");
@@ -232,6 +249,10 @@ export function morphInto(shown: HTMLElement, next: HTMLElement, { start, end }:
  * Each node on screen pairs with the node of the same index here: a
  * diagram replaces its code block, and a failed one wraps it. */
 const keys = new WeakMap<HTMLElement, string[]>();
+
+/** Whether each article's diagrams are dark: after a change of theme, the
+ * next update draws them all again, so that they share one theme. */
+const themes = new WeakMap<HTMLElement, boolean>();
 
 /** A message is not from the server's HTML, and its nodes are their own
  * keys. */
@@ -343,11 +364,13 @@ export function articleFor(html: string): HTMLElement {
   for (const link of article.querySelectorAll('a[href^="/raw/"]')) {
     link.setAttribute("href", viewHref(link.getAttribute("href")!));
   }
+  // Before the version of the images, which each live event changes: an
+  // image would make its block differ at each update.
+  keysOf(article);
   // A morph would otherwise put back the URL of the old image.
   for (const img of article.querySelectorAll("img")) useVersion(img);
   addCopyButtons(article);
   markImages(article);
-  keysOf(article);
   return article;
 }
 

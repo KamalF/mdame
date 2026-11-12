@@ -20,57 +20,57 @@ async function loadMermaid(theme: "dark" | "default") {
 
 let count = 0;
 
-/** The diagrams drawn lately, by theme, copy and source. A live update and
- * each preview render draw every diagram of the file again, 65 ms each. */
-const drawn = new Map<string, string>();
+/** The diagrams drawn lately, by theme and source, with the id that each
+ * was drawn with: a drawing takes 65 ms. */
+const drawn = new Map<string, { svg: string; id: string }>();
 const DRAWN_LIMIT = 50;
 
 /** The last drawing, which the next one waits for. Mermaid draws with the
  * theme of the last `initialize`, and the renders of two files overlap. */
 let drawing: Promise<unknown> = Promise.resolve();
 
-/** Copy `copy` of `source` in the file: a second copy of a diagram draws on
- * its own, since equal drawings share their ids. A marker in a closed
- * `<details>` would then hide the other copy's arrows. */
-async function draw(source: string, copy: number): Promise<string> {
+/** `source` drawn, with ids of its own: two equal drawings would share
+ * their ids, and a marker in a closed `<details>` would then hide the
+ * arrows of the other. */
+async function draw(source: string): Promise<string> {
   const theme = isDark() ? "dark" : "default";
-  const key = `${theme}\n${copy}\n${source}`;
+  const key = `${theme}\n${source}`;
+  const id = `mdame-mermaid-${++count}`;
   const cached = drawn.get(key);
-  if (cached !== undefined) return cached;
+  // Each id of a drawing starts with the id that it was drawn with. Not
+  // followed by a digit: `mdame-mermaid-1` is no part of `mdame-mermaid-12`.
+  if (cached) return cached.svg.replace(new RegExp(`${cached.id}(?!\\d)`, "g"), id);
   const next = drawing.then(async () => {
     const mermaid = await loadMermaid(theme);
     // Mermaid draws in this box, and leaves its error graphic there.
     const box = document.createElement("div");
     document.body.append(box);
     try {
-      return (await mermaid.render(`mdame-mermaid-${++count}`, source, box)).svg;
+      return (await mermaid.render(id, source, box)).svg;
     } finally {
       box.remove();
     }
   });
   drawing = next.catch(() => {});
   const svg = await next;
-  drawn.set(key, svg);
+  drawn.set(key, { svg, id });
   // The oldest goes first: a Map keeps the order of insertion.
   if (drawn.size > DRAWN_LIMIT) drawn.delete(drawn.keys().next().value!);
   return svg;
 }
 
+/** The blocks that `renderDiagrams` draws. */
+export const DIAGRAM_BLOCKS = "pre.mermaid, pre:has(> code.language-mermaid)";
+
 /** Turns `.mmd` files and `mermaid` code blocks in `root` into diagrams,
  * those that `include` keeps. */
 export async function renderDiagrams(root: HTMLElement, include = (_: Element) => true) {
-  const blocks = root.querySelectorAll("pre.mermaid, pre:has(> code.language-mermaid)");
-  const copies = new Map<string, number>();
-  for (const pre of blocks) {
-    const source = pre.textContent ?? "";
-    // Counted in all of `root`: a copy's number gives its ids.
-    const copy = (copies.get(source) ?? 0) + 1;
-    copies.set(source, copy);
+  for (const pre of root.querySelectorAll(DIAGRAM_BLOCKS)) {
     if (!include(pre)) continue;
     const figure = document.createElement("div");
     figure.className = "mdame-diagram";
     try {
-      figure.innerHTML = await draw(source, copy);
+      figure.innerHTML = await draw(pre.textContent ?? "");
       // Mermaid gives the drawing a width of 100%, and its own width as
       // max-width: a wide block takes that width, so a wide diagram can
       // grow past the column.

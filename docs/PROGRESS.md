@@ -23,7 +23,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
 | 13 | Fixes for 0.2.1 | Done 12 November 2026, merged into `main` the same day; 0.2.1 released the same day | 25, with the review fixes |
-| 14 | Performance | Done 12 November 2026, on the branch `m14-performance`; its manual checklist passed the same day, and the merge waits for Kamal | 12, with the review fixes |
+| 14 | Performance, released as 0.2.2 | Done 12 November 2026, on the branch `m14-performance`; its manual checklist passed the same day; the merge and the release of 0.2.2 wait for Kamal | 13, with the review fixes |
 | 15 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November; renumbered from 14 on 12 November | 6 items |
 
 Milestone 15 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
@@ -1117,7 +1117,7 @@ Run on 12 November 2026, after the release: checks 8 and 9 pass. Kamal ran them 
 Decided on 12 November 2026. Kamal asked for the open points of medium and large impact on performance, done without him. Claude decides the design of each fix, and records the decisions here. `docs/SPEC.md` holds the scope: milestone 14 in the build order. Handoff and keys become milestone 15.
 
 - The branch `m14-performance` starts from `main`, after the release of 0.2.1.
-- Kamal decides at the end whether the milestone releases 0.2.2.
+- Kamal decides at the end whether the milestone releases 0.2.2. Decided on 12 November 2026, after the manual checklist: it does.
 - The small fixes come first, then the morph and the virtual tree. The refetch of the tree and the search panel come after the virtual tree, which may fix them.
 
 The measures come from a harness in `target/review/perf`, outside git, as in milestone 10. A small crate serves a folder with the router of the library. A headless Chromium 156 runs in the same command, and a Bun script drives it over the DevTools protocol. The script sums the long animation frames of each action, and the CPU profiler gives the time of each function. The folders are a shallow copy of `mdn/content` at `fd6a5b07`, and two generated files: `dense.md`, 1 MB of headings, lists, tables, links, code and raw HTML, and `changelog.md`, 195 KB. The machine had a load average of about 8 on 16 cores. So the times are several times those of milestone 10: compare only the measures before and after a fix.
@@ -1176,6 +1176,8 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
    - Measure, with `web/api` open: the page holds 585 elements instead of 20,473. Opening `web/api` gives no long frame, instead of 138 ms, and a click on a file in it none, instead of 72 ms. A drag of the sidebar runs at 60 fps instead of 28 to 33. A refetch that changes only times takes 68 ms instead of 232 ms.
 7. A refetch of the tree renders only when what the tree draws changed: dropped. With the virtual tree, the render takes 2.4 ms of the 64 ms of a refetch. The rest is the parse of `/api/tree`, the sort and the list of files, which a refetch needs anyway.
 8. The opening of a search result: the virtual tree fixed it. With `web/api` open, it takes 110 ms of long frames instead of 350 to 390 ms, and what remains is the view of the file that opens. The time went to the style of 20,000 elements, when the panel's modal dialog closed.
+9. Release 0.2.2 (done). `Cargo.toml` says 0.2.2, and the section of 0.2.2 in `CHANGELOG.md` has the date of 12 November 2026. The README calls 0.2.2 an early release.
+   - Then Kamal pushes the branch, merges its pull request once CI passes, tags `v0.2.2` on `main`, and runs `cargo publish`, with the runbook `~/dev/claude/runbooks/2026-11-12-mdame-release-0.2.2.md`.
 
 Review, on 12 November 2026: one pass of `/simplify`, then 2 rounds of a code reviewer. The second round found no blocker and no should-fix. The first round found 3 should-fix, which are fixed: see commit 5. The pass of `/simplify` gave these other fixes:
 
@@ -1239,7 +1241,7 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 ## Next
 
 1. The Show HN.
-2. Milestone 14: Kamal merges it, and decides whether it releases 0.2.2.
+2. Milestone 14: Kamal merges its pull request, and releases 0.2.2.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points

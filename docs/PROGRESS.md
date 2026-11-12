@@ -23,7 +23,7 @@ One commit at a time. Claude writes the code and its tests, and runs fmt, clippy
 | 11 | Fixes for 0.1.1 | Done 10 November 2026, merged into `main` the same day | 39, with the review fixes |
 | 12 | Later items for 0.2.0, then Show HN | Done 11 November 2026, merged into `main` the same day; 0.2.0 released the same day, and the Show HN is next | 45, with the review and checklist fixes |
 | 13 | Fixes for 0.2.1 | Done 12 November 2026, merged into `main` the same day; 0.2.1 released the same day | 25, with the review fixes |
-| 14 | Performance, released as 0.2.2 | Done 12 November 2026, on the branch `m14-performance`; its manual checklist passed the same day; the merge and the release of 0.2.2 wait for Kamal | 13, with the review fixes |
+| 14 | Performance, released as 0.2.2 | Done 12 November 2026, merged into `main` the same day through pull request 13; 0.2.2 released the same day | 13, with the review fixes |
 | 15 | Handoff and keys, for 0.3.0 | Scope decided 10 November 2026, the release of 0.3.0 on 11 November; renumbered from 14 on 12 November | 6 items |
 
 Milestone 15 has no plan yet: its 6 items are in the build order of `docs/SPEC.md`. It ends with the release of 0.3.0.
@@ -1178,6 +1178,7 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
 8. The opening of a search result: the virtual tree fixed it. With `web/api` open, it takes 110 ms of long frames instead of 350 to 390 ms, and what remains is the view of the file that opens. The time went to the style of 20,000 elements, when the panel's modal dialog closed.
 9. Release 0.2.2 (done). `Cargo.toml` says 0.2.2, and the section of 0.2.2 in `CHANGELOG.md` has the date of 12 November 2026. The README calls 0.2.2 an early release.
    - Then Kamal pushes the branch, merges its pull request once CI passes, tags `v0.2.2` on `main`, and runs `cargo publish`, with the runbook `~/dev/claude/runbooks/2026-11-12-mdame-release-0.2.2.md`.
+   - Done on 12 November 2026: mdame 0.2.2 is on GitHub, in the tap and on crates.io. CI passed on the pull request and on `main`, on Linux and macOS, at the first attempt. Homebrew on Linux and on the Mac, mise and `cargo install` each give a mdame 0.2.2 that opens a folder.
 
 Review, on 12 November 2026: one pass of `/simplify`, then 2 rounds of a code reviewer. The second round found no blocker and no should-fix. The first round found 3 should-fix, which are fixed: see commit 5. The pass of `/simplify` gave these other fixes:
 
@@ -1241,8 +1242,7 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 ## Next
 
 1. The Show HN.
-2. Milestone 14: Kamal merges its pull request, and releases 0.2.2.
-3. Milestone 15: handoff and keys, for 0.3.0.
+2. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
 

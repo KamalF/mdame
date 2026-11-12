@@ -252,18 +252,32 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
   // The position that this code set last on each pane: its own scroll
   // event must not move the other pane back.
   const set = new Map<HTMLElement, number>();
+  /** The preview's blocks and height, read once per render or resize, not
+   * at each scroll: a dense 1 MB file has 30,000 blocks. */
+  let read: { blocks: Anchor[]; height: number } | null = null;
+  const resized = new ResizeObserver(() => {
+    read = null;
+  });
+  resized.observe(pane);
+  /** The article for its height: an image that loads, a `<details>` that
+   * opens. Observed again only when a render replaces it, since each new
+   * observation calls back once. */
+  let article: Element | null = null;
 
   function table(): Anchor[] {
-    const origin = pane.getBoundingClientRect().top - pane.scrollTop;
-    const blocks = [...pane.querySelectorAll("[data-sourcepos]")]
-      // The content of a closed <details> has no box: its rect of zeros
-      // would be an anchor at the current scroll position.
-      .filter((el) => el.getClientRects().length > 0)
-      .map((el) => ({
-        line: parseInt(el.getAttribute("data-sourcepos")!),
-        top: el.getBoundingClientRect().top - origin,
-      }));
-    return anchorTable(blocks, view.state.doc.lines, pane.scrollHeight);
+    if (!read) {
+      const origin = pane.getBoundingClientRect().top - pane.scrollTop;
+      const blocks = [...pane.querySelectorAll("[data-sourcepos]")]
+        // The content of a closed <details> has no box: its rect of zeros
+        // would be an anchor at the current scroll position.
+        .filter((el) => el.getClientRects().length > 0)
+        .map((el) => ({
+          line: parseInt(el.getAttribute("data-sourcepos")!),
+          top: el.getBoundingClientRect().top - origin,
+        }));
+      read = { blocks, height: pane.scrollHeight };
+    }
+    return anchorTable(read.blocks, view.state.doc.lines, read.height);
   }
 
   /** The source line at the top of the editor, fractional. */
@@ -301,7 +315,16 @@ function linkScroll(view: EditorView, pane: HTMLElement): () => void {
   const alignPreview = () => setScroll(pane, lineToTop(table(), editorLine()));
   follow(scroller, alignPreview);
   follow(pane, () => scrollEditorTo(topToLine(table(), pane.scrollTop)));
-  return alignPreview;
+  return () => {
+    read = null;
+    const shown = pane.querySelector(":scope > article");
+    if (shown !== article) {
+      if (article) resized.unobserve(article);
+      if (shown) resized.observe(shown);
+      article = shown;
+    }
+    alignPreview();
+  };
 }
 
 /** The file moved to `to`: the editor follows it, with its text, its

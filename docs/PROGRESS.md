@@ -1149,7 +1149,10 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
    - `layoutOutline` reads the top of each heading after its writes, and `spy` compares the scroll position with these tops. The outline's `ResizeObserver` already runs `layoutOutline` when the article changes size: an image that loads, a `<details>` that opens, a new width.
    - `spy` writes only the two links that change. It wrote `aria-current` to each link at each frame: 4,274 links on `dense.md`.
    - Measure, scrolling the view of `dense.md`: `spy` takes 0.2 ms per frame instead of 26 ms, and a frame 30 ms instead of 58 ms.
-4. The scroll sync reads the positions of the preview's blocks once per render or resize.
+4. The scroll sync reads the positions of the preview's blocks once per render or resize (done). No unit test: the positions need a browser. In the harness, six editor positions, before and after a resize of the window, moved the preview to the same places as before the fix.
+   - A `ResizeObserver` on the preview and its article drops the positions: an image that loads, a `<details>` that opens, a new width. The article is observed again only when a render replaces it, since each new observation calls back once.
+   - The table itself is still built at each frame from the positions: it needs the editor's number of lines, which typing changes.
+   - Measure, in the editor of `dense.md` with its preview: a scroll frame of the editor takes 78 ms instead of 718 ms, and of the preview 60 ms instead of 647 ms. Most of what remains is CodeMirror's own work on 1 MB of text.
 5. An update of the view highlights and draws only the blocks that changed.
 6. A virtual tree, which builds only the rows in view.
 7. A refetch of the tree renders only when what the tree draws changed, if the virtual tree leaves it slow.
@@ -1226,7 +1229,6 @@ Fixes, by commit. Each commit gives its measure after the fix, and updates the R
   - A file rewritten during editing as non-UTF-8, or past 8 MB, gives a status error or a 413, and no notice.
   - Two quick Backs with unsaved edits open two dialogs. `e`, a `#…` link in the preview, then Esc leave [view, edit, view] in the history.
   - Ctrl+S on non-Latin keyboard layouts (not checked).
-  - The scroll sync reads one rect per `[data-sourcepos]` element at each scroll frame.
   - A file swapped for a FIFO between the type check and the open hangs the save, and the saves after it: the `O_NONBLOCK` fix of milestone 4's open point must cover the save's open too.
   - mdame writes `.mdame/.gitignore` only when it creates `.mdame`.
   - A save that writes nothing still opens the file for writing, so inotify reports `IN_CLOSE_WRITE`.

@@ -415,7 +415,7 @@ Insta snapshot tests pin the output of a fixture file for each type, including o
 
 The editor posts its text to `POST /api/render` about 150 ms after typing stops. A text over 1 MB in UTF-8 gets the notice from the page itself: the request would send up to 8 MB at each pause. A tab runs one render at a time, and the newest text waits for it. The server cannot stop a render, and a crafted file can take an hour: without this rule, each typing pause could keep one more core busy. The preview morphs the result in with idiomorph, so scroll and Mermaid output survive.
 
-Scroll sync maps the editor's top visible line to the rendered block whose `data-sourcepos` start line is the largest one not past it, and interpolates towards the next block. The reverse direction uses the same table. Expect around 50 lines of JS, kept free of DOM access so `bun test` can cover it.
+Scroll sync maps the editor's top visible line to the rendered block whose `data-sourcepos` start line is the largest one not past it, and interpolates towards the next block. The reverse direction uses the same table. Expect around 50 lines of JS, kept free of DOM access so `bun test` can cover it. The positions of the blocks are read once per render, and again when the preview or its article changes size, not at each scroll.
 
 ### Code highlighting in rendered views
 

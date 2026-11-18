@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use notify_debouncer_full::notify::{
     self, RecommendedWatcher, RecursiveMode, WatcherKind,
-    event::{CreateKind, DataChange, EventKind, ModifyKind, RemoveKind, RenameMode},
+    event::{CreateKind, DataChange, EventKind, EventKindMask, ModifyKind, RemoveKind, RenameMode},
 };
 use notify_debouncer_full::{DebounceEventResult, Debouncer, NoCache, new_debouncer_opt};
 use serde::Serialize;
@@ -58,11 +58,7 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
     let handler = move |batch| {
         let _ = batches.send(batch);
     };
-    // A symlinked folder can point out of the workspace: its events would
-    // leak outside names, and a link to `/` would watch the whole disk.
-    let config = notify::Config::default().with_follow_symlinks(false);
-    let mut debouncer =
-        new_debouncer_opt::<_, RecommendedWatcher, _>(DEBOUNCE, None, handler, NoCache, config)?;
+    let mut debouncer = new_debouncer_opt::<_, RecommendedWatcher, _>(config(), handler, NoCache)?;
     if watches_whole_trees() {
         debouncer.watch(root, RecursiveMode::Recursive)?;
     }
@@ -79,6 +75,20 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
         _debouncer: debouncer,
         started: Mutex::new(started),
     })
+}
+
+fn config() -> notify_debouncer_full::Config {
+    let notify = notify::Config::default()
+        // A symlinked folder can point out of the workspace: its events
+        // would leak outside names, and a link to `/` would watch the whole
+        // disk.
+        .with_follow_symlinks(false)
+        // No access events: mdame's own walk opens each folder that the
+        // tree shows, and a resync makes each tab walk it again.
+        .with_event_kinds(EventKindMask::CORE);
+    notify_debouncer_full::Config::default()
+        .with_timeout(DEBOUNCE)
+        .with_notify_config(notify)
 }
 
 /// FSEvents watches a whole tree at the cost of one folder. inotify costs
@@ -246,7 +256,7 @@ impl Folders {
                 .is_some_and(|name| name == ".gitignore" || name == ".ignore")
         };
         let changes = |path: &PathBuf| match event.kind {
-            EventKind::Access(_) | EventKind::Modify(ModifyKind::Metadata(_)) => false,
+            EventKind::Modify(ModifyKind::Metadata(_)) => false,
             EventKind::Modify(ModifyKind::Data(_)) => is_ignore_file(path),
             _ => is_ignore_file(path) || self.watched.contains(path) || is_folder(path),
         };
@@ -352,12 +362,10 @@ fn events(
     found: &[PathBuf],
     fsevents: bool,
 ) -> Vec<Event> {
-    // Reads count for nothing: mdame's own tree walk opens every folder,
-    // and a resync makes each tab walk it again. Nor do the events of the
-    // folders that the tree hides, which reach the watcher on macOS.
+    // The events of the folders that the tree hides reach the watcher on
+    // macOS: they count for nothing.
     let batch: Vec<_> = batch
         .iter()
-        .filter(|event| !matches!(event.kind, EventKind::Access(_)))
         .filter(|event| {
             event.need_rescan()
                 || event
@@ -553,11 +561,8 @@ mod tests {
         assert!(!changes(write(&at("a.md"))));
         assert!(!changes(create(&at("hidden/new"))));
         assert!(!changes(create(&at("link"))));
-        // A walk opens each folder: these must not walk again.
-        let on_new = |kind| notify_event(kind, &[&at("new")]);
-        assert!(!changes(on_new(EventKind::Access(AccessKind::Any))));
         let metadata = EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any));
-        assert!(!changes(on_new(metadata)));
+        assert!(!changes(notify_event(metadata, &[&at("new")])));
     }
 
     #[test]
@@ -581,10 +586,8 @@ mod tests {
     #[cfg(target_os = "linux")]
     fn debouncer() -> (Debounced, std::sync::mpsc::Receiver<DebounceEventResult>) {
         let (sender, received) = std::sync::mpsc::channel();
-        let config = notify::Config::default().with_follow_symlinks(false);
         let debouncer =
-            new_debouncer_opt::<_, RecommendedWatcher, _>(DEBOUNCE, None, sender, NoCache, config)
-                .unwrap();
+            new_debouncer_opt::<_, RecommendedWatcher, _>(config(), sender, NoCache).unwrap();
         (debouncer, received)
     }
 
@@ -936,12 +939,6 @@ mod tests {
             .collect();
         assert_eq!(map(&burst), [Event::Resync]);
         assert_eq!(map(&burst[1..]).len(), BURST_THRESHOLD);
-
-        let reads: Vec<_> = (0..=BURST_THRESHOLD)
-            .map(|_| notify_event(EventKind::Access(AccessKind::Any), &["/ws/a.md"]))
-            .chain([write("/ws/a.md")])
-            .collect();
-        assert_eq!(map(&reads), [Event::Changed { path: path("a.md") }]);
 
         let rescan = notify_event(EventKind::Other, &[]).set_flag(Flag::Rescan);
         assert_eq!(map(&[write("/ws/a.md"), rescan]), [Event::Resync]);

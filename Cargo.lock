@@ -1215,9 +1215,9 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "notify"
-version = "9.0.0-rc.8"
+version = "9.0.0-rc.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eba4aae18a1495cd8eb448bdca59fd348db884b1cd7b6a899a8c82d78f9f0f6"
+checksum = "5c8547adfe44fd1fbec1d54c9b0551ebf93633d8ceb8a55e2295e5352e96e6a2"
 dependencies = [
  "bitflags",
  "inotify",
@@ -1235,9 +1235,9 @@ dependencies = [
 
 [[package]]
 name = "notify-debouncer-full"
-version = "0.8.0-rc.3"
+version = "0.8.0-rc.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "052d8b715fa32125b3ed62899001fd0aff64a0f8f4edf3f59ff3a0a0b6c63f77"
+checksum = "4a64b27d705b598bfa9522b8021a97c69a3458d896ccfdd62237326b3b671f43"
 dependencies = [
  "file-id",
  "log",
@@ -1249,9 +1249,9 @@ dependencies = [
 
 [[package]]
 name = "notify-types"
-version = "2.3.0"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c491a384baf9fec20df565cdb8138a12809d4c7439763b566eb8114c5d59979"
+checksum = "cbd044e85df3d939d8e32a1c35a3b737c7d0a4eeb7acd737bd207644e00f4e5f"
 dependencies = [
  "bitflags",
 ]

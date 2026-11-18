@@ -81,15 +81,17 @@ fn drop_until_quiet(events: &mut Receiver<Event>) {
     }
 }
 
-/// In any order. On macOS, a write can be `created`: for some seconds after
-/// the creation of a file, FSEvents keeps reporting it. A removal can also
-/// come twice: FSEvents can report the flags of a path in two batches, and
-/// the watcher merges events only within a batch.
+/// In any order. The watcher merges events only within a batch, and the
+/// debouncer can release the write of a new file in the batch after its
+/// creation: a `changed` after the `created` of its path counts for
+/// nothing. On macOS, a write can be `created`: for some seconds after the
+/// creation of a file, FSEvents keeps reporting it. A removal can also come
+/// twice: FSEvents can report the flags of a path in two batches.
 fn same(events: &[Event], expected: &[Event]) -> bool {
-    let repeated = |i: usize, event: &Event| {
-        cfg!(target_os = "macos")
-            && matches!(event, Event::Removed { .. })
-            && events[..i].contains(event)
+    let repeated = |i: usize, event: &Event| match event {
+        Event::Changed { path } => events[..i].contains(&created(path)),
+        Event::Removed { .. } => cfg!(target_os = "macos") && events[..i].contains(event),
+        _ => false,
     };
     let events: Vec<&Event> = events
         .iter()

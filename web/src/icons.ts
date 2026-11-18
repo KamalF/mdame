@@ -71,7 +71,7 @@ export function icon(name: string): SVGSVGElement {
 export function iconButton(
   label: string,
   name: string,
-  onClick: () => void,
+  onClick?: () => void,
   title = label,
 ): HTMLButtonElement {
   const button = document.createElement("button");
@@ -79,7 +79,7 @@ export function iconButton(
   button.setAttribute("aria-label", label);
   button.title = title;
   button.append(icon(name));
-  button.addEventListener("click", onClick);
+  if (onClick) button.addEventListener("click", onClick);
   return button;
 }
 

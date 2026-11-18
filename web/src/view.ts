@@ -5,9 +5,10 @@ import { Idiomorph } from "idiomorph";
 import { api, type ApiError } from "./api.ts";
 import { blocksOf, clearBars, drawBars } from "./bars.ts";
 import { Seen } from "./changes.ts";
-import { copyButton } from "./copy.ts";
+import { copy } from "./copy.ts";
 import { highlightAll } from "./codehl.ts";
 import { DIAGRAM_BLOCKS, renderDiagrams } from "./diagrams.ts";
+import { iconButton } from "./icons.ts";
 import { scrolledTo, showOutline } from "./outline.ts";
 import { blockAt } from "./search.ts";
 import { encodePath } from "./sidebar.ts";
@@ -237,11 +238,6 @@ export function morphInto(shown: HTMLElement, next: HTMLElement, { start, end }:
   for (const added of newMiddle.slice(pairs)) shown.insertBefore(added, before);
   keys.set(shown, keysOf(next));
   themes.set(shown, themes.get(next)!);
-  // idiomorph inserts copies of new nodes, without their click listeners.
-  for (const block of shown.querySelectorAll(".mdame-code")) {
-    const button = block.querySelector(":scope > button");
-    if (button && !copyButtons.has(button)) button.replaceWith(codeCopyButton(block));
-  }
 }
 
 /** The keys of each article's top-level nodes, from the server's HTML:
@@ -384,25 +380,27 @@ function markImages(article: HTMLElement) {
   }
 }
 
-function addCopyButtons(root: HTMLElement) {
-  for (const code of root.querySelectorAll("pre > code:not(.language-mermaid)")) {
+const COPY_CODE = { label: "Copy code", iconName: "copy" };
+
+function addCopyButtons(article: HTMLElement) {
+  for (const code of article.querySelectorAll("pre > code:not(.language-mermaid)")) {
     const pre = code.parentElement!;
     const block = document.createElement("div");
     block.className = "mdame-code";
     pre.replaceWith(block);
-    block.append(pre, codeCopyButton(block));
+    block.append(pre, iconButton(COPY_CODE.label, COPY_CODE.iconName));
   }
+  // One listener for the page: idiomorph inserts copies of new nodes,
+  // without their listeners, and the article on screen may not come from
+  // `articleFor`, such as the preview's error article. The same function
+  // is added only once.
+  document.addEventListener("click", copyCode);
 }
 
-/** The buttons that have their click listener. */
-const copyButtons = new WeakSet<Element>();
-
-/** Reads the code when clicked: a morph can put new code in the block. */
-function codeCopyButton(block: Element) {
-  const text = () => block.querySelector("code")?.textContent ?? "";
-  const button = copyButton({ label: "Copy code", iconName: "copy", text });
-  copyButtons.add(button);
-  return button;
+function copyCode(event: MouseEvent) {
+  const button = (event.target as Element).closest<HTMLElement>(".mdame-code > button");
+  const code = button?.parentElement!.querySelector("code");
+  if (button && code) copy(button, { ...COPY_CODE, text: () => code.textContent });
 }
 
 function notFound(el: HTMLElement, path: string, error: ApiError) {

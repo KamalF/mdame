@@ -1241,7 +1241,7 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 
 ## Comment cleanup, before milestone 15
 
-Steps 1 to 9 and their review loop are done on 18 November 2026. Step 10 waits for a design session. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
+Steps 1 to 10 and their two review loops are done on 18 November 2026. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
 
 The audit found about 1,200 comments. About 990 say what the code cannot: a threat, an order, a race, a measured cost, the behaviour of a library, or a value copied in another file. 86 repeat the code. 102 justify a workaround, and most of these rest on a fact outside mdame that still holds. 13 are stale, and some of them hide a bug or a gap.
 
@@ -1260,7 +1260,18 @@ Steps, one commit each:
 7. dist 0.34.0, which builds Apple Silicon on macos-15, so `[dist.github-custom-runners]` goes.
 8. The stale and unclear comments are fixed.
 9. The redundant comments go, or give the fact that they missed.
-10. The checks of the ignore files no longer race with the walker: see Review loop. Decided on 18 November 2026.
+10. The checks of the ignore files no longer race with the walker through procfs: see Review loop. Decided on 18 November 2026.
+   - Design session on 18 November 2026. Kamal chose `openat2` with `RESOLVE_NO_MAGICLINKS`, then the fact below changed the choice: mdame follows each path one name at a time, and refuses it as soon as it enters a file system of the kernel. It needs no `openat2`, so the fallback for kernels before 5.6, and its warning, are gone. Before Linux 3.12, as in RHEL 7, `fstatfs` refuses an `O_PATH` descriptor: `statfs` on its path in `/proc/self/fd` serves there. If neither works, the file system counts as the kernel's, and the check refuses.
+   - `openat2` refuses a magic link, but not `/proc/self/fd/<n>` for a number that nothing has open yet: the lookup of `<n>` fails before any magic link, so the file counts as missing. Then the walker opens its own folder under that number, and the file is there. Both scenarios of the security review passed the `openat2` check: the walk blocked on a FIFO, or ran out of memory on `/dev/zero`.
+   - With the fix, both scenarios end in 0.02 s, and the folders are left out. The test covers an open number, a number that nothing has open, and a `.git` link into procfs.
+   - Measured on 18 November 2026, release build, 15,000 folders, median of 21 walks, three pairs of runs at a load of 1 to 7, after round 3 of the second review loop: 0.194 to 0.198 s before, 0.199 to 0.200 s after. Each folder is opened once, and a missing name costs one `fstatat`, without opening it.
+   - A path that takes more than 256 names to reach, links included, is refused: each name costs a system call or more, some 40 times the kernel's own resolution. The names of a link count when the link is read, before they are walked. Found by the second review loop: a link that names itself through 1,640 names made one check take 630 ms, and a walk of 20 such folders 62 s. Then 40 links of 2,047 names each, counted only when walked, made a walk of 500 folders take 14.5 s.
+   - A file counts as missing only for an error that stops the walker too: missing, not a folder, denied, a loop of links, a name too long, a NUL in a name. Another error, such as a lack of file descriptors, may be gone when the walker opens the file, so the check refuses it. The checks by path that came before step 10 needed no descriptor.
+   - A walk that refuses the root, maybe for a moment, such as for a lack of file descriptors, leaves the watches of the watcher as they are, and the root gets one. The walk that accepts the root again sends `resync`: a folder renamed meanwhile would look new. Before, the watcher dropped every watch, and live updates stopped for the rest of the session. After a rescan, only the root stays watched: a kept folder may have moved out of the workspace, or become a link, by now, and the next walk that accepts the root watches it again. If a link leads to the root by now, no watch stays.
+   - The folders above the root are checked on its real path, as the walker reads them. A pull that turned the opened folder into a link made the walker read ignore files that mdame never checked. 0.2.2 has it too.
+   - The file system of each device is checked once per walk: `fstatfs` costs a round trip to the server on NFS, 38 ms on one mount, and a workspace of 1,000 folders there would have lost 9.5 s per walk. A file system mounted elsewhere, or a file mounted on its own, has its own device.
+   - An absolute `gitdir:` or `commondir` is followed from `/`, not from the current folder, as the walker does. A regular file at the end of a path gets its own check of file system: a file of procfs can be mounted on its own in another folder.
+   - macOS keeps the check by path: it has no procfs. Whether `/dev/fd/<n>` leads into a folder there waits for a check on Kamal's Mac.
 
 Results:
 
@@ -1279,12 +1290,12 @@ Review loop, on 18 November 2026: one simplify pass, then three rounds with a co
 - The listener of the copy buttons moves from each article to the page. Before, after a failed render in the preview, the copy buttons of the later renders did nothing: the error article had no listener.
 - Step 2: a watcher test failed about once in four runs, with a `changed` after the `created` of one write. The debouncer releases each event on its own 200 ms timer, checked every 50 ms, so the creation and the write of a file can come in two batches. 0.8.0-rc.3 does the same. Without access events, the writes of the test fell on the ticks more often. The tests now ignore a `changed` after the `created` of its path.
 - Kept: the sort of the new watches stays out. 0.8 inserts each watch into a sorted list, so unsorted watches cost quadratic time. But on 15,000 folders, the inserts take 45 ms unsorted and 47 ms with the sort.
-- Older than the branch, found by the security review (0.2.1 has it too): each check of an ignore file reads a path that the walker opens again later. A path through `/proc/self/fd/<n>`, in a `gitdir:` line or a link, names another folder when the walker opens it, because the walker opens its own folder under the same number. A FIFO then blocks the tree, and a link to `/dev/zero` takes memory until the OOM killer stops mdame. Kamal decided on 18 November 2026 to fix it before 0.2.3, as step 10, after a design session. Two ways are known: resolve each path part by part, or fix `ignore` so that it checks the file that it opened.
+- Older than the branch, found by the security review (0.2.1 has it too): each check of an ignore file reads a path that the walker opens again later. A path through `/proc/self/fd/<n>`, in a `gitdir:` line or a link, names another folder when the walker opens it, because the walker opens its own folder under the same number. A FIFO then blocks the tree, and a link to `/dev/zero` takes memory until the OOM killer stops mdame. Kamal decided on 18 November 2026 to fix it before 0.2.3, as step 10, after a design session.
 
 ## Next
 
 1. The Show HN.
-2. The comment cleanup: the design session and the fix of step 10, a review loop, the manual checks, a push and CI on macOS, then the release of 0.2.3. Decided on 18 November 2026.
+2. The comment cleanup: the check of `/dev/fd` on Kamal's Mac, the manual checks, a push and CI on macOS, then the release of 0.2.3. Decided on 18 November 2026.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points

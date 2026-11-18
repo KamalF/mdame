@@ -78,17 +78,26 @@ const MAX_IGNORE_FILE: u64 = 16 * 1024;
 const MAX_IGNORE_BYTES: u64 = 1024 * 1024;
 
 /// The ignore file of `folder` that the walker must not read, and why, if
-/// any. Through links, each must be a regular file of 16 KiB at most,
-/// outside the pseudo file systems of the kernel. Otherwise the walker
-/// could read without end: a FIFO blocks, `/dev/zero` never ends, and
-/// `/proc/self/pagemap` says 0 bytes but holds gigabytes. A cloned
-/// repository can hold a link to any of them. `read` adds up the bytes that
-/// the walk reads, up to `MAX_IGNORE_BYTES`.
-fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static str)> {
+/// any. Through links, each must be a regular file of 16 KiB at most, and
+/// its path must not enter a pseudo file system of the kernel. Otherwise
+/// the walker could read without end: a FIFO blocks, `/dev/zero` never
+/// ends, and `/proc/self/pagemap` says 0 bytes but holds gigabytes. A
+/// cloned repository can hold a link to any of them. `read` adds up the
+/// bytes that the walk reads, up to `MAX_IGNORE_BYTES`.
+fn bad_ignore_file(
+    folder: &Path,
+    read: &AtomicU64,
+    devices: &Devices,
+) -> Option<(PathBuf, &'static str)> {
+    let base = match Base::open(folder, devices) {
+        Ok(base) => base,
+        Err(error) if missing(&error) => return None,
+        Err(_) => return Some((folder.to_owned(), UNCHECKED)),
+    };
     let size = IGNORE_FILES
         .iter()
-        .map(|name| check(&folder.join(name)))
-        .chain(std::iter::once_with(|| check_git_exclude(folder)))
+        .map(|name| check(&base, Path::new(name)))
+        .chain(std::iter::once_with(|| check_git_exclude(&base)))
         .sum::<Result<u64, _>>();
     let size = match size {
         Ok(size) => size,
@@ -101,21 +110,265 @@ fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static
     })
 }
 
-/// The size of `path`, 0 if it is missing.
-fn check(path: &Path) -> Result<u64, (PathBuf, &'static str)> {
-    let Ok(file) = path.metadata() else {
-        return Ok(0);
-    };
-    let why = if !file.is_file() {
-        "is not a regular file"
-    } else if file.len() > MAX_IGNORE_FILE {
-        "is over 16 KiB"
-    } else if is_kernel_file_system(path) {
-        "leads into a file system of the kernel, such as procfs"
+/// Whether `error` stops the walker too, so that the file counts as
+/// missing. Another error, such as a lack of file descriptors, may be gone
+/// when the walker opens the file: the check then refuses it.
+fn missing(error: &std::io::Error) -> bool {
+    use std::io::ErrorKind;
+    let looped = error.raw_os_error() == Some(rustix::io::Errno::LOOP.raw_os_error());
+    looped
+        || matches!(
+            error.kind(),
+            ErrorKind::NotFound
+                | ErrorKind::NotADirectory
+                | ErrorKind::PermissionDenied
+                | ErrorKind::InvalidFilename
+                // A NUL in a path, which the walker's open refuses too.
+                | ErrorKind::InvalidInput
+        )
+}
+
+const UNCHECKED: &str = "could not be checked, for example for lack of file descriptors";
+
+/// The size of `path`, from `base`, 0 if it is missing.
+fn check(base: &Base, path: &Path) -> Result<u64, (PathBuf, &'static str)> {
+    find(base, path)
+        .and_then(|file| file.map_or(Ok(0), |file| judge(&file)))
+        .map_err(|why| (base.path.join(path), why))
+}
+
+fn judge(file: &Found) -> Result<u64, &'static str> {
+    if !file.regular {
+        Err("is not a regular file")
+    } else if file.len > MAX_IGNORE_FILE {
+        Err("is over 16 KiB")
     } else {
-        return Ok(file.len());
+        Ok(file.len)
+    }
+}
+
+/// What `check` needs to know of a file, through links.
+struct Found {
+    regular: bool,
+    len: u64,
+}
+
+/// The folder that `find` starts from, opened once for all the files that
+/// it checks there.
+struct Base<'a> {
+    path: &'a Path,
+    devices: &'a Devices,
+    #[cfg(target_os = "linux")]
+    fd: rustix::fd::OwnedFd,
+    #[cfg(target_os = "linux")]
+    on_kernel_file_system: bool,
+}
+
+impl<'a> Base<'a> {
+    #[cfg(target_os = "linux")]
+    fn open(path: &'a Path, devices: &'a Devices) -> std::io::Result<Base<'a>> {
+        use rustix::fs::{CWD, Mode, OFlags, fstat, openat};
+        let flags = OFlags::PATH | OFlags::DIRECTORY | OFlags::CLOEXEC;
+        let fd = openat(CWD, path, flags, Mode::empty())?;
+        let device = fstat(&fd)?.st_dev;
+        Ok(Base {
+            path,
+            devices,
+            on_kernel_file_system: devices.of_kernel(device, &fd),
+            fd,
+        })
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn open(path: &'a Path, devices: &'a Devices) -> std::io::Result<Base<'a>> {
+        Ok(Base { path, devices })
+    }
+}
+
+/// The verdicts of `on_kernel_file_system` for the devices that one walk
+/// meets: `fstatfs` costs a round trip to the server on NFS. A file system
+/// mounted elsewhere, or a file mounted on its own, has its own device.
+#[derive(Default)]
+struct Devices(#[cfg(target_os = "linux")] Mutex<Vec<(u64, bool)>>);
+
+#[cfg(target_os = "linux")]
+impl Devices {
+    fn known(&self, device: u64) -> Option<bool> {
+        let known = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        known
+            .iter()
+            .find(|&&(seen, _)| seen == device)
+            .map(|&(_, kernel)| kernel)
+    }
+
+    /// `file` is on `device`.
+    fn of_kernel(&self, device: u64, file: &rustix::fd::OwnedFd) -> bool {
+        self.known(device).unwrap_or_else(|| {
+            let kernel = on_kernel_file_system(file);
+            let mut known = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+            known.push((device, kernel));
+            kernel
+        })
+    }
+}
+
+/// procfs, sysfs, tracefs or debugfs, whose files can say 0 bytes and hold
+/// gigabytes, or block. By the type of the file system, not the path: a
+/// container may mount the host's procfs at `/run/host/proc`. Before Linux
+/// 3.12, `fstatfs` refuses an `O_PATH` descriptor: its path in procfs
+/// serves then. If neither works, the file system counts as the kernel's.
+#[cfg(target_os = "linux")]
+fn on_kernel_file_system(file: &rustix::fd::OwnedFd) -> bool {
+    use rustix::fd::AsRawFd;
+    use rustix::fs::{FsWord, PROC_SUPER_MAGIC, fstatfs, statfs};
+    const SYSFS: FsWord = 0x6265_6572;
+    const TRACEFS: FsWord = 0x7472_6163;
+    const DEBUGFS: FsWord = 0x6462_6720;
+    fstatfs(file)
+        .or_else(|_| statfs(format!("/proc/self/fd/{}", file.as_raw_fd()).as_str()))
+        .map_or(true, |fs| {
+            [PROC_SUPER_MAGIC, SYSFS, TRACEFS, DEBUGFS].contains(&(fs.f_type as FsWord))
+        })
+}
+
+/// `None` if `path`, from `base`, is missing. Follows the path one name at
+/// a time, and each link by hand, as the kernel would, and refuses it as
+/// soon as it enters a file system of the kernel, even where the next name
+/// is missing. In procfs, `/proc/self/fd/<n>` names a folder of the process
+/// that opens it, if any, so the walker could open another file than the
+/// one checked, or one that is missing now. Elsewhere, the files of a
+/// cloned repository stay as they are, and the walker opens the same file.
+#[cfg(target_os = "linux")]
+fn find(base: &Base, path: &Path) -> Result<Option<Found>, &'static str> {
+    use rustix::fd::{AsFd, OwnedFd};
+    use rustix::fs::{AtFlags, FileType, Mode, OFlags, openat, readlinkat, statat};
+    use std::borrow::Cow;
+    use std::ffi::{OsStr, OsString};
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::Component;
+    const REFUSED: &str = "leads into a file system of the kernel, such as procfs";
+    // More than a real path needs. Each name costs a system call or more,
+    // some 40 times what the kernel's own resolution costs on a local disk,
+    // and a crafted link can name itself through thousands of names.
+    const MAX_NAMES: usize = 256;
+    const TOO_MANY: &str = "takes more than 256 names to reach, links included";
+    let gone = |error: rustix::io::Errno| match missing(&error.into()) {
+        true => Ok(None),
+        false => Err(UNCHECKED),
     };
-    Err((path.to_owned(), why))
+    if base.on_kernel_file_system {
+        return Err(REFUSED);
+    }
+    // `None` while in `base`.
+    let mut folder: Option<OwnedFd> = None;
+    let mut names = path.components();
+    // The names of the links on the way, before the rest of `names`: the
+    // next one last.
+    let mut detour: Vec<OsString> = Vec::new();
+    let mut links = 0;
+    let mut walked = 0;
+    loop {
+        let name = match detour.pop() {
+            Some(name) => Cow::Owned(name),
+            None => match names.next() {
+                Some(Component::CurDir) => continue,
+                Some(part) => Cow::Borrowed(part.as_os_str()),
+                None => break,
+            },
+        };
+        // Refused, not missing: the kernel may reach the file.
+        walked += 1;
+        if walked > MAX_NAMES {
+            return Err(TOO_MANY);
+        }
+        let last = detour.is_empty() && names.clone().next().is_none();
+        let at = folder.as_ref().map_or(base.fd.as_fd(), |fd| fd.as_fd());
+        let stat = match statat(at, &*name, AtFlags::SYMLINK_NOFOLLOW) {
+            Ok(stat) => stat,
+            Err(error) => return gone(error),
+        };
+        match FileType::from_raw_mode(stat.st_mode) {
+            FileType::Symlink => {
+                // The kernel's limit: the walker gets ELOOP too.
+                links += 1;
+                if links > 40 {
+                    return Ok(None);
+                }
+                let target = match readlinkat(at, &*name, Vec::new()) {
+                    Ok(target) => target,
+                    Err(error) => return gone(error),
+                };
+                let target = Path::new(OsStr::from_bytes(target.as_bytes()));
+                let parts = target
+                    .components()
+                    .filter(|part| *part != Component::CurDir);
+                // Counted before they are kept: 40 links of 2,000 names each
+                // would cost as much as 80,000 names.
+                if walked + detour.len() + parts.clone().count() > MAX_NAMES {
+                    return Err(TOO_MANY);
+                }
+                detour.extend(parts.rev().map(|part| part.as_os_str().to_owned()));
+            }
+            // A file can be mounted on its own, from another file system
+            // than its folder's.
+            FileType::RegularFile if last => {
+                let kernel = match base.devices.known(stat.st_dev) {
+                    Some(kernel) => kernel,
+                    None => {
+                        let flags = OFlags::PATH | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+                        match openat(at, &*name, flags, Mode::empty()) {
+                            Ok(file) => base.devices.of_kernel(stat.st_dev, &file),
+                            Err(error) => return gone(error),
+                        }
+                    }
+                };
+                if kernel {
+                    return Err(REFUSED);
+                }
+                return Ok(Some(Found {
+                    regular: true,
+                    len: stat.st_size as u64,
+                }));
+            }
+            _ if last => {
+                return Ok(Some(Found {
+                    regular: false,
+                    len: 0,
+                }));
+            }
+            FileType::Directory => {
+                let flags = OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+                let next = match openat(at, &*name, flags, Mode::empty()) {
+                    Ok(next) => next,
+                    Err(error) => return gone(error),
+                };
+                if base.devices.of_kernel(stat.st_dev, &next) {
+                    return Err(REFUSED);
+                }
+                folder = Some(next);
+            }
+            _ => return Ok(None),
+        }
+    }
+    // `path` leads to a folder.
+    Ok(Some(Found {
+        regular: false,
+        len: 0,
+    }))
+}
+
+/// macOS has no procfs.
+#[cfg(not(target_os = "linux"))]
+fn find(base: &Base, path: &Path) -> Result<Option<Found>, &'static str> {
+    let file = match base.path.join(path).metadata() {
+        Ok(file) => file,
+        Err(error) if missing(&error) => return Ok(None),
+        Err(_) => return Err(UNCHECKED),
+    };
+    Ok(Some(Found {
+        regular: file.is_file(),
+        len: file.len(),
+    }))
 }
 
 /// Checks git's `info/exclude` in `folder`, and the files that lead the
@@ -126,22 +379,30 @@ fn check(path: &Path) -> Result<u64, (PathBuf, &'static str)> {
 /// relative `gitdir:` counts from the current folder of mdame. Gives the
 /// size of `info/exclude` alone: the walker builds no globs from the two
 /// others.
-fn check_git_exclude(folder: &Path) -> Result<u64, (PathBuf, &'static str)> {
-    let dot_git = folder.join(".git");
-    match dot_git.metadata() {
-        Err(_) => return Ok(0),
-        Ok(file) if !file.is_file() => return check(&dot_git.join("info/exclude")),
-        Ok(_) => {}
-    }
-    check(&dot_git)?;
-    let Some(gitdir) =
-        first_line(&dot_git).and_then(|line| line.strip_prefix("gitdir: ").map(PathBuf::from))
+fn check_git_exclude(folder: &Base) -> Result<u64, (PathBuf, &'static str)> {
+    let refused = |why: &'static str| (folder.path.join(".git"), why);
+    match find(folder, Path::new(".git")).map_err(refused)? {
+        None => return Ok(0),
+        Some(file) if file.regular => judge(&file).map_err(refused)?,
+        Some(_) => return check(folder, Path::new(".git/info/exclude")),
+    };
+    let gitdir = first_line(&folder.path.join(".git")).map_err(refused)?;
+    let Some(gitdir) = gitdir.and_then(|line| line.strip_prefix("gitdir: ").map(PathBuf::from))
     else {
         return Ok(0);
     };
+    // As the walker opens them: from `/`, or from the current folder.
+    let check_here = |path: &Path| {
+        let start = Path::new(if path.is_absolute() { "/" } else { "." });
+        match Base::open(start, folder.devices) {
+            Ok(base) => check(&base, path),
+            Err(error) if missing(&error) => Ok(0),
+            Err(_) => Err((path.to_owned(), UNCHECKED)),
+        }
+    };
     let commondir = gitdir.join("commondir");
-    check(&commondir)?;
-    let Some(common) = first_line(&commondir) else {
+    check_here(&commondir)?;
+    let Some(common) = first_line(&commondir).map_err(|why| (commondir.clone(), why))? else {
         return Ok(0);
     };
     let common = if common.starts_with('.') {
@@ -149,35 +410,24 @@ fn check_git_exclude(folder: &Path) -> Result<u64, (PathBuf, &'static str)> {
     } else {
         PathBuf::from(common)
     };
-    check(&common.join("info/exclude"))
+    check_here(&common.join("info/exclude"))
 }
 
 /// As the walker reads it: the bytes after the first line need not be
 /// UTF-8.
-fn first_line(path: &Path) -> Option<String> {
-    let file = std::fs::File::open(path).ok()?;
-    std::io::BufReader::new(file).lines().next()?.ok()
-}
-
-/// procfs, sysfs, tracefs or debugfs, whose files can say 0 bytes and hold
-/// gigabytes, or block. By the type of the file system, not the path: a
-/// container may mount the host's procfs at `/run/host/proc`.
-#[cfg(target_os = "linux")]
-fn is_kernel_file_system(path: &Path) -> bool {
-    use rustix::fs::{FsWord, PROC_SUPER_MAGIC, statfs};
-    const SYSFS: FsWord = 0x6265_6572;
-    const TRACEFS: FsWord = 0x7472_6163;
-    const DEBUGFS: FsWord = 0x6462_6720;
-    statfs(path).is_ok_and(|fs| {
-        let kind = fs.f_type as FsWord;
-        [PROC_SUPER_MAGIC, SYSFS, TRACEFS, DEBUGFS].contains(&kind)
-    })
-}
-
-/// macOS has none of them.
-#[cfg(not(target_os = "linux"))]
-fn is_kernel_file_system(_: &Path) -> bool {
-    false
+fn first_line(path: &Path) -> Result<Option<String>, &'static str> {
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if missing(&error) => return Ok(None),
+        Err(_) => return Err(UNCHECKED),
+    };
+    match std::io::BufReader::new(file).lines().next() {
+        Some(Ok(line)) => Ok(Some(line)),
+        // The walker gives up on a first line that is not UTF-8 too.
+        Some(Err(error)) if error.kind() == std::io::ErrorKind::InvalidData => Ok(None),
+        Some(Err(_)) => Err(UNCHECKED),
+        None => Ok(None),
+    }
 }
 
 /// What `keep` gives for each entry of the workspace that the tree may
@@ -193,13 +443,18 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
     // Ignore files above the root count only inside a repository, as in
     // git: a `.gitignore` in a home folder without `.git` must not hide
     // the notes below it.
-    let in_repo = root.ancestors().any(|dir| dir.join(".git").exists());
     // The walker reads the ignore files of the root and of each folder above
-    // it before any filter, even those whose rules it does not apply.
+    // it before any filter, even those whose rules it does not apply. Above
+    // the real path of the root: a link may lead to it by now.
+    let Ok(real) = root.canonicalize() else {
+        return Vec::new();
+    };
+    let in_repo = real.ancestors().any(|dir| dir.join(".git").exists());
     let read = AtomicU64::new(0);
-    let bad = root
+    let devices = Devices::default();
+    let bad = real
         .ancestors()
-        .find_map(|folder| bad_ignore_file(folder, &read));
+        .find_map(|folder| bad_ignore_file(folder, &read, &devices));
     if let Some((file, why)) = bad {
         tracing::warn!("the tree is empty: {} {why}", file.display());
         return Vec::new();
@@ -218,7 +473,7 @@ pub fn walk<T: Send>(root: &Path, keep: impl Fn(&DirEntry) -> Option<T> + Sync) 
             let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
             // Before the walker reads them.
             let bad = is_folder
-                .then(|| bad_ignore_file(entry.path(), &read))
+                .then(|| bad_ignore_file(entry.path(), &read, &devices))
                 .flatten();
             if let Some((file, why)) = &bad {
                 tracing::warn!("skipped: {} {why}", file.display());
@@ -534,6 +789,90 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
+    fn an_ignore_file_through_procfs_is_refused() {
+        use std::os::fd::AsRawFd;
+        use std::os::unix::fs::symlink;
+        // The targets are missing now, but may exist in the folder that the
+        // walker has open under the same number: the open folder here, and
+        // a number that nothing has open yet.
+        let root = crate::workspace::tempdir();
+        let other = crate::workspace::tempdir();
+        let open = fs::File::open(other.path()).unwrap();
+        let read = AtomicU64::new(0);
+        let refused = |folder: &Path| {
+            let (bad, why) = bad_ignore_file(folder, &read, &Devices::default()).unwrap();
+            assert!(why.contains("file system of the kernel"), "{why}");
+            bad
+        };
+        for fd in [open.as_raw_fd(), 999_999] {
+            let magic = format!("/proc/self/fd/{fd}");
+
+            let link = root.path().join(format!("link-{fd}"));
+            fs::create_dir(&link).unwrap();
+            symlink(format!("{magic}/z"), link.join(".gitignore")).unwrap();
+            assert_eq!(refused(&link), link.join(".gitignore"));
+
+            let module = root.path().join(format!("module-{fd}"));
+            fs::create_dir(&module).unwrap();
+            fs::write(module.join(".git"), format!("gitdir: {magic}\n")).unwrap();
+            assert_eq!(
+                refused(&module),
+                PathBuf::from(format!("{magic}/commondir"))
+            );
+
+            let repo = root.path().join(format!("repo-{fd}"));
+            fs::create_dir(&repo).unwrap();
+            symlink(&magic, repo.join(".git")).unwrap();
+            assert_eq!(refused(&repo), repo.join(".git"));
+        }
+    }
+
+    #[test]
+    fn only_the_errors_that_stop_the_walker_count_as_missing() {
+        use std::io::{Error, ErrorKind};
+        for kind in [
+            ErrorKind::NotFound,
+            ErrorKind::PermissionDenied,
+            ErrorKind::InvalidInput,
+        ] {
+            assert!(missing(&Error::from(kind)), "{kind:?}");
+        }
+        assert!(missing(&Error::from(rustix::io::Errno::LOOP)));
+        assert!(!missing(&Error::from(rustix::io::Errno::MFILE)));
+        assert!(!missing(&Error::from(ErrorKind::Other)));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn a_path_of_too_many_names_is_refused() {
+        use std::os::unix::fs::symlink;
+        let root = crate::workspace::tempdir();
+        fs::create_dir_all(root.path().join("folder/a")).unwrap();
+        fs::write(root.path().join("folder/x"), "").unwrap();
+        let target = format!("{}x", "a/../".repeat(130));
+        symlink(target, root.path().join("folder/.gitignore")).unwrap();
+
+        let read = AtomicU64::new(0);
+        let devices = Devices::default();
+        let (bad, why) = bad_ignore_file(&root.path().join("folder"), &read, &devices).unwrap();
+        assert_eq!(bad, root.path().join("folder/.gitignore"));
+        assert!(why.contains("256 names"), "{why}");
+
+        // Two links that name each other, each through 200 names: the
+        // walker gets ELOOP, but only after 40 links of 200 names.
+        let chain = root.path().join("chain");
+        fs::create_dir_all(chain.join("a")).unwrap();
+        let long = "/a/..".repeat(100);
+        symlink(format!("two{long}"), chain.join("one")).unwrap();
+        symlink(format!("one{long}"), chain.join("two")).unwrap();
+        symlink("one", chain.join(".gitignore")).unwrap();
+        let (bad, why) = bad_ignore_file(&chain, &read, &devices).unwrap();
+        assert_eq!(bad, chain.join(".gitignore"));
+        assert!(why.contains("256 names"), "{why}");
+    }
+
+    #[test]
     fn the_files_that_lead_to_info_exclude_count_for_nothing_in_the_budget() {
         let root = crate::workspace::tempdir();
         let gitdir = root.path().join("gitdir");
@@ -548,7 +887,7 @@ mod tests {
         .unwrap();
 
         let spent = AtomicU64::new(MAX_IGNORE_BYTES);
-        assert_eq!(bad_ignore_file(&module, &spent), None);
+        assert_eq!(bad_ignore_file(&module, &spent, &Devices::default()), None);
     }
 
     #[test]
@@ -570,6 +909,27 @@ mod tests {
         write(outer.path(), "repo/notes/a.md", 1);
         let notes = outer.path().join("repo/notes");
         assert_eq!(tree_paths(&walk_within_seconds(&notes)), [""]);
+    }
+
+    #[test]
+    fn the_folders_above_the_real_path_of_the_root_are_checked() {
+        use std::os::unix::fs::symlink;
+        let outer = crate::workspace::tempdir();
+        write(outer.path(), "a/b/x.md", 1);
+        mkfifo(&outer.path().join("a/.ignore"));
+        let links = crate::workspace::tempdir();
+        let docs = links.path().join("docs");
+        write(&docs, "y.md", 1);
+        let workspace = Workspace::open(&docs).unwrap();
+        // A pull turns the folder into a link.
+        fs::remove_dir_all(&docs).unwrap();
+        symlink(outer.path().join("a/b"), &docs).unwrap();
+
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || sender.send(build(&workspace)));
+        let wait = std::time::Duration::from_secs(5);
+        let tree = receiver.recv_timeout(wait).expect("the walk ends");
+        assert_eq!(tree_paths(&tree), [""]);
     }
 
     #[test]

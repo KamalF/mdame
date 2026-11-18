@@ -65,6 +65,7 @@ pub fn start(root: &Path, sender: broadcast::Sender<Event>) -> notify::Result<Wa
     let folders = Folders {
         root: root.to_owned(),
         watched: HashSet::new(),
+        resync: false,
     };
     let debouncer = Arc::new(Mutex::new(debouncer));
     let weak = Arc::downgrade(&debouncer);
@@ -136,9 +137,12 @@ fn forward(
             };
             found
         } else {
-            Vec::new()
+            Some(Vec::new())
         };
-        let mut events = events(&folders, &batch, &found, watches_whole_trees());
+        let mut events = match found {
+            Some(found) => events(&folders, &batch, &found, watches_whole_trees()),
+            None => vec![Event::Resync],
+        };
         drop_echoes(&mut events, &mut renamed, Instant::now());
         for event in events {
             // An error only means that no tab is connected.
@@ -182,13 +186,21 @@ fn drop_echoes(events: &mut Vec<Event>, renamed: &mut Vec<(String, Instant)>, no
 struct Folders {
     root: PathBuf,
     watched: HashSet<PathBuf>,
+    /// A walk refused the root: the next walk that accepts it cannot tell
+    /// new folders from old ones, and the tabs get a resync.
+    resync: bool,
 }
 
 impl Folders {
     /// Walks the workspace again after `batch`, and watches what it finds.
     /// Gives the entries of the folders that were not watched before: they
-    /// may have been written before their folder's watch.
-    fn update(&mut self, debouncer: &mut Debounced, batch: &[notify::Event]) -> Vec<PathBuf> {
+    /// may have been written before their folder's watch. `None` when the
+    /// tabs need a resync instead.
+    fn update(
+        &mut self,
+        debouncer: &mut Debounced,
+        batch: &[notify::Event],
+    ) -> Option<Vec<PathBuf>> {
         // Events were lost, and with them the removals that dropped
         // watches: every folder is watched again.
         let rescan = batch.iter().any(notify::Event::need_rescan);
@@ -216,6 +228,7 @@ impl Folders {
         let start = self.watched.is_empty();
         let before = self.watched.clone();
         let mut found = Vec::new();
+        let mut refused = false;
         // A folder may have changed between the walk and its watch: a
         // second walk finds it. Not more, so that a stream of new folders
         // cannot hold the events back.
@@ -226,6 +239,21 @@ impl Folders {
                 let is_folder = entry.file_type().is_some_and(|kind| kind.is_dir());
                 Some((entry.path().to_owned(), is_folder))
             });
+            // The walk refused the root, maybe for a moment, such as for a
+            // lack of file descriptors. The root gets a watch: the next
+            // change of a folder or an ignore file there walks again. The
+            // other watches stay, unless events were lost: a kept folder may
+            // have moved out of the workspace, or become a link, by now, and
+            // the next walk that accepts the root watches it again as new.
+            // No watch stays if a link leads to the root by now.
+            refused = walked.is_empty();
+            let all = rescan && walk == 0;
+            if refused && self.root.canonicalize().is_ok_and(|real| real == self.root) {
+                if !all {
+                    folders.extend(self.watched.iter().cloned());
+                }
+                folders.insert(self.root.clone());
+            }
             for (path, is_folder) in walked {
                 let parent = path.parent().filter(|parent| folders.contains(*parent));
                 if !start && parent.is_some_and(|parent| !before.contains(parent)) {
@@ -235,7 +263,6 @@ impl Folders {
                     folders.insert(path);
                 }
             }
-            let all = rescan && walk == 0;
             let added = !watches_whole_trees()
                 && watch_folders(debouncer, &self.watched, &mut folders, all);
             self.watched = folders;
@@ -243,7 +270,11 @@ impl Folders {
                 break;
             }
         }
-        found
+        if refused {
+            self.resync = true;
+            return Some(found);
+        }
+        (!std::mem::take(&mut self.resync)).then_some(found)
     }
 
     /// Whether `event` may change the folders that the tree shows: only a
@@ -523,6 +554,7 @@ mod tests {
         let folders = Folders {
             root: PathBuf::from("/ws"),
             watched: HashSet::from(["/ws".into(), "/ws/sub".into()]),
+            resync: false,
         };
         events(&folders, batch, &[], false)
     }
@@ -536,6 +568,7 @@ mod tests {
         let folders = Folders {
             watched: HashSet::from([root.clone(), root.join("sub")]),
             root,
+            resync: false,
         };
         let at = |name: &str| folders.root.join(name).to_str().unwrap().to_owned();
         let changes = |event: notify::Event| folders.changed_by(&event);
@@ -559,6 +592,7 @@ mod tests {
         let folders = Folders {
             root: PathBuf::from("/ws"),
             watched: HashSet::from(["/ws".into(), "/ws/new".into()]),
+            resync: false,
         };
         let batch = [create("/ws/new")];
         let found = |count: usize| -> Vec<PathBuf> {
@@ -607,6 +641,178 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
+    fn a_walk_that_refuses_the_root_leaves_the_watches() {
+        let tmp = crate::workspace::tempdir();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join("docs")).unwrap();
+        let (mut debouncer, _received) = debouncer();
+        let mut folders = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+            resync: false,
+        };
+        folders.update(&mut debouncer, &[]);
+        // A FIFO refuses the root for good; a lack of descriptors, for a
+        // moment.
+        let made = std::process::Command::new("mkfifo")
+            .arg(root.join(".gitignore"))
+            .status();
+        assert!(made.unwrap().success());
+        folders.update(&mut debouncer, &[]);
+        assert_eq!(
+            folders.watched,
+            HashSet::from([root.clone(), root.join("docs")])
+        );
+        // A folder renamed meanwhile would look new: the tabs get a resync.
+        std::fs::remove_file(root.join(".gitignore")).unwrap();
+        assert_eq!(folders.update(&mut debouncer, &[]), None);
+        std::process::Command::new("mkfifo")
+            .arg(root.join(".gitignore"))
+            .status()
+            .unwrap();
+
+        let mut fresh = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+            resync: false,
+        };
+        fresh.update(&mut debouncer, &[]);
+        assert_eq!(fresh.watched, HashSet::from([root]));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn after_a_rescan_with_the_root_refused_the_next_walk_watches_again() {
+        let tmp = crate::workspace::tempdir();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join("docs")).unwrap();
+        let (mut debouncer, received) = debouncer();
+        let mut folders = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+            resync: false,
+        };
+        folders.update(&mut debouncer, &[]);
+        std::fs::remove_dir(root.join("docs")).unwrap();
+        std::fs::create_dir(root.join("docs")).unwrap();
+        let fifo = root.join(".gitignore");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        assert!(made.unwrap().success());
+        // The batch is lost, as in an overflow.
+        while received.recv_timeout(Duration::from_millis(500)).is_ok() {}
+        let rescan = notify::Event::new(EventKind::Other).set_flag(Flag::Rescan);
+        folders.update(&mut debouncer, &[rescan]);
+        assert_eq!(folders.watched, HashSet::from([root.clone()]));
+
+        std::fs::remove_file(&fifo).unwrap();
+        while received.recv_timeout(Duration::from_millis(500)).is_ok() {}
+        folders.update(&mut debouncer, &[]);
+        let written = root.join("docs/a.md");
+        std::fs::write(&written, "").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while let Ok(batch) =
+            received.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        {
+            if batch
+                .unwrap()
+                .iter()
+                .any(|event| event.paths.contains(&written))
+            {
+                return;
+            }
+        }
+        panic!("no event for {}", written.display());
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn a_walk_that_accepts_the_root_after_only_its_watch_stayed_asks_for_a_resync() {
+        let tmp = crate::workspace::tempdir();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir_all(root.join("docs/deep")).unwrap();
+        std::fs::write(root.join("docs/deep/a.md"), "").unwrap();
+        let fifo = root.join(".gitignore");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        assert!(made.unwrap().success());
+        let (mut debouncer, _received) = debouncer();
+        let mut folders = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+            resync: false,
+        };
+        assert_eq!(folders.update(&mut debouncer, &[]), Some(Vec::new()));
+
+        std::fs::remove_file(&fifo).unwrap();
+        assert_eq!(folders.update(&mut debouncer, &[]), None);
+        assert!(folders.watched.contains(&root.join("docs/deep")));
+        assert_eq!(folders.update(&mut debouncer, &[]), Some(Vec::new()));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn a_root_that_a_link_leads_to_by_now_keeps_no_watch() {
+        let tmp = crate::workspace::tempdir();
+        let outside = crate::workspace::tempdir();
+        let root = tmp.path().canonicalize().unwrap().join("ws");
+        std::fs::create_dir_all(root.join("docs")).unwrap();
+        let (mut debouncer, _received) = debouncer();
+        let mut folders = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+            resync: false,
+        };
+        folders.update(&mut debouncer, &[]);
+        std::fs::rename(&root, tmp.path().join("old")).unwrap();
+        let made = std::process::Command::new("mkfifo")
+            .arg(outside.path().join(".gitignore"))
+            .status();
+        assert!(made.unwrap().success());
+        std::os::unix::fs::symlink(outside.path(), &root).unwrap();
+        folders.update(&mut debouncer, &[]);
+        assert_eq!(folders.watched, HashSet::new());
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn a_rescan_with_the_root_refused_watches_no_kept_folder_again() {
+        let tmp = crate::workspace::tempdir();
+        let outside = crate::workspace::tempdir();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join("docs")).unwrap();
+        let (mut debouncer, received) = debouncer();
+        let mut folders = Folders {
+            root: root.clone(),
+            watched: HashSet::new(),
+            resync: false,
+        };
+        folders.update(&mut debouncer, &[]);
+        std::fs::remove_dir(root.join("docs")).unwrap();
+        std::os::unix::fs::symlink(outside.path(), root.join("docs")).unwrap();
+        let made = std::process::Command::new("mkfifo")
+            .arg(root.join(".gitignore"))
+            .status();
+        assert!(made.unwrap().success());
+        // The batch that removed `docs` is lost, as in an overflow.
+        while received.recv_timeout(Duration::from_millis(500)).is_ok() {}
+        let rescan = notify::Event::new(EventKind::Other).set_flag(Flag::Rescan);
+        folders.update(&mut debouncer, &[rescan]);
+
+        std::fs::write(outside.path().join("secret.md"), "").unwrap();
+        let docs = root.join("docs");
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while let Ok(batch) =
+            received.recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        {
+            let paths = batch
+                .unwrap()
+                .into_iter()
+                .flat_map(|event| event.event.paths);
+            assert!(!paths.into_iter().any(|path| path.starts_with(&docs)));
+        }
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
     fn after_a_rescan_a_folder_created_again_is_watched_again() {
         let tmp = crate::workspace::tempdir();
         let root = tmp.path().canonicalize().unwrap();
@@ -615,6 +821,7 @@ mod tests {
         let mut folders = Folders {
             root: root.clone(),
             watched: HashSet::new(),
+            resync: false,
         };
         folders.update(&mut debouncer, &[]);
         std::fs::remove_dir(root.join("docs")).unwrap();
@@ -655,6 +862,7 @@ mod tests {
         let folders = Folders {
             root: PathBuf::from("/ws"),
             watched: HashSet::from(["/ws".into(), "/ws/sub".into(), "/ws/b".into()]),
+            resync: false,
         };
         let found = [PathBuf::from("/ws/b/y.md")];
         assert_eq!(
@@ -847,6 +1055,7 @@ mod tests {
         let folders = Folders {
             root: root.path().to_owned(),
             watched: HashSet::from([root.path().to_owned()]),
+            resync: false,
         };
         let batch: Vec<_> = batch
             .iter()

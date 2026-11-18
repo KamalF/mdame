@@ -245,9 +245,10 @@ fn replace_token(app: &AppState, access: &mut Access) {
         );
     }
     access.token = Some(token.clone());
-    // The new URL carries a new open code, not the token: the user may open
-    // it from the terminal, through a command line again. A used code stays:
-    // a second use of it is still a theft.
+    // On a loopback or unspecified address, the new URL carries a new open
+    // code, not the token: a click in the terminal may put it on a command
+    // line.
+    // A used code stays: a second use of it is still a theft.
     access.open_codes.retain(|code| code.used);
     access
         .open_codes

@@ -100,8 +100,8 @@ function showFileStatus(path: string, file: view.FileView) {
     words.title = `Reading time at ${PER_MINUTE} words a minute`;
     showWords(words, counted?.path === path ? counted.label : null);
     fileStatus.append(words);
-    // After the paint: counting 1 MB of text blocks the tab, at each open
-    // and each live update.
+    // After the paint: counting 1 MB of text blocks the tab when the file
+    // opens.
     requestAnimationFrame(() =>
       setTimeout(() => {
         // Another status replaced this one.
@@ -494,7 +494,8 @@ addEventListener("keydown", (event: KeyboardEvent) => {
   // Esc in a dialog or a menu closes it.
   // Focus may have left the dialog for the page, after a click on its text.
   if (document.querySelector("dialog[open], :popover-open")) return;
-  // The sidebar's own listener closes its overlay first.
+  // With the overlay open, Esc only closes it: the sidebar's own listener,
+  // which runs after this one, does it.
   if (!route().editing || sidebar.isOverlayOpen()) return;
   // Otherwise the browser applies this Esc to the dialog that it opens,
   // which closes at once.

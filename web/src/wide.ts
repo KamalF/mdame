@@ -52,8 +52,8 @@ export function layoutWide(article: HTMLElement) {
 let watched: HTMLElement | undefined;
 let observer: ResizeObserver | undefined;
 
-/** Lays out the wide blocks of `article` now, and whenever it or its pane
- * changes size. */
+/** Lays out the wide blocks of `article` before the next paint, and
+ * whenever it or its pane changes size. */
 export function watchWide(article: HTMLElement) {
   observer ??= new ResizeObserver(() => {
     if (watched) layoutWide(watched);

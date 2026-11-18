@@ -105,6 +105,7 @@ mod tests {
 
     #[test]
     fn a_config_that_sets_theme_stops_mdame() {
+        // A key that config.toml no longer takes: the page chooses the theme.
         let dir = crate::workspace::tempdir();
         let path = dir.path().join("config.toml");
         fs::write(&path, "theme = \"dark\"\n").unwrap();
@@ -113,6 +114,7 @@ mod tests {
 
     #[test]
     fn unknown_config_key_is_an_error() {
+        // A misspelled key.
         let dir = crate::workspace::tempdir();
         let path = dir.path().join("config.toml");
         fs::write(&path, "snapshot_per_file = 5\n").unwrap();

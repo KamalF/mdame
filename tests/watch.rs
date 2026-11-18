@@ -44,7 +44,6 @@ impl Watched {
         self.dir.path().join("ws").join(relative)
     }
 
-    /// The events until none came for `QUIET`.
     async fn next(&mut self) -> Vec<Event> {
         let mut events = Vec::new();
         let mut wait = FIRST_EVENT;
@@ -64,8 +63,6 @@ impl Watched {
     }
 }
 
-/// Drops the events of the next `FIRST_EVENT`, then those that follow until
-/// none came for `QUIET`.
 fn drop_until_quiet(events: &mut Receiver<Event>) {
     let mut wait = FIRST_EVENT;
     loop {

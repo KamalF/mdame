@@ -64,7 +64,6 @@ export function keyLabel(key: string, mac: boolean): string {
   const symbols: Record<string, string> = mac
     ? { Mod: "⌘", Shift: "⇧" }
     : { Mod: "Ctrl", Shift: "Shift" };
-  // A letter shows in upper case, as on the key.
   const shown = name.length === 1 ? name.toUpperCase() : name;
   return [...modifiers.map((modifier) => symbols[modifier]), shown].join(mac ? "" : "+");
 }

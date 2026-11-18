@@ -26,7 +26,6 @@ fn with_token(bound: &str) -> AppState {
     with_access(bound, Vec::new())
 }
 
-/// As `with_token`, with these open codes.
 fn with_access(bound: &str, open_codes: Vec<OpenCode>) -> AppState {
     let access = Access {
         token: Some("secret".to_string()),

@@ -22,7 +22,8 @@ export function anchorTable(blocks: Anchor[], lines: number, height: number): An
 }
 
 /** `value` on the `from` axis, mapped to the `to` axis between the two
- * anchors around it. */
+ * anchors around it. Before the first anchor or past the last one, the
+ * value of that anchor. */
 function interpolate(table: Anchor[], value: number, from: keyof Anchor, to: keyof Anchor) {
   let i = 0;
   while (i + 1 < table.length && table[i + 1][from] <= value) i++;

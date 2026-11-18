@@ -16,7 +16,6 @@ export interface Revision {
 /** The id of the "Last seen" entry: a snapshot's id is a time. */
 export const LAST_SEEN = "last-seen";
 
-/** A line of the list: a revision, or "Last seen", which has no time. */
 type Entry = Revision | { id: typeof LAST_SEEN; time: null; size: number };
 
 /**

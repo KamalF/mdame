@@ -72,7 +72,6 @@ export function chooseOutline(on: boolean) {
 
 type Entry = Heading & { element: HTMLElement; dot: boolean };
 
-/** The article that the outline lists, with its entries. */
 let shown: { article: HTMLElement; entries: Entry[] } | undefined;
 /** The outline on screen, if any. */
 let wrapper: HTMLElement | undefined;

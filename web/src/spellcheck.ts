@@ -4,7 +4,6 @@ import { load, store } from "./storage.ts";
 
 const KEY = "mdame:spellcheck";
 const compartment = new Compartment();
-/** The editors on screen: a new choice applies to them at once. */
 const views = new Set<EditorView>();
 
 /** On, unless the user turned it off. */

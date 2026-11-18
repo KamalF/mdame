@@ -4,7 +4,6 @@ export type LiveEvent =
   | { type: "renamed"; from: string; to: string }
   | { type: "resync" };
 
-/** Whether `open` is `path` or inside the folder `path`. */
 export function isWithin(open: string, path: string): boolean {
   return open === path || open.startsWith(path + "/");
 }
@@ -27,7 +26,6 @@ export function movedTo(event: LiveEvent, open: string): string | null {
   return movedPath(open, event.from, event.to);
 }
 
-/** What the page does for a live event. */
 export type Reaction =
   | { kind: "reload" }
   | { kind: "update"; tree: boolean; refresh: boolean; followTo: string | null };
@@ -52,7 +50,6 @@ export function react(
   return { ...update, refresh: concerns(event, open) };
 }
 
-/** Whether `event` names `open` or a folder holding it. */
 export function concerns(event: LiveEvent, open: string): boolean {
   if (event.type === "resync") return false;
   const paths = event.type === "renamed" ? [event.from, event.to] : [event.path];
@@ -62,7 +59,6 @@ export function concerns(event: LiveEvent, open: string): boolean {
 const FIRST_RETRY_MS = 500;
 const MAX_RETRY_MS = 10_000;
 
-/** Doubles after each failed attempt, up to 10 s. */
 export function retryDelay(failures: number): number {
   return Math.min(FIRST_RETRY_MS * 2 ** failures, MAX_RETRY_MS);
 }

@@ -163,7 +163,6 @@ content.id = "mdame-content";
 
 let fileCount = 0;
 
-/** The file that the address names, and whether it is open in the editor. */
 function route(): { path: string | null; editing: boolean } {
   const edited = sidebar.pathFromUrl(location.pathname, "/edit/");
   if (edited !== null) return { path: edited, editing: true };
@@ -209,7 +208,6 @@ function showRoute(withRevisions = false) {
   }
 }
 
-/** Whether the editor's unsaved edits may be lost: none, or the user agrees. */
 async function mayLeaveEditor(): Promise<boolean> {
   return !editor?.isDirty() || (await confirmDiscard());
 }
@@ -381,7 +379,6 @@ function onEvent(event: live.LiveEvent) {
   else if (reaction.refresh && current) refreshContentSoon(current);
 }
 
-/** Shows `url` in the page, as a new history entry. */
 function go(url: string) {
   editingFromView = false;
   history.pushState(null, "", url);
@@ -504,7 +501,6 @@ addEventListener("keydown", (event: KeyboardEvent) => {
   else stopEditing();
 });
 
-/** The root on screen, once shown. */
 let shownRoot: string | undefined;
 
 function show(state: State) {
@@ -515,7 +511,8 @@ function show(state: State) {
   showWorkspace(state);
 }
 
-/** Counts the closes of the WebSocket. */
+/** Goes up at each close of the WebSocket: an answer from before a close
+ * is stale. */
 let closes = 0;
 
 /** Refetches everything on screen, after events may have been missed.

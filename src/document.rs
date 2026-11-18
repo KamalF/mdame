@@ -156,7 +156,6 @@ pub fn revisions(dir: &Dir, path: &str) -> io::Result<Vec<Revision>> {
     }
 }
 
-/// The text of the revision `id` of the file at `path`.
 pub fn revision(dir: &Dir, path: &str, id: &str) -> io::Result<String> {
     let (_, _, real) = open_editable(dir, path, OpenOptions::new().read(true))?;
     let history = history::open_root(dir)?.ok_or_else(history::no_revision)?;
@@ -325,7 +324,6 @@ fn new_file_folder<'a>(
 /// hidden folder, gives `Unsupported`.
 pub fn save_image(dir: &Dir, path: &str, bytes: &[u8]) -> io::Result<String> {
     let (folder, name) = new_file_folder(dir, path, image_name)?;
-    // "docs/" for "docs/a.png".
     let prefix = &path[..path.len() - name.len()];
     // `image_name` found an image extension.
     let (stem, extension) = name.rsplit_once('.').unwrap_or((name, ""));
@@ -352,7 +350,6 @@ pub fn save_image(dir: &Dir, path: &str, bytes: &[u8]) -> io::Result<String> {
     ))
 }
 
-/// How many numbered names `save_image` tries.
 const IMAGE_NUMBERS: usize = 100;
 
 /// An image goes where the tree shows it: never in a hidden folder.
@@ -408,7 +405,6 @@ fn open_editable(
     }
 }
 
-/// Whether `path` still leads to the open `file`.
 fn is_at(dir: &Dir, path: &str, file: &File) -> bool {
     let (Ok(opened), Ok(on_path)) = (file.metadata(), dir.metadata(path)) else {
         return false;
@@ -578,7 +574,6 @@ mod tests {
         dir.write("a.md", "old\n").unwrap();
         let stop = AtomicBool::new(false);
         let failed = std::thread::scope(|scope| {
-            // Another editor saves by rename, again and again.
             scope.spawn(|| {
                 while !stop.load(Ordering::Relaxed) {
                     dir.write("new.md", "theirs\n").unwrap();

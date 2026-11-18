@@ -1,15 +1,13 @@
 import { icon, iconButton } from "./icons.ts";
 
-/**
- * An icon button that copies `text()` and shows a check, or a cross on
- * failure, for a moment. `text` may be async.
- */
 interface CopyOptions {
   label: string;
   iconName: string;
   text: () => string | Promise<string>;
 }
 
+/** An icon button that copies `text()` and shows a check, or a cross on
+ * failure, for a moment. */
 export function copyButton({ label, iconName, text }: CopyOptions): HTMLButtonElement {
   const button = iconButton(label, iconName, async () => {
     try {

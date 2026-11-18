@@ -172,7 +172,6 @@ export class Seen {
     this.#versions.set(path, source);
   }
 
-  /** The file moved: its version last seen moves with it. */
   rename(from: string, to: string) {
     const seen = this.#versions.get(from);
     if (seen === undefined) return;

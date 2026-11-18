@@ -35,7 +35,7 @@ export function message(el: HTMLElement, text: string) {
 }
 
 let request = 0;
-/** The file on screen, as `{path, file}`. */
+/** The file on screen. */
 let shown: { path: string; file: FileView } | undefined;
 
 const seen = new Seen();
@@ -274,8 +274,6 @@ function key(node: Node): string {
   return node.outerHTML.replace(/( data-sourcepos)="[^"]*"(?=[^<>]*>)/g, "$1");
 }
 
-/** The elements of `node` that have a line number, `node` first if it
- * has one. */
 function withLines(node: Element): Element[] {
   const inside = [...node.querySelectorAll("[data-sourcepos]")];
   return node.hasAttribute("data-sourcepos") ? [node, ...inside] : inside;
@@ -304,7 +302,6 @@ export function shownFile(): FileView | undefined {
   return shown?.file;
 }
 
-/** `from` moved to `to`: its version last seen follows it. */
 export function renameSeen(from: string, to: string) {
   seen.rename(from, to);
   if (onScreen?.path === from) onScreen = { ...onScreen, path: to };
@@ -340,7 +337,6 @@ function useVersion(img: HTMLImageElement) {
   // The sanitizer removes a `src` it refuses, such as `data:`, and "" is no URL.
   if (version === undefined || !img.src) return;
   const url = new URL(img.src);
-  // An image from elsewhere keeps its URL.
   if (url.origin !== location.origin || !url.pathname.startsWith("/raw/")) return;
   url.searchParams.set("v", String(version));
   const src = url.pathname + url.search;

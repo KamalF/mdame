@@ -34,7 +34,6 @@ pub async fn send_body(
     router(Arc::new(state)).oneshot(request).await.unwrap()
 }
 
-/// A POST with a body of raw bytes, such as an image.
 pub async fn post_bytes(
     app: &Router,
     uri: &str,
@@ -105,7 +104,6 @@ pub const HOST: (&str, &str) = ("host", "127.0.0.1:4891");
 
 pub const JSON: (&str, &str) = ("content-type", "application/json");
 
-/// The `ETag` that mdame gives a file holding `content`.
 pub fn etag(content: &[u8]) -> String {
     format!("\"{}\"", mdame::document::version(content))
 }

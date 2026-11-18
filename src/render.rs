@@ -173,7 +173,7 @@ fn options() -> Options<'static> {
     options
 }
 
-/// The first row is the header. Rows may have different lengths.
+/// The first row is the header.
 fn table(text: &str) -> String {
     let mut rows = csv::ReaderBuilder::new()
         .has_headers(false)

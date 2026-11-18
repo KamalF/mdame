@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
@@ -62,7 +63,8 @@ const WALK_THREADS: usize = 4;
 static WALKING: Mutex<()> = Mutex::new(());
 
 /// The files that the walker reads in each folder, for its ignore rules.
-const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
+/// It also reads git's `info/exclude`: see `check_git_exclude`.
+const IGNORE_FILES: [&str; 2] = [".gitignore", ".ignore"];
 
 /// Crafted patterns cost memory as the square of their number when the
 /// walker matches a name against them: 32 KiB of `?N` lines asked for 8 GB.
@@ -83,29 +85,78 @@ const MAX_IGNORE_BYTES: u64 = 1024 * 1024;
 /// repository can hold a link to any of them. `read` adds up the bytes that
 /// the walk reads, up to `MAX_IGNORE_BYTES`.
 fn bad_ignore_file(folder: &Path, read: &AtomicU64) -> Option<(PathBuf, &'static str)> {
-    let mut size = 0;
-    for name in IGNORE_FILES {
-        let path = folder.join(name);
-        let Ok(file) = path.metadata() else {
-            continue;
-        };
-        let why = if !file.is_file() {
-            "is not a regular file"
-        } else if file.len() > MAX_IGNORE_FILE {
-            "is over 16 KiB"
-        } else if is_kernel_file_system(&path) {
-            "leads into a file system of the kernel, such as procfs"
-        } else {
-            size += file.len();
-            continue;
-        };
-        return Some((path, why));
-    }
+    let size = IGNORE_FILES
+        .iter()
+        .map(|name| check(&folder.join(name)))
+        .chain(std::iter::once_with(|| check_git_exclude(folder)))
+        .sum::<Result<u64, _>>();
+    let size = match size {
+        Ok(size) => size,
+        Err(bad) => return Some(bad),
+    };
     let past_budget = size > 0 && read.fetch_add(size, Ordering::Relaxed) + size > MAX_IGNORE_BYTES;
     past_budget.then(|| {
         let why = "has ignore files past the 1 MiB that one walk reads";
         (folder.to_owned(), why)
     })
+}
+
+/// The size of `path`, 0 if it is missing.
+fn check(path: &Path) -> Result<u64, (PathBuf, &'static str)> {
+    let Ok(file) = path.metadata() else {
+        return Ok(0);
+    };
+    let why = if !file.is_file() {
+        "is not a regular file"
+    } else if file.len() > MAX_IGNORE_FILE {
+        "is over 16 KiB"
+    } else if is_kernel_file_system(path) {
+        "leads into a file system of the kernel, such as procfs"
+    } else {
+        return Ok(file.len());
+    };
+    Err((path.to_owned(), why))
+}
+
+/// Checks git's `info/exclude` in `folder`, and the files that lead the
+/// walker to it. A `.git` file, as in a worktree or a submodule, names the
+/// folder that holds `commondir`, which names the folder that holds
+/// `info/exclude`. The walker reads both names: they are checked before
+/// they are read, and resolved as `ignore` resolves them, so that a
+/// relative `gitdir:` counts from the current folder of mdame. Gives the
+/// size of `info/exclude` alone: the walker builds no globs from the two
+/// others.
+fn check_git_exclude(folder: &Path) -> Result<u64, (PathBuf, &'static str)> {
+    let dot_git = folder.join(".git");
+    match dot_git.metadata() {
+        Err(_) => return Ok(0),
+        Ok(file) if !file.is_file() => return check(&dot_git.join("info/exclude")),
+        Ok(_) => {}
+    }
+    check(&dot_git)?;
+    let Some(gitdir) =
+        first_line(&dot_git).and_then(|line| line.strip_prefix("gitdir: ").map(PathBuf::from))
+    else {
+        return Ok(0);
+    };
+    let commondir = gitdir.join("commondir");
+    check(&commondir)?;
+    let Some(common) = first_line(&commondir) else {
+        return Ok(0);
+    };
+    let common = if common.starts_with('.') {
+        gitdir.join(common)
+    } else {
+        PathBuf::from(common)
+    };
+    check(&common.join("info/exclude"))
+}
+
+/// As the walker reads it: the bytes after the first line need not be
+/// UTF-8.
+fn first_line(path: &Path) -> Option<String> {
+    let file = std::fs::File::open(path).ok()?;
+    std::io::BufReader::new(file).lines().next()?.ok()
 }
 
 /// procfs, sysfs, tracefs or debugfs, whose files can say 0 bytes and hold
@@ -433,6 +484,39 @@ mod tests {
     }
 
     #[test]
+    fn a_worktree_with_a_bad_ignore_file_is_skipped() {
+        let root = crate::workspace::tempdir();
+        let git = crate::workspace::tempdir();
+        // The walker reads only the first line of `.git` and of
+        // `commondir`: a byte that is not UTF-8 after it must not stop the
+        // checks.
+        let worktree = |name: &str| {
+            let gitdir = git.path().join(name);
+            fs::create_dir_all(gitdir.join("common/info")).unwrap();
+            fs::write(gitdir.join("commondir"), b"./common\n\xff\n").unwrap();
+            let dot_git = [
+                format!("gitdir: {}\n", gitdir.display()).as_bytes(),
+                b"\xff\n",
+            ]
+            .concat();
+            write(root.path(), &format!("{name}/a.md"), 1);
+            fs::write(root.path().join(name).join(".git"), dot_git).unwrap();
+            gitdir
+        };
+        let fifo = worktree("fifo");
+        fs::remove_file(fifo.join("commondir")).unwrap();
+        mkfifo(&fifo.join("commondir"));
+        let exclude = worktree("exclude");
+        mkfifo(&exclude.join("common/info/exclude"));
+        let fine = worktree("fine");
+        fs::write(fine.join("common/info/exclude"), "b.md\n").unwrap();
+        write(root.path(), "fine/b.md", 1);
+
+        let paths = tree_paths(&walk_within_seconds(root.path()));
+        assert_eq!(paths, ["", "fine", "fine/a.md"]);
+    }
+
+    #[test]
     fn the_ignore_files_of_a_walk_stop_at_1_mib() {
         let root = crate::workspace::tempdir();
         // Room for the ignore files above the temporary folder, such as a
@@ -447,6 +531,24 @@ mod tests {
         let paths = tree_paths(&walk_within_seconds(root.path()));
         let shown = paths.iter().filter(|path| path.ends_with("/a.md")).count();
         assert_eq!(shown as u64, fit);
+    }
+
+    #[test]
+    fn the_files_that_lead_to_info_exclude_count_for_nothing_in_the_budget() {
+        let root = crate::workspace::tempdir();
+        let gitdir = root.path().join("gitdir");
+        fs::create_dir_all(gitdir.join("common")).unwrap();
+        fs::write(gitdir.join("commondir"), "./common\n").unwrap();
+        let module = root.path().join("module");
+        fs::create_dir(&module).unwrap();
+        fs::write(
+            module.join(".git"),
+            format!("gitdir: {}\n", gitdir.display()),
+        )
+        .unwrap();
+
+        let spent = AtomicU64::new(MAX_IGNORE_BYTES);
+        assert_eq!(bad_ignore_file(&module, &spent), None);
     }
 
     #[test]

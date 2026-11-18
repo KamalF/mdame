@@ -356,6 +356,26 @@ async fn save_without_a_writable_history_folder_writes_nothing() {
     }
 }
 
+#[tokio::test]
+async fn save_gives_the_reason_why_the_history_folder_cannot_be_made() {
+    let dir = common::tempdir();
+    let state = workspace(dir.path());
+    let ws = dir.path().join("ws");
+    fs::set_permissions(&ws, Permissions::from_mode(0o555)).unwrap();
+    if fs::create_dir(ws.join("probe")).is_ok() {
+        // Root writes anyway: nothing to test.
+        return;
+    }
+    let response = put(state, "a.md", Some(&etag(b"old\n")), "new\n").await;
+    fs::set_permissions(&ws, Permissions::from_mode(0o755)).unwrap();
+
+    let (status, error) = status_and_json(response).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    let message = error["error"]["message"].as_str().unwrap();
+    assert!(message.contains("Permission denied"), "{message}");
+    assert_eq!(read(dir.path(), "a.md"), "old\n");
+}
+
 /// A leaked token must not rewrite `.git/config`, a `Makefile` or a snapshot.
 #[tokio::test]
 async fn save_refuses_what_the_editor_may_not_open() {

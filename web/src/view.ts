@@ -39,8 +39,8 @@ let request = 0;
 let shown: { path: string; file: FileView } | undefined;
 
 const seen = new Seen();
-/** The file that the view showed last, with its source, until the view
- * leaves it. */
+/** The file that the view or a closing editor showed last, with its
+ * source, until the view leaves it. */
 let onScreen: { path: string; source: string | null } | undefined;
 
 /** The view leaves the file on screen for `next`, and keeps its version
@@ -265,15 +265,13 @@ function keysOf(article: HTMLElement): string[] {
   return found;
 }
 
-/** A node's HTML without what a fresh render does not decide: the values
- * of the line numbers, which an edit above moves, and the `open` that the
- * reader gives a `<details>`. The attribute of a line number stays, so
- * that equal nodes have the same elements to copy lines between. Inside
- * tags only: a text can hold the same words, but its `<` and `>` are
- * escaped. */
+/** A node's HTML without the values of its line numbers, which an edit
+ * above moves. The attribute of a line number stays, so that equal nodes
+ * have the same elements to copy lines between. Inside tags only: a text
+ * can hold the same words, but its `<` and `>` are escaped. */
 function key(node: Node): string {
   if (!(node instanceof Element)) return `${node.nodeType} ${node.textContent ?? ""}`;
-  return node.outerHTML.replace(/( data-sourcepos)="[^"]*"(?=[^<>]*>)| open=""(?=[^<>]*>)/g, "$1");
+  return node.outerHTML.replace(/( data-sourcepos)="[^"]*"(?=[^<>]*>)/g, "$1");
 }
 
 /** The elements of `node` that have a line number, `node` first if it

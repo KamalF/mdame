@@ -1241,14 +1241,14 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 
 ## Comment cleanup, before milestone 15
 
-Done on 18 November 2026, in 15 commits; the branch waits for Kamal's review, and for CI on macOS, which runs the watcher tests there. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
+Steps 1 to 9 and their review loop are done on 18 November 2026. Step 10 waits for a design session. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
 
 The audit found about 1,200 comments. About 990 say what the code cannot: a threat, an order, a race, a measured cost, the behaviour of a library, or a value copied in another file. 86 repeat the code. 102 justify a workaround, and most of these rest on a fact outside mdame that still holds. 13 are stale, and some of them hide a bug or a gap.
 
 Steps, one commit each:
 
 1. `history::root` reports the real error when it cannot create `.mdame`. Since `6b9fb26`, `refuse_link` runs before `create_dir_all`, so a read-only or full disk gives "No such file or directory".
-2. notify 9.0.0-rc.9 and notify-debouncer-full 0.8.0-rc.4. The default config of the debouncer leaves out access events, so the kernel no longer reports the folders that the walk opens. The filters of Access events go.
+2. notify 9.0.0-rc.9 and notify-debouncer-full 0.8.0-rc.4. mdame asks notify for the core events only (`EventKindMask::CORE`), so the kernel no longer reports the folders that the walk opens. The filters of Access events go.
 3. A measure of the walk on 15,000 folders without access events: the 4 threads of the walk, the `WALKING` lock, and the sort of the new watches. Each one stays only for a reason that still holds.
    - Measured on 18 November 2026, with a release build, at a load of about 6 on 16 cores. With no access events, no number of threads gave a resync.
    - One walk takes 0.68 s on 1 thread, 0.19 s on 4, and 0.12 s on 12, the default of `ignore`. Four tabs at once take 0.71 s on 4 threads, and 0.31 s on 12 threads without the lock.
@@ -1260,6 +1260,7 @@ Steps, one commit each:
 7. dist 0.34.0, which builds Apple Silicon on macos-15, so `[dist.github-custom-runners]` goes.
 8. The stale and unclear comments are fixed.
 9. The redundant comments go, or give the fact that they missed.
+10. The checks of the ignore files no longer race with the walker: see Review loop. Decided on 18 November 2026.
 
 Results:
 
@@ -1268,14 +1269,22 @@ Results:
 - Step 6 also checks that the image route refuses a link to a folder outside the workspace.
 - Step 7: `dist plan` gives `macos-15` for Apple Silicon. The release workflow now calls `check-release.yml` with `$/`, GitHub's syntax for a workflow of the same repository. The next release checks it.
 - Step 8 also removes a dead branch of `key()` in `view.ts`: the server never sends `open` on a `<details>`.
-- After step 9, two open points of the cleanup. `choose()` in `revisions.ts` emptied diff mode before it set the new revision, so that the deleted lines of the old one would not stay. A check in headless Chromium switched revisions back and forth, with changed lines and with deleted lines of the same length: one reconfigure shows the right lines. `@codemirror/state` re-creates a field whose `init` changed. The `updateOriginalDoc` effect, which the review of milestone 7 suggested, would compute the same diff, so the plain reconfigure stays. And the copy buttons of the code blocks share one listener on the article, since idiomorph inserts copies of new nodes without their listeners. The same check clicks the button of a block that a morph made.
+- After step 9, two open points of the cleanup. `choose()` in `revisions.ts` emptied diff mode before it set the new revision, so that the deleted lines of the old one would not stay. A check in headless Chromium switched revisions back and forth, with changed lines and with deleted lines of the same length: one reconfigure shows the right lines. `@codemirror/state` re-creates a field whose `init` changed. The `updateOriginalDoc` effect, which the review of milestone 7 suggested, would compute the same diff, so the plain reconfigure stays. And the copy buttons of the code blocks share one listener on the page, since idiomorph inserts copies of new nodes without their listeners. The same check clicks the button of a block that a morph made.
 - Step 9 removes about 70 comments. Some comments that the audit marked as redundant stay, because they give a fact that the code does not: the doc of `sortTree`, the doc of `bars`, the first row of a CSV table, and the empty branch of `--no-open`, which avoids a mutant that no test can catch.
 - Unchanged, and checked on 18 November 2026: the front-end packages are at their latest versions. comrak 1.0.0 still takes one front matter delimiter, so the `+++` workaround stays. cargo-about still has no Intel macOS build, and cargo-mutants no ARM macOS build.
+
+Review loop, on 18 November 2026: one simplify pass, then three rounds with a code reviewer and a security reviewer. Each fix went into the commit of its step.
+
+- Step 5: a byte that is not UTF-8 after the first line of `.git` or `commondir` stopped the checks, but the walker read on and blocked on a FIFO. mdame now reads only the first line, as `ignore` does. `.git` and `commondir` no longer count in the 1 MiB that one walk reads, because the walker builds no globs from them.
+- The listener of the copy buttons moves from each article to the page. Before, after a failed render in the preview, the copy buttons of the later renders did nothing: the error article had no listener.
+- Step 2: a watcher test failed about once in four runs, with a `changed` after the `created` of one write. The debouncer releases each event on its own 200 ms timer, checked every 50 ms, so the creation and the write of a file can come in two batches. 0.8.0-rc.3 does the same. Without access events, the writes of the test fell on the ticks more often. The tests now ignore a `changed` after the `created` of its path.
+- Kept: the sort of the new watches stays out. 0.8 inserts each watch into a sorted list, so unsorted watches cost quadratic time. But on 15,000 folders, the inserts take 45 ms unsorted and 47 ms with the sort.
+- Older than the branch, found by the security review (0.2.1 has it too): each check of an ignore file reads a path that the walker opens again later. A path through `/proc/self/fd/<n>`, in a `gitdir:` line or a link, names another folder when the walker opens it, because the walker opens its own folder under the same number. A FIFO then blocks the tree, and a link to `/dev/zero` takes memory until the OOM killer stops mdame. Kamal decided on 18 November 2026 to fix it before 0.2.3, as step 10, after a design session. Two ways are known: resolve each path part by part, or fix `ignore` so that it checks the file that it opened.
 
 ## Next
 
 1. The Show HN.
-2. The comment cleanup: a review loop over the branch `comments`, its manual checks, a push and CI on macOS, then the release of 0.2.3. Decided on 18 November 2026.
+2. The comment cleanup: the design session and the fix of step 10, a review loop, the manual checks, a push and CI on macOS, then the release of 0.2.3. Decided on 18 November 2026.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points

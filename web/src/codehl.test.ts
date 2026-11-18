@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { HIGHLIGHT_LIMIT, tokens } from "./codehl.ts";
 
-// One sample per extension that /api/file sends as `language-<extension>`.
+// One sample for each data extension that mdame colours, and Rust for a
+// fenced block.
 const samples = {
   json: '{"a": [1, true, null]}',
   yaml: "a: 1\nb: [x, 'y'] # note",

@@ -41,7 +41,8 @@ async function highlight(code: HTMLElement) {
   const name = code.className.slice("language-".length);
   const pieces = await tokens(name, code.textContent);
   if (!pieces) return;
-  // One fragment: a 1 MB file has too many pieces to pass as arguments.
+  // One fragment, not one call with each piece as an argument:
+  // `HIGHLIGHT_LIMIT` characters can give tens of thousands of pieces.
   const fragment = document.createDocumentFragment();
   for (const [piece, classes] of pieces) {
     if (!classes) {

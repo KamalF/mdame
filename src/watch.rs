@@ -406,8 +406,8 @@ fn events(
     }
     // A new folder may hold entries written before its watch, even if its
     // own event comes in a later batch. Not a renamed folder: its entries
-    // are the same. notify drops its watch, so what is written into it
-    // before the walk sends nothing.
+    // are the same. A file written into it before the walk gets no
+    // `created` either: notify dropped its watch, so the file sent no event.
     let renamed: Vec<PathBuf> = events
         .iter()
         .filter_map(|event| match event {

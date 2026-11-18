@@ -251,7 +251,6 @@ async function treeText() {
   return (await send("GET", "/api/tree")).text();
 }
 
-/** Shows the tree in `el`, and returns its number of files. */
 interface MountOptions {
   root: string;
   current: string | null;
@@ -261,6 +260,7 @@ interface MountOptions {
   onSearch: () => void;
 }
 
+/** Shows the tree in `el`, and returns its number of files. */
 export async function mount(
   el: HTMLElement,
   { root, current, onOpen, onNewFile, onSearch }: MountOptions,
@@ -480,7 +480,8 @@ export async function mount(
    * from it. A row on screen stays as it is, so that it keeps the focus.
    */
   function paint(extra = -1) {
-    // Below the top of the view, while the header shows.
+    // How far the top of the view is below the top of the list: negative
+    // while the header above the list shows.
     const top = el.getBoundingClientRect().top + el.clientTop - list.getBoundingClientRect().top;
     const [first, last] = rowsInView(top, el.clientHeight, rows.length);
     const indexes = [];
@@ -774,7 +775,7 @@ export function setupLayout({ frame, nav, handle, backdrop, button }: LayoutElem
   button.addEventListener("click", toggle);
   backdrop.addEventListener("click", closeOverlay);
   addEventListener("keydown", (event: KeyboardEvent) => {
-    // The filter uses its first Esc to clear itself.
+    // The filter takes its own Esc: it clears the filter, or leaves it.
     // Esc on an open dialog closes the dialog only.
     const dialog = document.querySelector("dialog[open]");
     if (event.key === "Escape" && !event.defaultPrevented && !dialog && frame.classList.contains("overlay-open")) {

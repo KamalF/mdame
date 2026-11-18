@@ -1,4 +1,4 @@
-//! Watcher cases ported from mdlive's `tests/websocket_test.rs`.
+//! Watcher cases, some of them ported from mdlive's `tests/websocket_test.rs`.
 
 mod common;
 

@@ -14,7 +14,7 @@ test("macos shows ⌘ and the others ctrl", () => {
   expect(keyLabel("Mod-s", false)).toBe("Ctrl+S");
   expect(keyLabel("Shift-Tab", true)).toBe("⇧Tab");
   expect(keyLabel("Shift-Tab", false)).toBe("Shift+Tab");
-  // A key with no modifier shows as it is typed.
+  // A key with no modifier shows with no symbol.
   expect(keyLabel("e", true)).toBe("e");
   expect(keyLabel("Escape", false)).toBe("Esc");
 });

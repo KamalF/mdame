@@ -1,0 +1,1 @@
+import{Je,rs,ns,is,co}from"./main-aq2akts2.js";import"./main-2p8yd6tq.js";import"./main-gxtqed4a.js";import"./main-r0aeq4av.js";export{co as javascript,Je as javascriptLanguage,ns as jsxLanguage,is as tsxLanguage,rs as typescriptLanguage};

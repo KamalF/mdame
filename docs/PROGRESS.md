@@ -1325,7 +1325,6 @@ Results:
   - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 
 - From the comment cleanup, for later:
-  - The copy buttons could use one listener on the view. idiomorph inserts copies of new nodes, without their listeners, so `morphInto` adds them again.
   - The server could send each batch of the watcher as one WebSocket message. The page could then react once for each batch, instead of waiting 50 ms at three places for the events of one save.
 - From the review of milestone 7, for later:
   - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.

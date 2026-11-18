@@ -6,26 +6,28 @@ interface CopyOptions {
   text: () => string | Promise<string>;
 }
 
-/** An icon button that copies `text()` and shows a check, or a cross on
- * failure, for a moment. */
-export function copyButton({ label, iconName, text }: CopyOptions): HTMLButtonElement {
-  const button = iconButton(label, iconName, async () => {
-    try {
-      await write(text());
-      button.replaceChildren(icon("check"));
-    } catch {
-      button.replaceChildren(icon("cross"));
-      // The clipboard API exists only on secure pages: localhost, not a LAN address.
-      button.title = isSecureContext
-        ? "Copy failed"
-        : "Copy failed: the clipboard works only through localhost";
-    }
-    setTimeout(() => {
-      button.replaceChildren(icon(iconName));
-      button.title = label;
-    }, 1200);
-  });
+export function copyButton(options: CopyOptions): HTMLButtonElement {
+  const button = iconButton(options.label, options.iconName, () => copy(button, options));
   return button;
+}
+
+/** Copies `text()`, and shows a check on `button`, or a cross on failure,
+ * for a moment. */
+export async function copy(button: HTMLElement, { label, iconName, text }: CopyOptions) {
+  try {
+    await write(text());
+    button.replaceChildren(icon("check"));
+  } catch {
+    button.replaceChildren(icon("cross"));
+    // The clipboard API exists only on secure pages: localhost, not a LAN address.
+    button.title = isSecureContext
+      ? "Copy failed"
+      : "Copy failed: the clipboard works only through localhost";
+  }
+  setTimeout(() => {
+    button.replaceChildren(icon(iconName));
+    button.title = label;
+  }, 1200);
 }
 
 /** Safari refuses a write that starts after the click's turn, such as one

@@ -1241,7 +1241,7 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 
 ## Comment cleanup, before milestone 15
 
-Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
+Done on 18 November 2026, in 12 commits; the branch waits for Kamal's review, and for CI on macOS, which runs the watcher tests there. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
 
 The audit found about 1,200 comments. About 990 say what the code cannot: a threat, an order, a race, a measured cost, the behaviour of a library, or a value copied in another file. 86 repeat the code. 102 justify a workaround, and most of these rest on a fact outside mdame that still holds. 13 are stale, and some of them hide a bug or a gap.
 
@@ -1261,10 +1261,20 @@ Steps, one commit each:
 8. The stale and unclear comments are fixed.
 9. The redundant comments go, or give the fact that they missed.
 
+Results:
+
+- Steps 1 and 5 fix bugs that a user can meet: a save in a read-only workspace said "No such file or directory", and a worktree whose `commondir` is a FIFO blocked the tree. Each has a test that failed before its fix. The mutants of both fixes are caught.
+- Step 2: without the mask of access events, `reading_the_tree_sends_nothing` gets a resync for each batch, without end.
+- Step 6 also checks that the image route refuses a link to a folder outside the workspace.
+- Step 7: `dist plan` gives `macos-15` for Apple Silicon. The release workflow now calls `check-release.yml` with `$/`, GitHub's syntax for a workflow of the same repository. The next release checks it.
+- Step 8 also removes a dead branch of `key()` in `view.ts`: the server never sends `open` on a `<details>`.
+- Step 9 removes about 70 comments. Some comments that the audit marked as redundant stay, because they give a fact that the code does not: the doc of `sortTree`, the doc of `bars`, the first row of a CSV table, and the empty branch of `--no-open`, which avoids a mutant that no test can catch.
+- Unchanged, and checked on 18 November 2026: the front-end packages are at their latest versions. comrak 1.0.0 still takes one front matter delimiter, so the `+++` workaround stays. cargo-about still has no Intel macOS build, and cargo-mutants no ARM macOS build.
+
 ## Next
 
 1. The Show HN.
-2. The comment cleanup, on the branch `comments`.
+2. The comment cleanup: Kamal's review of the branch `comments`, then a push and CI on macOS.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
@@ -1313,8 +1323,11 @@ Steps, one commit each:
 - Nits deferred by the review and the over-engineering check of milestone 8:
   - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 
+- From the comment cleanup, for later:
+  - The copy buttons could use one listener on the view. idiomorph inserts copies of new nodes, without their listeners, so `morphInto` adds them again.
+  - The server could send each batch of the watcher as one WebSocket message. The page could then react once for each batch, instead of waiting 50 ms at three places for the events of one save.
 - From the review of milestone 7, for later:
-  - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check.
+  - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check. The comment cleanup found that `@codemirror/state` 6.7.6 re-creates a field whose `init` changed, so one reconfigure may be enough where `choose()` dispatches two.
   - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.
 - Nits deferred by the review of milestone 7:
   - A link inside the history, such as `.mdame/history/a.md -> b.md`, joins the revisions of two files.

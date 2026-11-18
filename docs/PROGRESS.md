@@ -1239,10 +1239,29 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 - 12: the paste and three typing pauses sent no request. The undo sent one, of 736 ms, and the preview came back with its 19,236 blocks.
 - 14: in this Chrome, the content of a closed `<details>` keeps a box: `getClientRects()` gives a rect of 24 px. See Open points.
 
+## Comment cleanup, before milestone 15
+
+Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
+
+The audit found about 1,200 comments. About 990 say what the code cannot: a threat, an order, a race, a measured cost, the behaviour of a library, or a value copied in another file. 86 repeat the code. 102 justify a workaround, and most of these rest on a fact outside mdame that still holds. 13 are stale, and some of them hide a bug or a gap.
+
+Steps, one commit each:
+
+1. `history::root` reports the real error when it cannot create `.mdame`. Since `6b9fb26`, `refuse_link` runs before `create_dir_all`, so a read-only or full disk gives "No such file or directory".
+2. notify 9.0.0-rc.9 and notify-debouncer-full 0.8.0-rc.4. The default config of the debouncer leaves out access events, so the kernel no longer reports the folders that the walk opens. The filters of Access events go.
+3. A measure of the walk on 15,000 folders without access events: the 4 threads of the walk, the `WALKING` lock, and the sort of the new watches. Each one stays only for a reason that still holds.
+4. `vanished` loses its `Io(NotFound)` arm: notify 9 gives `PathNotFound` for a folder that goes during its watch.
+5. The checks of the ignore files cover the files that a `.git` file leads to, in a worktree or a submodule: the `.git` file, `commondir`, and `info/exclude` of the common folder.
+6. `tests/routes.rs` gets a row for `POST /api/image`.
+7. dist 0.34.0, which builds Apple Silicon on macos-15, so `[dist.github-custom-runners]` goes.
+8. The stale and unclear comments are fixed.
+9. The redundant comments go, or give the fact that they missed.
+
 ## Next
 
 1. The Show HN.
-2. Milestone 15: handoff and keys, for 0.3.0.
+2. The comment cleanup, on the branch `comments`.
+3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
 

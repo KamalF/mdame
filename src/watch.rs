@@ -334,13 +334,8 @@ fn is_folder(path: &Path) -> bool {
         .is_ok_and(|metadata| metadata.is_dir())
 }
 
-/// Also when the folder goes between the watch and notify's check of it.
 fn vanished(error: &notify::Error) -> bool {
-    match &error.kind {
-        notify::ErrorKind::PathNotFound => true,
-        notify::ErrorKind::Io(io) => io.kind() == ErrorKind::NotFound,
-        _ => false,
-    }
+    matches!(error.kind, notify::ErrorKind::PathNotFound)
 }
 
 fn denied(error: &notify::Error) -> bool {
@@ -943,7 +938,6 @@ mod tests {
         let io = |kind| notify::Error::io(std::io::Error::from(kind));
         assert!(denied(&io(ErrorKind::PermissionDenied)));
         assert!(vanished(&notify::Error::path_not_found()));
-        assert!(vanished(&io(ErrorKind::NotFound)));
         let limit = notify::Error::new(notify::ErrorKind::MaxFilesWatch);
         assert!(!denied(&limit) && !vanished(&limit));
     }

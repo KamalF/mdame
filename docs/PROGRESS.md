@@ -1268,6 +1268,7 @@ Results:
 - Step 6 also checks that the image route refuses a link to a folder outside the workspace.
 - Step 7: `dist plan` gives `macos-15` for Apple Silicon. The release workflow now calls `check-release.yml` with `$/`, GitHub's syntax for a workflow of the same repository. The next release checks it.
 - Step 8 also removes a dead branch of `key()` in `view.ts`: the server never sends `open` on a `<details>`.
+- After step 9, two open points of the cleanup. `choose()` in `revisions.ts` emptied diff mode before it set the new revision, so that the deleted lines of the old one would not stay. A check in headless Chromium switched revisions back and forth, with changed lines and with deleted lines of the same length: one reconfigure shows the right lines. `@codemirror/state` re-creates a field whose `init` changed. The `updateOriginalDoc` effect, which the review of milestone 7 suggested, would compute the same diff, so the plain reconfigure stays. And the copy buttons of the code blocks share one listener on the article, since idiomorph inserts copies of new nodes without their listeners. The same check clicks the button of a block that a morph made.
 - Step 9 removes about 70 comments. Some comments that the audit marked as redundant stay, because they give a fact that the code does not: the doc of `sortTree`, the doc of `bars`, the first row of a CSV table, and the empty branch of `--no-open`, which avoids a mutant that no test can catch.
 - Unchanged, and checked on 18 November 2026: the front-end packages are at their latest versions. comrak 1.0.0 still takes one front matter delimiter, so the `+++` workaround stays. cargo-about still has no Intel macOS build, and cargo-mutants no ARM macOS build.
 
@@ -1327,7 +1328,6 @@ Results:
   - The copy buttons could use one listener on the view. idiomorph inserts copies of new nodes, without their listeners, so `morphInto` adds them again.
   - The server could send each batch of the watcher as one WebSocket message. The page could then react once for each batch, instead of waiting 50 ms at three places for the events of one save.
 - From the review of milestone 7, for later:
-  - `choose()` in `revisions.ts` builds the merge view again to switch revisions. The `updateOriginalDoc` effect of `@codemirror/merge` would change it in place. Needs a browser check. The comment cleanup found that `@codemirror/state` 6.7.6 re-creates a field whose `init` changed, so one reconfigure may be enough where `choose()` dispatches two.
   - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.
 - Nits deferred by the review of milestone 7:
   - A link inside the history, such as `.mdame/history/a.md -> b.md`, joins the revisions of two files.

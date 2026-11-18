@@ -54,7 +54,6 @@ async function draw(source: string): Promise<string> {
   drawing = next.catch(() => {});
   const svg = await next;
   drawn.set(key, { svg, id });
-  // The oldest goes first: a Map keeps the order of insertion.
   if (drawn.size > DRAWN_LIMIT) drawn.delete(drawn.keys().next().value!);
   return svg;
 }

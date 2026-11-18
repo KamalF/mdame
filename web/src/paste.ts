@@ -97,7 +97,6 @@ export function pasteImages(path: () => string, failed: (message: string) => voi
     }
     view.dispatch({
       changes: { from: start, to: stop, insert: text },
-      // Between the brackets of the first `![]`.
       selection: { anchor: start + text.indexOf("![") + 2 },
       scrollIntoView: true,
       userEvent: "input.paste",

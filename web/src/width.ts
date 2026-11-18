@@ -19,7 +19,6 @@ export function currentWidth(): Width {
   return chosenWidth(load<unknown>(KEY, null));
 }
 
-/** Shows the stored width. */
 export function applyWidth() {
   const value = widthValue(currentWidth());
   const style = document.documentElement.style;

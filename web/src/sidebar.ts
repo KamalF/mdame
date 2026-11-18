@@ -177,8 +177,6 @@ export interface Row {
   position: number;
 }
 
-/** The rows of `nodes`, top to bottom, with the rows of the open folders
- * under them. */
 export function treeRows(nodes: TreeNode[], open: Set<string>, depth = 0, rows: Row[] = []): Row[] {
   nodes.forEach((node, index) => {
     rows.push({ node, depth, size: nodes.length, position: index + 1 });
@@ -200,7 +198,6 @@ function rowKey({ kind, path }: Pick<TreeNode, "kind" | "path">): string {
   return `${kind}:${path}`;
 }
 
-/** `docs/a b.md` gives `docs/a%20b.md`: each part is encoded, not the slashes. */
 export function encodePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
 }
@@ -233,7 +230,6 @@ let refetch: () => Promise<number | null> = async () => null;
 // The current file, also while the tree is still loading.
 let latest: string | null;
 
-/** Highlights `path` as the current file. */
 export function setCurrent(path: string | null) {
   latest = path;
   select(path);
@@ -332,7 +328,6 @@ export async function mount(
     render();
   }
 
-  // Moves the highlight without rebuilding the list.
   function moveHighlight(next: number) {
     list.children[highlight]?.querySelector(".mdame-tree-row")!.classList.remove("is-highlighted");
     highlight = next;
@@ -367,7 +362,8 @@ export async function mount(
     event.preventDefault();
   });
 
-  /** Focuses the row of the current file, or else the first row. */
+  /** Focuses the row of the current file, or else the first row. False
+   * when there is no row. */
   function enterTree() {
     if (!query) {
       if (rows.length === 0) return false;
@@ -421,7 +417,6 @@ export async function mount(
     else focusRow(next);
   });
 
-  // The rows in view change with the scroll and the height of the sidebar.
   el.addEventListener("scroll", () => query || paint(), { passive: true });
   new ResizeObserver(() => query || paint()).observe(el);
 
@@ -612,7 +607,6 @@ export async function mount(
       else paint();
       return;
     }
-    // The results of the filter.
     list.querySelector('[aria-current="page"]')?.removeAttribute("aria-current");
     if (path !== null) rowOf(path)?.setAttribute("aria-current", "page");
   };
@@ -634,7 +628,6 @@ function line(row: HTMLElement, path: string, newFile?: HTMLButtonElement) {
   return wrapper;
 }
 
-/** The chevron and `aria-expanded` of a folder's row. */
 function showOpen(row: HTMLElement, expanded: boolean) {
   if (row.getAttribute("aria-expanded") === String(expanded)) return;
   row.setAttribute("aria-expanded", String(expanded));
@@ -679,7 +672,6 @@ export function isOverlayOpen(): boolean {
   return overlayOpen();
 }
 
-/** Shows the sidebar if needed, then focuses the filter field. */
 export function focusFilter() {
   show();
   focusField();

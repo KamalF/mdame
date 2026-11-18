@@ -399,7 +399,6 @@ fn content_type(path: &str) -> &'static str {
 }
 
 async fn tree(State(app): State<Arc<AppState>>) -> Result<Json<tree::Node>, ApiError> {
-    // The walk reads every folder: run it where blocking is allowed.
     let node = tokio::task::spawn_blocking(move || tree::build(&app.workspace)).await?;
     Ok(Json(node))
 }
@@ -419,7 +418,6 @@ async fn search(
             "q is empty: give the phrase to search for".to_owned(),
         ));
     }
-    // It walks the tree and reads each file.
     let results =
         tokio::task::spawn_blocking(move || search::search(&app.workspace, &query.q)).await?;
     Ok(Json(results))
@@ -435,7 +433,6 @@ async fn file(
     query: Result<Query<FileQuery>, QueryRejection>,
 ) -> Result<Json<View>, ApiError> {
     let Query(query) = query?;
-    // Reading and rendering a large file takes a while.
     let path = query.path.clone();
     let view =
         tokio::task::spawn_blocking(move || document::view(&app.workspace.dir, &path)).await?;
@@ -673,7 +670,6 @@ async fn image(
     Ok((StatusCode::CREATED, Json(SavedImage { path })))
 }
 
-/// The error of a new file at `path`.
 fn new_file_error(path: &str, error: io::Error) -> ApiError {
     match error.kind() {
         io::ErrorKind::AlreadyExists => {

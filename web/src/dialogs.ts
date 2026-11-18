@@ -1,6 +1,6 @@
 import { api } from "./api.ts";
 
-/** Shows a modal dialog: its title, `body`, then `buttons`. */
+/** Shows a modal dialog. `id` names its heading, which labels the dialog. */
 export function modal(id: string, heading: string, body: Node[], buttons: HTMLButtonElement[]) {
   const dialog = document.createElement("dialog");
   dialog.className = "mdame-dialog";

@@ -21,6 +21,7 @@ export function overRenderLimit(text: string): boolean {
 
 async function render(path: string, content: string): Promise<HTMLElement> {
   if (overRenderLimit(content)) {
+    // The same notice as `document::preview`.
     return articleFor('<p class="mdame-notice">This file is over 1 MB, too large to preview.</p>');
   }
   try {
@@ -72,7 +73,8 @@ export function show(el: HTMLElement, path: string, content: string) {
   });
 }
 
-/** Renders `content` once typing pauses. */
+/** Renders `content` once typing pauses. Does nothing before `show` gives
+ * a target. */
 export function update(path: string, content: () => string) {
   const el = target;
   if (!el) return;

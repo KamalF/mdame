@@ -109,7 +109,6 @@ function place(article: HTMLElement) {
     // A wide block that grew past the column takes its bar along.
     bar.style.marginLeft = `${shifts[index]}px`;
     if (kind === "removed") {
-      // In the gap above the block, or below the last one.
       bar.style.top = `${(below ? rect.bottom + 8 : rect.top - 8) - top}px`;
     } else {
       bar.style.top = `${rect.top - top + 2}px`;

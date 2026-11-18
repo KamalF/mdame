@@ -15,7 +15,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 type Client = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-/// Serves `state` on a free port; the `Arc` lets the test send events.
+/// The `Arc` lets the test send events.
 async fn serve(state: AppState) -> (Arc<AppState>, String) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

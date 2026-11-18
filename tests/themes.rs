@@ -12,7 +12,6 @@ use mdame::server::router;
 use mdame::themes::BUILT_INS;
 use serde_json::json;
 
-/// A state whose themes folder is `dir/themes`, holding `files`.
 fn with_themes(dir: &Path, files: &[(&str, &str)]) -> AppState {
     let themes = dir.join("themes");
     fs::create_dir_all(&themes).unwrap();
@@ -38,7 +37,6 @@ async fn each_built_in_theme_is_listed_and_served() {
     }
 }
 
-/// The built-ins, then `users`.
 fn listed(users: &[&str]) -> serde_json::Value {
     json!([&BUILT_INS[..], users].concat())
 }

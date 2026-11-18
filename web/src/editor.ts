@@ -69,7 +69,6 @@ const palette = EditorView.theme({
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
     background: "var(--selection)",
   },
-  // Translucent: the selection layer is drawn below the lines.
   ".cm-activeLine": { backgroundColor: tint("--fg", 4) },
   ".cm-gutters": {
     backgroundColor: "var(--bg-sunken)",
@@ -91,7 +90,6 @@ const palette = EditorView.theme({
     "&:active": { background: "var(--hover)" },
   },
   ".cm-selectionMatch": { backgroundColor: tint("--accent", 15) },
-  // Diff mode.
   "&.cm-merge-b .cm-changedLine, .cm-inlineChangedLine": { backgroundColor: tint("--success", 12) },
   "&.cm-merge-b .cm-changedText": { background: tint("--success", 30) },
   "&.cm-merge-a .cm-changedLine, .cm-deletedChunk": { backgroundColor: tint("--danger", 12) },
@@ -583,7 +581,6 @@ function noticePanel(current: Open, disk: Source | null): Panel {
   return { dom, top: true };
 }
 
-/** Creates the deleted file again, empty, then saves the text into it. */
 function recreate(current: Open) {
   current.queue("recreate", async () => {
     try {

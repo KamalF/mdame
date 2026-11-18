@@ -16,7 +16,7 @@ export function media(name: BuiltIn, scheme: BuiltIn | null): string {
   return name === scheme ? "all" : "not all";
 }
 
-/** Whether the theme on screen is dark. */
+/** Whether the theme on screen is dark: each theme sets `color-scheme`. */
 export function isDark(): boolean {
   return getComputedStyle(document.documentElement).colorScheme === "dark";
 }

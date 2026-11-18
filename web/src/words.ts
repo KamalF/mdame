@@ -50,7 +50,8 @@ export function forgetWords(node: Node) {
   counts.delete(node);
 }
 
-/** The text that a reader reads in `root`. */
+/** The text that a reader reads in `root`, with a space between each two
+ * text nodes. */
 function prose(root: Element): string {
   // Elements too, so that a skipped one is left out with all that it holds.
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {

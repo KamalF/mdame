@@ -31,7 +31,6 @@ export async function tokens(name: string, text: string): Promise<Piece[] | null
   return pieces;
 }
 
-/** Colours the `code.language-x` blocks in `root` that `include` keeps. */
 export async function highlightAll(root: HTMLElement, include = (_: Element) => true) {
   const blocks = root.querySelectorAll<HTMLElement>('pre > code[class^="language-"]');
   await Promise.all([...blocks].filter(include).map(highlight));

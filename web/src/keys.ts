@@ -21,7 +21,6 @@ export function bindKeys(map: Record<(typeof PAGE_KEYS)[number], () => void>) {
   addEventListener("keydown", (event: KeyboardEvent) => {
     const handler = (map as Record<string, () => void>)[event.key];
     if (!handler || !shouldHandle(event)) return;
-    // The page behind a dialog waits until it closes.
     if (document.querySelector("dialog[open]")) return;
     event.preventDefault();
     handler();

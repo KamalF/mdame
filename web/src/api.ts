@@ -11,7 +11,6 @@ export interface Workspace {
   start: string | null;
 }
 
-/** The body of a failed response, when the server sent one. */
 interface ErrorBody {
   error?: { code?: unknown; message?: unknown };
 }
@@ -76,7 +75,6 @@ export async function send(
   signal?: AbortSignal,
 ): Promise<Response> {
   const options: RequestInit = { method, headers, signal };
-  // A file, such as an image, goes as it is.
   if (body instanceof Blob) {
     options.headers = { ...headers, "content-type": body.type };
     options.body = body;

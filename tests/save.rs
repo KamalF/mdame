@@ -11,7 +11,6 @@ use mdame::app::AppState;
 use mdame::document::version;
 use serde_json::json;
 
-/// Saves `content` to `path`, with `If-Match` when `if_match` is given.
 async fn put(state: AppState, path: &str, if_match: Option<&str>, content: &str) -> Response {
     let uri = format!("/api/file?path={path}");
     let body = json!({ "content": content }).to_string();

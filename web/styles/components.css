@@ -447,7 +447,6 @@
   background: var(--hover);
 }
 
-/* The small labels of the menu, the help and the outline. */
 .mdame-menu-label,
 .mdame-help h3,
 .mdame-outline-label {
@@ -486,13 +485,12 @@
   cursor: pointer;
 }
 
-/* A long name ends in "…", and the count after it stays visible. */
+/* A long name gets cut, so that the count after it stays visible. */
 .mdame-changes-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The dot of a change: in the outline, and before the list of changes. */
 .mdame-changes-button::before,
 .mdame-outline-dot {
   width: 6px;

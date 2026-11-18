@@ -10,7 +10,6 @@ use common::{HOST, JSON, etag, etag_of, get_json, send_body};
 use mdame::app::AppState;
 use serde_json::json;
 
-/// A workspace with `a.md` and two of its revisions.
 fn workspace(dir: &Path) -> AppState {
     common::workspace(
         dir,

@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 
 const THEMES = `${import.meta.dir}/../themes`;
 
-/** The variables that a theme file sets, and its `color-scheme`. */
+/** The variables that a theme file sets, and its `color-scheme` as `scheme`. */
 function variables(file: string): Record<string, string> {
   const css = readFileSync(`${THEMES}/${file}`, "utf8");
   const found: Record<string, string> = {};

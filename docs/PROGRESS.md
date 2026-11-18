@@ -1241,7 +1241,7 @@ Run on 12 November 2026: checks 1 to 15 pass. Claude ran checks 1 to 14 in the C
 
 ## Comment cleanup, before milestone 15
 
-Done on 18 November 2026, in 12 commits; the branch waits for Kamal's review, and for CI on macOS, which runs the watcher tests there. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
+Done on 18 November 2026, in 15 commits; the branch waits for Kamal's review, and for CI on macOS, which runs the watcher tests there. Decided on 18 November 2026. Kamal asked for an audit of the comments in the code: which ones repeat the code, which ones justify a workaround, and which ones are useful, and why. Then he asked to act on it. The comments that can go are removed. The bugs and the workarounds that the audit found are fixed. The libraries are updated where an update helps. The branch `comments` starts from `main`, after the release of 0.2.2.
 
 The audit found about 1,200 comments. About 990 say what the code cannot: a threat, an order, a race, a measured cost, the behaviour of a library, or a value copied in another file. 86 repeat the code. 102 justify a workaround, and most of these rest on a fact outside mdame that still holds. 13 are stale, and some of them hide a bug or a gap.
 
@@ -1325,7 +1325,7 @@ Results:
   - The `failed` flag of `editor.ts` may say no more than `editor.openPath() === null` on an editing route. Needs a browser check of a reconnection during a mount.
 
 - From the comment cleanup, for later:
-  - The server could send each batch of the watcher as one WebSocket message. The page could then react once for each batch, instead of waiting 50 ms at three places for the events of one save.
+  - The server could send each batch of the watcher as one WebSocket message. The page could then react once for each batch, instead of waiting 50 ms at three places for the events of one save. Decided on 18 November 2026: a design session comes first. It settles whether a save that splits over two batches of the debouncer still needs the timers, and what a tab with the old page code does with the new messages.
 - From the review of milestone 7, for later:
   - The panel's error line and Restore button copy the dialog's `errorLine()` and button styles.
 - Nits deferred by the review of milestone 7:

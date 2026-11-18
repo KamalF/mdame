@@ -10,22 +10,24 @@ use crate::workspace::OWN_DIR;
 
 /// Creates the folder if it is missing.
 pub fn root(workspace: &Dir) -> io::Result<Dir> {
-    // Any other error than an existing folder comes back from
-    // create_dir_all below.
     // Only the owner may list it: its folders follow the workspace's file
     // names, also those in a private folder.
     let mut private = DirBuilder::new();
     private.mode(0o700);
-    if workspace.create_dir_with(OWN_DIR, &private).is_ok() {
-        // create_new follows no link that another program may have put
-        // there since the folder appeared.
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        match workspace.open_with(format!("{OWN_DIR}/.gitignore"), &options) {
-            Ok(mut file) => file.write_all(b"*\n")?,
-            Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error),
+    match workspace.create_dir_with(OWN_DIR, &private) {
+        Ok(()) => {
+            // create_new follows no link that another program may have put
+            // there since the folder appeared.
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+            match workspace.open_with(format!("{OWN_DIR}/.gitignore"), &options) {
+                Ok(mut file) => file.write_all(b"*\n")?,
+                Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
         }
+        Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error),
     }
     let history = format!("{OWN_DIR}/history");
     refuse_link(workspace, OWN_DIR)?;

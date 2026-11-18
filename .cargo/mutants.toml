@@ -34,9 +34,9 @@ exclude_re = [
     # writable: a full disk.
     "app.rs.*ErrorKind::AlreadyExists with true in kept_token",
     # The .gitignore of a .mdame made a moment before: AlreadyExists needs
-    # a race, another error a full disk.
-    "history.rs.*ErrorKind::AlreadyExists with (true|false) in root",
-    "history.rs.*replace == with != in root",
+    # a race, another error a full disk. The column keeps the guard of
+    # create_dir_with, which a test catches.
+    "history.rs:\\d+:(31|44): .* in root$",
     # A retry that never ends: the tests hang, and only a timeout ends them.
     "history.rs.*ErrorKind::AlreadyExists with true in snapshot",
     "history.rs.*replace == with != in snapshot",

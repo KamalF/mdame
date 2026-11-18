@@ -259,9 +259,6 @@ async function choose(current: Shown, id: string) {
   // Another revision was chosen meanwhile.
   if (shown !== current || current.chosen !== id) return;
   const { view } = current;
-  // A merge view that stays across a reconfigure keeps the deleted lines
-  // of the old revision: it goes first.
-  view.dispatch({ effects: diffMode.reconfigure([]) });
   const original = view.state.toText(content);
   view.dispatch({
     effects: diffMode.reconfigure(unifiedMergeView({ original, mergeControls: false })),

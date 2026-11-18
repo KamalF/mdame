@@ -1275,7 +1275,7 @@ Results:
 ## Next
 
 1. The Show HN.
-2. The comment cleanup: Kamal's review of the branch `comments`, then a push and CI on macOS.
+2. The comment cleanup: a review loop over the branch `comments`, its manual checks, a push and CI on macOS, then the release of 0.2.3. Decided on 18 November 2026.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points

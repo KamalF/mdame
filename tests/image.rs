@@ -103,15 +103,24 @@ async fn an_image_never_goes_in_a_hidden_folder() {
     assert!(!dir.path().join("ws/.claude/shot.png").exists());
 }
 
+/// Not in `PATH_ROUTES`: the path names a new file.
 #[tokio::test]
 async fn an_image_outside_the_workspace_is_refused() {
     let dir = common::tempdir();
     let app = workspace(dir.path());
-    for path in ["../shot.png", "/tmp/shot.png"] {
-        let (status, _) = save(&app, path, PNG.to_vec()).await;
+    let outside = dir.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    symlink(&outside, dir.path().join("ws/folder-out")).unwrap();
+    for path in ["../shot.png", "/tmp/shot.png", "folder-out/shot.png"] {
+        let (status, error) = save(&app, path, PNG.to_vec()).await;
         assert_eq!(status, StatusCode::FORBIDDEN, "{path}");
+        assert_eq!(
+            error["error"]["message"], "path outside the workspace",
+            "{path}"
+        );
     }
     assert!(!dir.path().join("shot.png").exists());
+    assert!(!outside.join("shot.png").exists());
 }
 
 #[tokio::test]

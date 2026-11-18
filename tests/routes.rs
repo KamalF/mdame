@@ -10,7 +10,7 @@ use common::{HOST, JSON, etag, send_body, status_and_json};
 use mdame::app::AppState;
 use serde_json::json;
 
-const ROUTES: [(Method, &str); 18] = [
+const ROUTES: [(Method, &str); 19] = [
     (Method::GET, "/"),
     (Method::GET, "/view/a.md"),
     (Method::GET, "/edit/a.md"),
@@ -23,6 +23,7 @@ const ROUTES: [(Method, &str); 18] = [
     (Method::GET, "/api/file?path=a.md"),
     (Method::PUT, "/api/file?path=a.md"),
     (Method::POST, "/api/file"),
+    (Method::POST, "/api/image?path=a.png"),
     (Method::GET, "/api/source?path=a.md"),
     (Method::POST, "/api/render"),
     (Method::GET, "/api/history?path=a.md"),
@@ -31,7 +32,8 @@ const ROUTES: [(Method, &str); 18] = [
     (Method::GET, "/ws"),
 ];
 
-/// Routes that take a workspace path, with `{}` where the path goes.
+/// Routes that take the path of an existing file, with `{}` where the path
+/// goes.
 const PATH_ROUTES: [(Method, &str); 6] = [
     (Method::GET, "/api/file?path={}"),
     (Method::GET, "/api/source?path={}"),
@@ -60,7 +62,7 @@ async fn every_route_refuses_a_foreign_origin() {
 }
 
 #[tokio::test]
-async fn routes_that_change_state_take_json_only() {
+async fn routes_that_change_state_refuse_a_form() {
     // The body type of a plain HTML form.
     let form = ("content-type", "application/x-www-form-urlencoded");
     for (method, uri) in ROUTES

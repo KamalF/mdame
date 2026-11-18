@@ -742,6 +742,7 @@ After milestone 15, toasts and the launchd service wait.
 | Milestone 14 takes the open points of medium and large impact on performance. Kamal asked for it to run without him; Claude decides the design and records each decision. Handoff and keys become milestone 15 | 12 November 2026 |
 | Milestone 14 releases 0.2.2, after its manual checklist | 12 November 2026 |
 | The comment cleanup takes notify-debouncer-full 0.8.0-rc.4 and notify 9.0.0-rc.9, and asks notify for no access events: the folders that the walk opens no longer reach the watcher | 18 November 2026 |
+| The comment cleanup releases 0.2.3, after its review loop and its manual checks | 18 November 2026 |
 
 ### Review log, 14 October 2026
 

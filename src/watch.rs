@@ -301,17 +301,11 @@ fn watch_folders(
     {
         let _ = debouncer.unwatch(hidden);
     }
-    // The debouncer looks for the watch of each event's path in the order
-    // of the watches. Sorted, the root comes first and matches at once.
-    // Otherwise, with 15,000 folders, the 30,000 events of one tree walk
-    // overflowed the inotify queue, and each overflow made the tabs walk
-    // the tree again.
-    let mut added: Vec<PathBuf> = if all {
+    let added: Vec<PathBuf> = if all {
         new.iter().cloned().collect()
     } else {
         new.difference(old).cloned().collect()
     };
-    added.sort();
     let mut watched = false;
     for folder in added {
         match debouncer.watch(&folder, RecursiveMode::NonRecursive) {
@@ -603,7 +597,7 @@ mod tests {
         fs::create_dir(&denied).unwrap();
         fs::set_permissions(&denied, Permissions::from_mode(0o000)).unwrap();
         fs::create_dir(root.join("c")).unwrap();
-        // Sorted, the vanished folder comes first: the others are still watched.
+        // In any order, the vanished and the denied folders leave `c` watched.
         let mut new = HashSet::from([root.join("a"), denied.clone(), root.join("c")]);
         let (mut debouncer, _received) = debouncer();
         assert!(watch_folders(

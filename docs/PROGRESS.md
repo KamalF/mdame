@@ -1250,6 +1250,10 @@ Steps, one commit each:
 1. `history::root` reports the real error when it cannot create `.mdame`. Since `6b9fb26`, `refuse_link` runs before `create_dir_all`, so a read-only or full disk gives "No such file or directory".
 2. notify 9.0.0-rc.9 and notify-debouncer-full 0.8.0-rc.4. The default config of the debouncer leaves out access events, so the kernel no longer reports the folders that the walk opens. The filters of Access events go.
 3. A measure of the walk on 15,000 folders without access events: the 4 threads of the walk, the `WALKING` lock, and the sort of the new watches. Each one stays only for a reason that still holds.
+   - Measured on 18 November 2026, with a release build, at a load of about 6 on 16 cores. With no access events, no number of threads gave a resync.
+   - One walk takes 0.68 s on 1 thread, 0.19 s on 4, and 0.12 s on 12, the default of `ignore`. Four tabs at once take 0.71 s on 4 threads, and 0.31 s on 12 threads without the lock.
+   - Without the sort, the start takes the same time, 1 s: 0.8 finds the watch of a path by a binary search. The sort goes.
+   - The 4 threads and the lock stay, for a new reason: they bound the memory that crafted ignore files can take.
 4. `vanished` loses its `Io(NotFound)` arm: notify 9 gives `PathNotFound` for a folder that goes during its watch.
 5. The checks of the ignore files cover the files that a `.git` file leads to, in a worktree or a submodule: the `.git` file, `commondir`, and `info/exclude` of the common folder.
 6. `tests/routes.rs` gets a row for `POST /api/image`.
@@ -1355,6 +1359,5 @@ Steps, one commit each:
   - Big workspaces: latinized names computed once for the filter. The limit on the filter results, the cached icons and a faster `/api/tree` came in milestone 10.
 - From the second review of the performance fixes, and the run of the manual checklist of milestone 10, for after 0.1.0:
   - Server: one walk for the tabs that ask at the same time. Today, N tabs wait N walks.
-  - Server: with notify 9, which can leave out the events of opened folders, revisit the 4 threads of the walk, the `WALKING` lock and the filters of Access events.
   - Morph: match the equal nodes of the middle before the pairs by position, so that an open `<details>` stays open when blocks change on both sides of it.
   - Mermaid: the cache holds 50 drawings, so a file with more diagrams misses on each one. A Gantt chart keeps the width of its first drawing. The diagrams on screen keep their theme until the next render.

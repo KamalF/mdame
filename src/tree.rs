@@ -53,13 +53,12 @@ pub fn build(workspace: &Workspace) -> Node {
     top.into_node(String::new(), String::new())
 }
 
-/// Each folder that a walk opens is an event on the watcher's own watches.
-/// On 15,000 folders, 16 threads overflowed the inotify queue; 4 did not,
-/// and walked 5 times faster than one.
+/// On 15,000 folders, 4 threads walk in 0.19 s, and 12 in 0.12 s. But each
+/// thread can compile a crafted ignore file: see `MAX_IGNORE_BYTES`.
 const WALK_THREADS: usize = 4;
 
-/// One walk at a time: four tabs that load the tree at once also ran 16
-/// threads.
+/// One walk at a time: `MAX_IGNORE_BYTES` then bounds the memory of all the
+/// walks, not of each one.
 static WALKING: Mutex<()> = Mutex::new(());
 
 /// The files that the walker reads in each folder, for its ignore rules.
@@ -71,9 +70,9 @@ const IGNORE_FILES: [&str; 3] = [".gitignore", ".ignore", ".git/info/exclude"];
 const MAX_IGNORE_FILE: u64 = 16 * 1024;
 
 /// The ignore files that one walk reads, in bytes. The walker builds the
-/// globs of up to 4 files at once, at about 700 times their size for
-/// crafted patterns, and keeps those of each folder above the one that it
-/// reads.
+/// globs of up to `WALK_THREADS` files at once, at about 700 times their
+/// size for crafted patterns, and keeps those of each folder above the one
+/// that it reads.
 const MAX_IGNORE_BYTES: u64 = 1024 * 1024;
 
 /// The ignore file of `folder` that the walker must not read, and why, if

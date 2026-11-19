@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.3 - 2026-11-19
+
+### Fixed
+
+- On Linux, with a folder of about 15,000 folders open, the page no longer
+  fetches the whole tree every 2 seconds while nothing changes.
+- When mdame cannot create its history folder, such as in a read-only folder
+  or on a full disk, a save gives the reason, such as "Permission denied". It
+  said "No such file or directory".
+- On Linux, a `.gitignore` link or a `gitdir:` line through `/proc/self/fd`
+  could block the tree, or take memory until the system stopped mdame. mdame
+  now refuses an ignore file whose path goes through a file system of the
+  kernel, such as procfs.
+- The checks of the ignore files now cover the `.git` file of a git worktree
+  or a submodule, and the files that it leads to. A `commondir` that was a
+  FIFO blocked the tree.
+- When a bad ignore file at or above the folder emptied the tree, live
+  updates stopped until mdame restarted, even after a fix of the file. They
+  now come back once the tree shows again.
+
 ## 0.2.2 - 2026-11-12
 
 ### Changed

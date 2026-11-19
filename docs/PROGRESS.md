@@ -1271,7 +1271,9 @@ Steps, one commit each:
    - The folders above the root are checked on its real path, as the walker reads them. A pull that turned the opened folder into a link made the walker read ignore files that mdame never checked. 0.2.2 has it too.
    - The file system of each device is checked once per walk: `fstatfs` costs a round trip to the server on NFS, 38 ms on one mount, and a workspace of 1,000 folders there would have lost 9.5 s per walk. A file system mounted elsewhere, or a file mounted on its own, has its own device.
    - An absolute `gitdir:` or `commondir` is followed from `/`, not from the current folder, as the walker does. A regular file at the end of a path gets its own check of file system: a file of procfs can be mounted on its own in another folder.
-   - macOS keeps the check by path: it has no procfs. Whether `/dev/fd/<n>` leads into a folder there waits for a check on Kamal's Mac.
+   - macOS keeps the check by path: it has no procfs, and a path through `/dev/fd/<n>` reaches no file. Checked on sachamac, with macOS 15.7.9, on 19 November 2026. With a folder open as `<n>`, a list of `/dev/fd/<n>` gives "Not a directory". A `stat` of `/dev/fd/<n>/probe`, a file of that folder, gives "No such file or directory". A link to `/dev/fd/<n>` itself stays open: see Open points.
+11. Release 0.2.3 (done). `Cargo.toml` says 0.2.3, and the section of 0.2.3 in `CHANGELOG.md` has the date of 19 November 2026. The README calls 0.2.3 an early release.
+   - Then Kamal pushes the branch, merges its pull request once CI passes on Linux and macOS, tags `v0.2.3` on `main`, and runs `cargo publish`, with the runbook `~/dev/claude/runbooks/2026-11-19-mdame-release-0.2.3.md`.
 
 Results:
 
@@ -1292,14 +1294,67 @@ Review loop, on 18 November 2026: one simplify pass, then three rounds with a co
 - Kept: the sort of the new watches stays out. 0.8 inserts each watch into a sorted list, so unsorted watches cost quadratic time. But on 15,000 folders, the inserts take 45 ms unsorted and 47 ms with the sort.
 - Older than the branch, found by the security review (0.2.1 has it too): each check of an ignore file reads a path that the walker opens again later. A path through `/proc/self/fd/<n>`, in a `gitdir:` line or a link, names another folder when the walker opens it, because the walker opens its own folder under the same number. A FIFO then blocks the tree, and a link to `/dev/zero` takes memory until the OOM killer stops mdame. Kamal decided on 18 November 2026 to fix it before 0.2.3, as step 10, after a design session.
 
+### Manual checklist
+
+These checks cover what no test covers: the walk and the watcher on real folders, a real git worktree, and the page in Chrome and Firefox. Run mdame with `cargo run --release -- -p 4996 <folder>`. A change on disk comes from a terminal, not from mdame's editor. macOS gets no check by hand: CI runs the watcher tests on its macOS runner.
+
+The folders:
+
+- `~/.cache/mdame-0.2.3-checks`, opened through the link `~/.cache/mdame-0.2.3-link`. It holds a copy of `morph.md` from `target/review/perf-files`, and a folder for each case below. `wt` is a git worktree of mdame: `git worktree add --detach ~/.cache/mdame-0.2.3-checks/wt`, with a file `docs/runbook.md` added.
+- `~/.cache/mdame-perf/mdn-content`, the copy of `mdn/content` from milestone 14.
+
+The ignore files, on `mdame-0.2.3-link`, in Chrome:
+
+1. The tree shows `morph.md`, `notes`, `linked` and `wt`, and leaves out `procfs`, whose `.gitignore` is a link to `/proc/self/fd/7`. The terminal says `skipped: …/procfs/.gitignore leads into a file system of the kernel, such as procfs`.
+2. In `linked`, whose `.gitignore` is a link to `../shared/rules`, the tree shows `shown.md` and hides `secret.md`.
+3. In `wt`, the tree shows `docs/PROGRESS.md` and hides `docs/runbook.md`. The `.git` file of the worktree leads to the `info/exclude` of the main repository, which lists `runbook.md`.
+
+The save, on `mdame-0.2.3-link`:
+
+4. Make the folder read-only: `chmod a-w ~/.cache/mdame-0.2.3-checks`. Edit `notes/b.md` in mdame, and save: the error says "Permission denied", not "No such file or directory", and the file on disk keeps its text. Then `chmod u+w` gives the write access back.
+
+Live updates, on `mdame-0.2.3-link`:
+
+5. On disk, create `notes/new.md`, write to it, rename it to `notes/renamed.md`, then delete it: the tree follows each change within a second, without a reload. Create a folder `fresh` with a file, then delete the folder: the tree shows it, then drops it.
+
+The page, on `mdame-0.2.3-link`, in Chrome:
+
+6. Open `morph.md`, and open its `<details>`. On disk, change `const b = 2;`: the code stays coloured, the diagrams stay drawn, and the `<details>` stays open.
+7. Click the copy button of a code block: the clipboard holds its code. On disk, add a code block to `morph.md`: its copy button copies its code.
+8. Save `notes/b.md` twice from the editor: once with a changed line, once with two lines deleted. Choose each of the two revisions in turn, back and forth: diff mode shows the changed and deleted lines of the chosen revision, and none of the other.
+
+The scale, on `mdn-content`, in Chrome:
+
+9. The tree shows at once. On disk, create `files/en-us/web/api/aaa-check/a.md`: the tree shows it, without a reload of the page.
+10. Each fetch of `/api/tree` walks every folder. The page fetches the tree once for each change on disk, and no more: the walk sends no event. Open and close 20 folders of the tree: the page does not fetch the tree. On disk, delete the folder `aaa-check`: the tree drops it.
+
+Firefox:
+
+11. Checks 6, 7 and 8: each works as in Chrome, with the real clipboard.
+
+Run on 19 November 2026: checks 1 to 11 pass. Claude ran checks 1 to 10 in the Chrome 157 of agent-browser, at 1280×633, on Kamal's release build, and made the changes on disk. Kamal read the terminal for check 1, and ran check 11 in Firefox. Notes:
+
+- 1: the terminal said `skipped: /home/kamal/.cache/mdame-0.2.3-checks/procfs/.gitignore leads into a file system of the kernel, such as procfs`. It names the real path of the root, not the link.
+- 4: the editor said `notes/b.md: cannot keep the old version in the history folder: Permission denied`, and no `.mdame` folder appeared.
+- 5: each change reached the tree within 0.3 s.
+- 7: the headless Chrome refuses the clipboard, so the check read what each button passed to `navigator.clipboard.writeText`.
+- 9: the tree of `mdn-content`, 14,759 folders and 4 MB of JSON, came in 0.28 s. Its rows showed 0.42 s after the start of the page load. A deleted folder left the tree in 0.97 to 1.02 s, in 3 runs. A created folder showed in 1.13 to 1.28 s, in 4 runs. The page asked for the tree 0.56 to 0.82 s after the change, and the server took 0.30 to 0.36 s to send it.
+- 10: the page fetched the tree 9 times: once at the load, and once for each of the 8 changes on disk.
+- 9 and 10 in 0.2.2, on the same folder: the page fetched the tree about every 2 s, also with no change on disk. Each fetch took about 0.67 s. A change showed in 0.46 to 1.0 s, at the next fetch of this loop. Not checked: which step of the branch ends the loop. Step 2 is the only one that changes the events of a walk.
+
 ## Next
 
 1. The Show HN.
-2. The comment cleanup: the check of `/dev/fd` on Kamal's Mac, the manual checks, a push and CI on macOS, then the release of 0.2.3. Decided on 18 November 2026.
+2. The comment cleanup: Kamal merges its pull request, and releases 0.2.3.
 3. Milestone 15: handoff and keys, for 0.3.0.
 
 ## Open points
 
+- From the check of `/dev/fd` on sachamac, on 19 November 2026: on macOS, a link to `/dev/fd/<n>` itself, with no name after it, can pass the check by path.
+  - If `<n>` is a regular file of 16 KiB or less when mdame checks the link, the check accepts it. When the walker opens the link, it gets a copy of what `<n>` names by then.
+  - For a socket, the copy reads the bytes that the other end sent. A closed `<n>` gives "Bad file descriptor", which the check refuses.
+  - The case needs a race between the check and the walk. Kamal decided on 19 November 2026 to release 0.2.3 without a fix.
+  - Not checked: what the walker does with a socket. Tokio's sockets do not block, so the read is expected to give an error or a browser's WebSocket bytes, not a hang.
 - From the manual checklist of milestone 14: in Chrome 156, the content of a closed `<details>` keeps a box, so `getClientRects()` is not empty. The scroll sync, the outline and the change bars take an element with no rect as hidden, so they count that content as shown. It was so before the milestone. `checkVisibility()` may be the fix.
 - From the review of milestone 14, for later:
   - The filter's results could be rows of the virtual tree too. The arrow keys, the focus and the current file would then follow one model, with no branch on the filter.
